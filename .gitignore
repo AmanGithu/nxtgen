@@ -1,3 +1,38 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+client/dist/
+server/dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Prisma
+server/prisma/migrations/
+
+# Misc
+*.tsbuildinfo
+coverage/
+
 # Exclude scripts directory
 scripts/
 Scripts/
@@ -5,3 +40,4 @@ Scripts/
 # Exclude .md files inside Screenshots directory
 [sS]creenshots/*.md
 [sS]creenshots/**/*.md
+
