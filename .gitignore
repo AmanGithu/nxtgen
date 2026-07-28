@@ -1,0 +1,7 @@
+# Exclude scripts directory
+scripts/
+Scripts/
+
+# Exclude .md files inside Screenshots directory
+[sS]creenshots/*.md
+[sS]creenshots/**/*.md
