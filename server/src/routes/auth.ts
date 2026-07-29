@@ -99,9 +99,20 @@ router.post('/register', async (req, res, next) => {
       },
     });
 
+    const tokens = generateTokens(user);
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        refreshToken: tokens.refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
     res.status(201).json({
       success: true,
-      user: { id: user.id, email: user.email, role: user.role },
+      tokens,
+      user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
     });
   } catch (error) {
     next(error);
