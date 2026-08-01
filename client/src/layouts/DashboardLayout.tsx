@@ -48,7 +48,7 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
     { name: 'LinkedIn Analyser', path: '/dashboard/student/tools/linkedin-analyser', icon: Users },
     { name: 'Cover Letter Builder', path: '/dashboard/student/tools/cover-letter', icon: FileText },
     { name: 'Interview Prep Kit', path: '/dashboard/student/tools/interview-prep', icon: LayoutDashboard },
-    { name: 'I-Assist Teleprompter', path: '/dashboard/student/tools/i-assist', icon: Mic },
+    { name: 'I-Assist', path: '/dashboard/student/tools/i-assist', icon: Mic },
     { name: 'Live AI Interview', path: '/dashboard/student/tools/live-interview', icon: Bot },
     { name: 'Unlock All Packages', path: '/dashboard/student/unlock', icon: Lock },
   ];

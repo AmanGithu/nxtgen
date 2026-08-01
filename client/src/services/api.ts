@@ -81,4 +81,22 @@ export const corporateAPI = {
   inquire: (data: any) => api.post('/corporate/inquire', data),
 };
 
+export const iAssistAPI = {
+  getAssistants: () => api.get('/iassist/assistants'),
+  createAssistant: (data: any) => api.post('/iassist/assistants', data),
+  updateAssistant: (id: string, data: any) => api.put(`/iassist/assistants/${id}`, data),
+  deleteAssistant: (id: string) => api.delete(`/iassist/assistants/${id}`),
+  addMaterial: (assistantId: string, data: any) => api.post(`/iassist/assistants/${assistantId}/materials`, data),
+  removeMaterial: (assistantId: string, materialId: string) => api.delete(`/iassist/assistants/${assistantId}/materials/${materialId}`),
+
+  getDocuments: (search?: string) => api.get('/iassist/documents', { params: { search } }),
+  getDocument: (id: string) => api.get(`/iassist/documents/${id}`),
+  uploadDocument: (formData: FormData) => api.post('/iassist/documents', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  createDocument: (data: any) => api.post('/iassist/documents', data),
+  deleteDocument: (id: string) => api.delete(`/iassist/documents/${id}`),
+
+  getSessions: (period?: string) => api.get('/iassist/sessions', { params: { period } }),
+  getSession: (id: string) => api.get(`/iassist/sessions/${id}`),
+};
+
 export default api;
