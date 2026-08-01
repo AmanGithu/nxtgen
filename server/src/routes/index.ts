@@ -8,6 +8,8 @@ import corporateRouter from './corporate';
 import adminRouter from './admin';
 import studentRouter from './student';
 import toolsRouter from './tools';
+import iassistRouter from './iassist';
+import iassistDesktopRouter from './iassistDesktop';
 
 const router = Router();
 
@@ -20,5 +22,7 @@ router.use('/corporate', corporateRouter);
 router.use('/admin', adminRouter);
 router.use('/student', studentRouter);
 router.use('/tools', toolsRouter);
+router.use('/iassist/desktop', iassistDesktopRouter);
+router.use('/iassist', iassistRouter);
 
 export default router;
