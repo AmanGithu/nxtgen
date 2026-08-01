@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I-Assist Session</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #111118;
+      --surface: #1a1a24;
+      --surface-2: #22222e;
+      --border: #2a2a3a;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --accent: #f5820b;
+      --accent-hover: #e0750a;
+      --success: #1d9e75;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      user-select: none;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .session-container {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* --- Header --- */
+
+    .session-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .session-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .session-info .assistant-name {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .category-badge {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .badge-behavioral { background: #26215C; color: #9B93F0; }
+    .badge-technical { background: #04342C; color: #34D399; }
+    .badge-system_design { background: #4A1B0C; color: #FB923C; }
+    .badge-general { background: #27272a; color: #a1a1aa; }
+
+    .session-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      -webkit-app-region: no-drag;
+    }
+
+    .timer {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      color: var(--accent);
+      min-width: 44px;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      font-size: 14px;
+      line-height: 1;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .icon-btn:hover { color: var(--text); background: var(--surface); }
+
+    .stop-btn {
+      background: var(--danger);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .stop-btn:hover { background: #dc2626; }
+
+    /* --- Transcript panel --- */
+
+    .transcript-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .transcript-panel::-webkit-scrollbar { width: 4px; }
+    .transcript-panel::-webkit-scrollbar-track { background: transparent; }
+    .transcript-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .transcript-entry {
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+
+    .transcript-entry.user {
+      background: var(--surface);
+      border-left: 3px solid var(--warning);
+    }
+
+    .transcript-entry.assistant {
+      background: var(--surface-2);
+      border-left: 3px solid var(--success);
+    }
+
+    .transcript-entry .speaker {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .transcript-entry.user .speaker { color: var(--warning); }
+    .transcript-entry.assistant .speaker { color: var(--success); }
+
+    .transcript-entry .content {
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+
+    .transcript-entry .timestamp {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .thinking-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .thinking-dots span {
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: dotPulse 1.2s infinite;
+      margin-right: 2px;
+    }
+
+    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotPulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    /* --- Live transcription bar --- */
+
+    .live-bar {
+      border-top: 1px solid var(--border);
+      padding: 8px 14px;
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .live-bar .label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-bar .label .rec-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--danger);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .live-bar .live-text {
+      font-size: 12px;
+      color: var(--text);
+      min-height: 18px;
+      max-height: 36px;
+      overflow-y: auto;
+      word-wrap: break-word;
+    }
+
+    /* --- Query input --- */
+
+    .query-bar {
+      border-top: 1px solid var(--border);
+      padding: 8px 14px;
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .query-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      resize: none;
+    }
+
+    .query-input:focus { border-color: var(--accent); }
+    .query-input::placeholder { color: var(--text-muted); }
+
+    .send-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      align-self: flex-end;
+    }
+
+    .send-btn:hover { background: var(--accent-hover); }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="session-container">
+    <div class="session-header">
+      <div class="session-info">
+        <span class="assistant-name" id="assistant-name">Assistant</span>
+        <span class="category-badge badge-general" id="category-badge">General</span>
+      </div>
+      <div class="session-controls">
+        <span class="timer" id="timer">00:00</span>
+        <button class="stop-btn" id="btn-stop" title="Stop session (Ctrl+Shift+Alt+X)">Stop</button>
+      </div>
+    </div>
+
+    <div class="transcript-panel" id="transcript-panel">
+      <div class="empty-state" id="empty-state">
+        Listening for audio...<br>
+        Transcriptions and AI responses will appear here.
+      </div>
+    </div>
+
+    <div class="thinking-indicator hidden" id="thinking-indicator">
+      <div class="thinking-dots"><span></span><span></span><span></span></div>
+      <span>AI is thinking...</span>
+    </div>
+
+    <div class="live-bar">
+      <div class="label">
+        <span class="rec-dot"></span>
+        Live Transcription
+      </div>
+      <div class="live-text" id="live-text">Waiting for speech...</div>
+    </div>
+
+    <div class="query-bar">
+      <input type="text" class="query-input" id="query-input" placeholder="Ask a question or type a command..." />
+      <button class="send-btn" id="btn-send">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const transcriptPanel = $('#transcript-panel');
+    const emptyState = $('#empty-state');
+    const liveText = $('#live-text');
+    const timerEl = $('#timer');
+    const btnStop = $('#btn-stop');
+    const btnSend = $('#btn-send');
+    const queryInput = $('#query-input');
+    const thinkingIndicator = $('#thinking-indicator');
+    const assistantNameEl = $('#assistant-name');
+    const categoryBadge = $('#category-badge');
+
+    let sessionSeconds = 0;
+    let timerInterval = null;
+    let conversationHistory = [];
+    let transcriptBuffer = '';
+    let hasEntries = false;
+
+    // --- Audio capture ---
+
+    let mediaStream = null;
+    let mediaRecorder = null;
+    let vadInterval = null;
+    let audioContext = null;
+    let analyser = null;
+    const VAD_THRESHOLD = 0.02;
+    const VAD_INTERVAL_MS = 100;
+    const CHUNK_DURATION_MS = 3000;
+    let isRecording = false;
+    let chunkTimer = null;
+
+    async function startAudioCapture() {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+            },
+          },
+        });
+
+        audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+
+        startVAD();
+      } catch (err) {
+        console.error('Audio capture failed, falling back to microphone', err);
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          audioContext = new AudioContext();
+          const source = audioContext.createMediaStreamSource(mediaStream);
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          startVAD();
+        } catch (micErr) {
+          console.error('Microphone capture also failed', micErr);
+          liveText.textContent = 'Audio capture failed. Check permissions.';
+        }
+      }
+    }
+
+    function startVAD() {
+      const dataArray = new Float32Array(analyser.fftSize);
+
+      vadInterval = setInterval(() => {
+        analyser.getFloatTimeDomainData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i] * dataArray[i];
+        }
+        const rms = Math.sqrt(sum / dataArray.length);
+
+        if (rms > VAD_THRESHOLD && !isRecording) {
+          startRecordingChunk();
+        }
+      }, VAD_INTERVAL_MS);
+    }
+
+    function startRecordingChunk() {
+      if (isRecording || !mediaStream) return;
+      isRecording = true;
+
+      mediaRecorder = new MediaRecorder(mediaStream, {
+        mimeType: 'audio/webm;codecs=opus',
+      });
+
+      const chunks = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        isRecording = false;
+        if (chunks.length === 0) return;
+
+        const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result.split(',')[1];
+          window.iAssist.sendAudioChunk(base64, 'audio/webm;codecs=opus');
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      mediaRecorder.start();
+
+      chunkTimer = setTimeout(() => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      }, CHUNK_DURATION_MS);
+    }
+
+    function stopAudioCapture() {
+      clearInterval(vadInterval);
+      vadInterval = null;
+
+      if (chunkTimer) {
+        clearTimeout(chunkTimer);
+        chunkTimer = null;
+      }
+
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
+      mediaRecorder = null;
+
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+      }
+
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+      }
+
+      isRecording = false;
+    }
+
+    // --- Timer ---
+
+    function startTimer() {
+      sessionSeconds = 0;
+      timerInterval = setInterval(() => {
+        sessionSeconds++;
+        const m = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
+        const s = String(sessionSeconds % 60).padStart(2, '0');
+        timerEl.textContent = `${m}:${s}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+
+    // --- Transcript rendering ---
+
+    function formatTimestamp(seconds) {
+      const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+      const s = String(seconds % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function addTranscriptEntry(speaker, text, timestamp) {
+      if (!hasEntries) {
+        emptyState.classList.add('hidden');
+        hasEntries = true;
+      }
+
+      const entry = document.createElement('div');
+      entry.className = `transcript-entry ${speaker}`;
+      entry.innerHTML = `
+        <div class="speaker">${speaker === 'user' ? '&#127908; Heard' : '&#129302; AI Response'}</div>
+        <div class="content">${escapeHtml(text)}</div>
+        <div class="timestamp">${formatTimestamp(timestamp || sessionSeconds)}</div>
+      `;
+
+      transcriptPanel.appendChild(entry);
+      transcriptPanel.scrollTop = transcriptPanel.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // --- Query handling ---
+
+    function sendQuery() {
+      const message = queryInput.value.trim();
+      if (!message) return;
+
+      queryInput.value = '';
+      addTranscriptEntry('user', message);
+
+      conversationHistory.push({ role: 'user', text: message });
+
+      window.iAssist.sendQuery(message, conversationHistory);
+    }
+
+    btnSend.addEventListener('click', sendQuery);
+    queryInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendQuery();
+      }
+    });
+
+    btnStop.addEventListener('click', () => window.iAssist.stopSession());
+
+    // --- IPC listeners ---
+
+    window.iAssist.onStartAudioCapture((data) => {
+      if (data.assistant) {
+        assistantNameEl.textContent = data.assistant.name || 'Assistant';
+        const cat = (data.assistant.category || 'general').toLowerCase();
+        categoryBadge.className = `category-badge badge-${cat}`;
+        categoryBadge.textContent = cat.replace('_', ' ');
+      }
+      startTimer();
+      startAudioCapture();
+    });
+
+    window.iAssist.onStopAudioCapture(() => {
+      stopAudioCapture();
+      stopTimer();
+    });
+
+    window.iAssist.onTranscriptionUpdate((data) => {
+      if (data.text) {
+        liveText.textContent = data.text;
+        transcriptBuffer += (transcriptBuffer ? ' ' : '') + data.text;
+
+        addTranscriptEntry('user', data.text);
+
+        conversationHistory.push({ role: 'user', text: data.text });
+        window.iAssist.sendQuery(data.text, conversationHistory);
+      }
+    });
+
+    window.iAssist.onLlmAnswer((data) => {
+      if (data.response) {
+        addTranscriptEntry('assistant', data.response);
+        conversationHistory.push({ role: 'model', text: data.response });
+      }
+    });
+
+    window.iAssist.onAiThinking((data) => {
+      thinkingIndicator.classList.toggle('hidden', !data.thinking);
+      if (data.thinking) {
+        transcriptPanel.scrollTop = transcriptPanel.scrollHeight;
+      }
+    });
+
+    window.iAssist.onOpacityUpdate((opacity) => {
+      document.body.style.opacity = opacity;
+    });
+
+    // --- Init ---
+
+    (async () => {
+      const settings = await window.iAssist.getInitialSettings();
+      if (settings.assistant) {
+        assistantNameEl.textContent = settings.assistant.name || 'Assistant';
+        const cat = (settings.assistant.category || 'general').toLowerCase();
+        categoryBadge.className = `category-badge badge-${cat}`;
+        categoryBadge.textContent = cat.replace('_', ' ');
+      }
+    })();
+  </script>
+</body>
+</html>

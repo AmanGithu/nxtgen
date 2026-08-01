@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I-Assist Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #111118;
+      --surface: #1a1a24;
+      --surface-2: #22222e;
+      --border: #2a2a3a;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --accent: #f5820b;
+      --accent-hover: #e0750a;
+      --success: #1d9e75;
+      --danger: #ef4444;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      user-select: none;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .settings-container {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .settings-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .settings-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    .close-btn:hover { color: var(--text); background: var(--surface); }
+
+    .settings-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .settings-body::-webkit-scrollbar { width: 4px; }
+    .settings-body::-webkit-scrollbar-track { background: transparent; }
+    .settings-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .section-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* --- Account section --- */
+
+    .account-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .account-avatar {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .account-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .account-name {
+      font-weight: 600;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .account-email {
+      font-size: 11px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .account-role {
+      font-size: 10px;
+      color: var(--accent);
+      background: rgba(245, 130, 11, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-top: 2px;
+      display: inline-block;
+    }
+
+    .not-signed-in {
+      text-align: center;
+      padding: 8px 0;
+    }
+
+    .not-signed-in p {
+      color: var(--text-muted);
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+
+    /* --- Buttons --- */
+
+    .btn {
+      padding: 7px 14px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-align: center;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover { border-color: var(--text-muted); }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.1); }
+
+    .btn-block { width: 100%; }
+
+    /* --- Slider --- */
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .setting-label {
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .setting-value {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      min-width: 32px;
+      text-align: right;
+    }
+
+    .slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    /* --- Theme toggle --- */
+
+    .theme-toggle {
+      display: flex;
+      gap: 4px;
+      background: var(--surface-2);
+      border-radius: var(--radius);
+      padding: 2px;
+    }
+
+    .theme-option {
+      flex: 1;
+      padding: 6px 0;
+      text-align: center;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: inherit;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .theme-option.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    /* --- Server URL --- */
+
+    .url-input {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      width: 100%;
+      outline: none;
+    }
+
+    .url-input:focus { border-color: var(--accent); }
+
+    .url-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: -4px;
+    }
+
+    /* --- Shortcuts info --- */
+
+    .shortcut-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .shortcut-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .shortcut-keys {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--surface-2);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .version {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="settings-container">
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <button class="close-btn" id="btn-close" title="Close">&times;</button>
+    </div>
+
+    <div class="settings-body">
+      <!-- Account -->
+      <div class="section">
+        <div class="section-title">Account</div>
+        <div class="section-content">
+          <div id="account-signed-in" class="hidden">
+            <div class="account-info">
+              <div class="account-avatar" id="avatar">?</div>
+              <div class="account-details">
+                <div class="account-name" id="user-name">—</div>
+                <div class="account-email" id="user-email">—</div>
+                <span class="account-role" id="user-role">—</span>
+              </div>
+            </div>
+            <div style="margin-top: 10px; display: flex; gap: 8px;">
+              <button class="btn btn-outline" style="flex:1" id="btn-dashboard">Open Dashboard</button>
+              <button class="btn btn-danger" style="flex:1" id="btn-sign-out">Sign Out</button>
+            </div>
+          </div>
+          <div id="account-signed-out" class="not-signed-in hidden">
+            <p>Sign in to your NxtGen account to use I-Assist</p>
+            <button class="btn btn-primary btn-block" id="btn-sign-in">Sign In with NxtGen</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="section">
+        <div class="section-title">Appearance</div>
+        <div class="section-content">
+          <div class="setting-row">
+            <span class="setting-label">Opacity</span>
+            <input type="range" class="slider" id="opacity-slider" min="0.1" max="1" step="0.05" value="0.9">
+            <span class="setting-value" id="opacity-value">90%</span>
+          </div>
+          <div>
+            <span class="setting-label" style="display:block; margin-bottom: 6px;">Theme</span>
+            <div class="theme-toggle">
+              <button class="theme-option active" data-theme="dark">Dark</button>
+              <button class="theme-option" data-theme="light">Light</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Server -->
+      <div class="section">
+        <div class="section-title">Server</div>
+        <div class="section-content">
+          <div>
+            <span class="setting-label" style="display:block; margin-bottom: 6px;">API Base URL</span>
+            <input type="text" class="url-input" id="api-url" placeholder="http://localhost:3001/api">
+            <p class="url-hint">Change only if using a custom server deployment</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Keyboard shortcuts -->
+      <div class="section">
+        <div class="section-title">Keyboard Shortcuts</div>
+        <div class="section-content">
+          <div class="shortcut-list">
+            <div class="shortcut-row">
+              <span>Toggle Bar</span>
+              <span class="shortcut-keys">Ctrl+Shift+Alt+I</span>
+            </div>
+            <div class="shortcut-row">
+              <span>Toggle Overlay</span>
+              <span class="shortcut-keys">Ctrl+Shift+Alt+O</span>
+            </div>
+            <div class="shortcut-row">
+              <span>Stop Session</span>
+              <span class="shortcut-keys">Ctrl+Shift+Alt+X</span>
+            </div>
+            <div class="shortcut-row">
+              <span>Open Settings</span>
+              <span class="shortcut-keys">Ctrl+Shift+Alt+S</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="version">NxtGen I-Assist v1.0.0</div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const btnClose = $('#btn-close');
+    const btnSignIn = $('#btn-sign-in');
+    const btnSignOut = $('#btn-sign-out');
+    const btnDashboard = $('#btn-dashboard');
+    const accountSignedIn = $('#account-signed-in');
+    const accountSignedOut = $('#account-signed-out');
+    const avatarEl = $('#avatar');
+    const userNameEl = $('#user-name');
+    const userEmailEl = $('#user-email');
+    const userRoleEl = $('#user-role');
+    const opacitySlider = $('#opacity-slider');
+    const opacityValue = $('#opacity-value');
+    const apiUrlInput = $('#api-url');
+    const themeButtons = document.querySelectorAll('.theme-option');
+
+    function showAccount(user) {
+      if (user) {
+        accountSignedIn.classList.remove('hidden');
+        accountSignedOut.classList.add('hidden');
+        const initials = (user.name || user.email || '?').charAt(0).toUpperCase();
+        avatarEl.textContent = initials;
+        userNameEl.textContent = user.name || '—';
+        userEmailEl.textContent = user.email || '—';
+        userRoleEl.textContent = user.role || '—';
+      } else {
+        accountSignedIn.classList.add('hidden');
+        accountSignedOut.classList.remove('hidden');
+      }
+    }
+
+    function setThemeUI(theme) {
+      themeButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === theme);
+      });
+    }
+
+    // --- Event handlers ---
+
+    btnClose.addEventListener('click', () => window.iAssist.closeSettings());
+
+    btnSignIn.addEventListener('click', () => window.iAssist.openSignIn());
+
+    btnSignOut.addEventListener('click', () => {
+      window.iAssist.signOut();
+      showAccount(null);
+    });
+
+    btnDashboard.addEventListener('click', () => window.iAssist.openWebDashboard());
+
+    opacitySlider.addEventListener('input', () => {
+      const val = parseFloat(opacitySlider.value);
+      opacityValue.textContent = `${Math.round(val * 100)}%`;
+      window.iAssist.setOpacity(val);
+    });
+
+    themeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        setThemeUI(btn.dataset.theme);
+        window.iAssist.setTheme(btn.dataset.theme);
+      });
+    });
+
+    apiUrlInput.addEventListener('change', () => {
+      const url = apiUrlInput.value.trim();
+      if (url) window.iAssist.setApiBaseUrl(url);
+    });
+
+    // --- IPC listeners ---
+
+    window.iAssist.onAuthStateChanged((data) => {
+      showAccount(data.isAuthenticated ? data.user || currentUser : null);
+    });
+
+    window.iAssist.onOpacityUpdate((opacity) => {
+      opacitySlider.value = opacity;
+      opacityValue.textContent = `${Math.round(opacity * 100)}%`;
+    });
+
+    window.iAssist.onThemeUpdate((theme) => {
+      setThemeUI(theme);
+    });
+
+    // --- Init ---
+
+    let currentUser = null;
+
+    (async () => {
+      const settings = await window.iAssist.getInitialSettings();
+      currentUser = settings.user;
+      showAccount(settings.isAuthenticated ? settings.user : null);
+      opacitySlider.value = settings.opacity;
+      opacityValue.textContent = `${Math.round(settings.opacity * 100)}%`;
+      setThemeUI(settings.theme);
+      apiUrlInput.value = settings.apiBaseUrl || '';
+    })();
+  </script>
+</body>
+</html>

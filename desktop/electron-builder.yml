@@ -1,0 +1,40 @@
+appId: com.nxtgen.iassist
+productName: NxtGen I-Assist
+copyright: Copyright © 2026 NxtGen Academy
+
+directories:
+  output: dist
+  buildResources: assets
+
+files:
+  - main.js
+  - preload.js
+  - src/**/*
+  - assets/**/*
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,readme,test,__tests__,tests,powered-test,example,examples,*.d.ts}"
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: assets/icon.ico
+
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  icon: assets/icon.icns
+  category: public.app-category.education
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  icon: assets/icon.png
+  category: Education
+
+nsis:
+  oneClick: true
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

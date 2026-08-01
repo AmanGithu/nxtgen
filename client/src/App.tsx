@@ -16,6 +16,7 @@ const UpcomingBatches = lazy(() => import('./pages/UpcomingBatches'));
 const Corporate = lazy(() => import('./pages/Corporate'));
 const ToolsPreview = lazy(() => import('./pages/ToolsPreview'));
 const Login = lazy(() => import('./pages/Login'));
+const DesktopAuthorize = lazy(() => import('./pages/DesktopAuthorize'));
 
 // Admin Modules (Slice 3)
 const AdminOverview = lazy(() => import('./pages/admin/Overview'));
@@ -129,6 +130,9 @@ function App() {
                     <Route path="*" element={<Placeholder title="Student Module Content" />} />
                   </Route>
                 </Route>
+
+                {/* Desktop Auth (standalone — no layout wrapper) */}
+                <Route path="/desktop-authorize" element={<DesktopAuthorize />} />
 
                 <Route path="/unauthorized" element={<Placeholder title="Unauthorized Access" />} />
                 <Route path="*" element={<Placeholder title="404 Not Found" />} />

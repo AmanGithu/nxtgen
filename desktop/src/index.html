@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NxtGen I-Assist</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #111118;
+      --surface: #1a1a24;
+      --border: #2a2a3a;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --accent: #f5820b;
+      --accent-hover: #e0750a;
+      --success: #1d9e75;
+      --danger: #ef4444;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      -webkit-app-region: drag;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    .bar {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .bar-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .bar-title .logo {
+      width: 20px;
+      height: 20px;
+      background: var(--accent);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .bar-title span {
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: -0.01em;
+    }
+
+    .bar-actions {
+      display: flex;
+      gap: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      font-size: 14px;
+      line-height: 1;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .icon-btn:hover { color: var(--text); background: var(--surface); }
+
+    .bar-body {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      -webkit-app-region: no-drag;
+    }
+
+    .assistant-select {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .assistant-select:focus { border-color: var(--accent); }
+
+    .category-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .dot-behavioral { background: #7F77DD; }
+    .dot-technical { background: #1D9E75; }
+    .dot-system_design { background: #D85A30; }
+    .dot-general { background: #888780; }
+
+    .session-btn {
+      padding: 6px 14px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .session-btn.start {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .session-btn.start:hover { background: var(--accent-hover); }
+    .session-btn.start:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .session-btn.stop {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .session-btn.stop:hover { background: #dc2626; }
+
+    .bar-status {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .status-dot.connected { background: var(--success); }
+    .status-dot.disconnected { background: var(--danger); }
+    .status-dot.active { background: var(--accent); animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .auth-prompt {
+      text-align: center;
+      padding: 8px;
+      -webkit-app-region: no-drag;
+    }
+
+    .auth-prompt p {
+      margin-bottom: 8px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .auth-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .auth-btn:hover { background: var(--accent-hover); }
+
+    .timer {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <div class="bar-header">
+      <div class="bar-title">
+        <div class="logo">iA</div>
+        <span>I-Assist</span>
+      </div>
+      <div class="bar-actions">
+        <button class="icon-btn" id="btn-settings" title="Settings">&#9881;</button>
+        <button class="icon-btn" id="btn-web" title="Open Web Dashboard">&#8599;</button>
+      </div>
+    </div>
+
+    <div id="auth-view" class="auth-prompt hidden">
+      <p>Sign in to start using I-Assist</p>
+      <button class="auth-btn" id="btn-sign-in">Sign In</button>
+    </div>
+
+    <div id="main-view" class="hidden">
+      <div class="bar-body">
+        <select class="assistant-select" id="assistant-select">
+          <option value="" disabled selected>No assistants</option>
+        </select>
+        <button class="session-btn start" id="btn-start">Start</button>
+        <button class="session-btn stop hidden" id="btn-stop">Stop</button>
+      </div>
+      <div class="bar-status">
+        <span class="status-dot connected" id="status-dot"></span>
+        <span id="status-text">Ready</span>
+        <span class="timer hidden" id="timer">00:00</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const assistantSelect = $('#assistant-select');
+    const btnStart = $('#btn-start');
+    const btnStop = $('#btn-stop');
+    const btnSettings = $('#btn-settings');
+    const btnWeb = $('#btn-web');
+    const btnSignIn = $('#btn-sign-in');
+    const statusDot = $('#status-dot');
+    const statusText = $('#status-text');
+    const timerEl = $('#timer');
+    const authView = $('#auth-view');
+    const mainView = $('#main-view');
+
+    let assistants = [];
+    let sessionActive = false;
+    let timerInterval = null;
+    let sessionSeconds = 0;
+
+    function updateTimer() {
+      sessionSeconds++;
+      const m = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
+      const s = String(sessionSeconds % 60).padStart(2, '0');
+      timerEl.textContent = `${m}:${s}`;
+    }
+
+    function showAuthView(show) {
+      authView.classList.toggle('hidden', !show);
+      mainView.classList.toggle('hidden', show);
+    }
+
+    function populateAssistants(list) {
+      assistants = list;
+      assistantSelect.innerHTML = '';
+      if (list.length === 0) {
+        assistantSelect.innerHTML = '<option value="" disabled selected>No assistants — create one on the web</option>';
+        btnStart.disabled = true;
+        return;
+      }
+      list.forEach((a, i) => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = a.name;
+        if (i === 0) opt.selected = true;
+        assistantSelect.appendChild(opt);
+      });
+      btnStart.disabled = false;
+    }
+
+    function setSessionState(active) {
+      sessionActive = active;
+      btnStart.classList.toggle('hidden', active);
+      btnStop.classList.toggle('hidden', !active);
+      assistantSelect.disabled = active;
+
+      if (active) {
+        sessionSeconds = 0;
+        timerEl.classList.remove('hidden');
+        statusDot.className = 'status-dot active';
+        statusText.textContent = 'Session active';
+        timerInterval = setInterval(updateTimer, 1000);
+      } else {
+        timerEl.classList.add('hidden');
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = 'Ready';
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    // --- Event handlers ---
+
+    btnStart.addEventListener('click', () => {
+      const selected = assistants.find(a => a.id === assistantSelect.value);
+      if (selected) {
+        window.iAssist.setAssistant(selected);
+        window.iAssist.startSession();
+      }
+    });
+
+    btnStop.addEventListener('click', () => {
+      window.iAssist.stopSession();
+    });
+
+    btnSettings.addEventListener('click', () => window.iAssist.openSettings());
+    btnWeb.addEventListener('click', () => window.iAssist.openWebDashboard());
+    btnSignIn.addEventListener('click', () => window.iAssist.openSignIn());
+
+    assistantSelect.addEventListener('change', () => {
+      const selected = assistants.find(a => a.id === assistantSelect.value);
+      if (selected) window.iAssist.setAssistant(selected);
+    });
+
+    // --- IPC listeners ---
+
+    window.iAssist.onAuthStateChanged((data) => {
+      showAuthView(!data.isAuthenticated);
+    });
+
+    window.iAssist.onAssistantsAvailability((data) => {
+      populateAssistants(data.assistants || []);
+    });
+
+    window.iAssist.onAssistantUpdate((assistant) => {
+      if (assistant && assistantSelect.value !== assistant.id) {
+        assistantSelect.value = assistant.id;
+      }
+    });
+
+    window.iAssist.onSessionStateChanged((data) => {
+      setSessionState(data.active);
+    });
+
+    window.iAssist.onSessionStartFailed((data) => {
+      statusDot.className = 'status-dot disconnected';
+      statusText.textContent = data.error || 'Failed to start';
+      setTimeout(() => {
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = 'Ready';
+      }, 3000);
+    });
+
+    // --- Init ---
+
+    (async () => {
+      const settings = await window.iAssist.getInitialSettings();
+      showAuthView(!settings.isAuthenticated);
+      if (settings.isSessionActive) setSessionState(true);
+    })();
+  </script>
+</body>
+</html>

@@ -97,6 +97,8 @@ export const iAssistAPI = {
 
   getSessions: (period?: string) => api.get('/iassist/sessions', { params: { period } }),
   getSession: (id: string) => api.get(`/iassist/sessions/${id}`),
+
+  authorizeDesktop: (state: string) => api.post('/iassist/desktop/authorize', { state }),
 };
 
 export default api;
