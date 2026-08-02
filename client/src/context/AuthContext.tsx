@@ -33,7 +33,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (token) {
         try {
           const res = await authAPI.getMe();
-          setUser(res.data.user);
+          if (res.data?.user) {
+            const role = (res.data.user.role || '').toLowerCase() as UserRole;
+            setUser({ ...res.data.user, role });
+          }
         } catch (error) {
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
