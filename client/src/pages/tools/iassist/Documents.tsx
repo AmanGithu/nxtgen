@@ -467,7 +467,11 @@ const Documents = () => {
 
       {/* Document Viewer */}
       {viewingId && (
-        <DocumentViewerModal documentId={viewingId} onClose={() => setViewingId(null)} />
+        <DocumentViewerModal
+          documentId={viewingId}
+          onClose={() => setViewingId(null)}
+          onChanged={() => loadDocs(search)}
+        />
       )}
 
       {/* Upload Modal */}

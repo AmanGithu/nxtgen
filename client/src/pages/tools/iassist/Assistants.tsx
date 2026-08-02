@@ -679,7 +679,11 @@ const Assistants = () => {
 
       {/* Document Viewer */}
       {viewingDocId && (
-        <DocumentViewerModal documentId={viewingDocId} onClose={() => setViewingDocId(null)} />
+        <DocumentViewerModal
+          documentId={viewingDocId}
+          onClose={() => setViewingDocId(null)}
+          onChanged={loadAssistants}
+        />
       )}
 
       {/* Add Material Modal */}

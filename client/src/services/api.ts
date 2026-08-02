@@ -93,6 +93,7 @@ export const iAssistAPI = {
   getDocument: (id: string) => api.get(`/iassist/documents/${id}`),
   uploadDocument: (formData: FormData) => api.post('/iassist/documents', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   createDocument: (data: any) => api.post('/iassist/documents', data),
+  updateDocument: (id: string, data: any) => api.patch(`/iassist/documents/${id}`, data),
   deleteDocument: (id: string) => api.delete(`/iassist/documents/${id}`),
 
   getAnalytics: () => api.get('/iassist/analytics'),

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, AlertTriangle, RefreshCw, Copy, Check } from 'lucide-react';
+import { X, FileText, AlertTriangle, RefreshCw, Copy, Check, Pencil, Trash2 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
 
 interface FullDocument {
@@ -28,13 +28,29 @@ function formatDate(iso: string): string {
 interface DocumentViewerModalProps {
   documentId: string;
   onClose: () => void;
+  /** Called after a successful edit or delete so the parent can refresh its list. */
+  onChanged?: () => void;
 }
 
-const DocumentViewerModal = ({ documentId, onClose }: DocumentViewerModalProps) => {
+const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerModalProps) => {
   const [doc, setDoc] = useState<FullDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftDescription, setDraftDescription] = useState('');
+  const [draftContent, setDraftContent] = useState('');
+
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Content is only editable for pasted docs — uploaded files hold extracted text
+  // that must stay in sync with the original binary.
+  const isPasted = !!doc && !doc.fileName;
 
   const load = () => {
     setLoading(true);
@@ -50,10 +66,15 @@ const DocumentViewerModal = ({ documentId, onClose }: DocumentViewerModalProps) 
   useEffect(load, [documentId]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (confirmDelete) setConfirmDelete(false);
+      else if (editing) setEditing(false);
+      else onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, editing, confirmDelete]);
 
   const handleCopy = () => {
     if (!doc) return;
@@ -63,10 +84,60 @@ const DocumentViewerModal = ({ documentId, onClose }: DocumentViewerModalProps) 
     }).catch(() => {});
   };
 
+  const startEditing = () => {
+    if (!doc) return;
+    setDraftTitle(doc.title);
+    setDraftDescription(doc.description || '');
+    setDraftContent(doc.content);
+    setSaveError(null);
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!doc || !draftTitle.trim()) return;
+    if (isPasted && !draftContent.trim()) return;
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await iAssistAPI.updateDocument(doc.id, {
+        title: draftTitle.trim(),
+        description: draftDescription.trim() || null,
+        ...(isPasted ? { content: draftContent } : {}),
+      });
+      if (res.data.success) {
+        setDoc(res.data.document);
+        setEditing(false);
+        onChanged?.();
+      } else {
+        setSaveError('Failed to save changes.');
+      }
+    } catch (err: any) {
+      setSaveError(err?.response?.data?.message || 'Failed to save changes.');
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!doc) return;
+    setDeleting(true);
+    try {
+      await iAssistAPI.deleteDocument(doc.id);
+      onChanged?.();
+      onClose();
+    } catch {
+      setSaveError('Failed to delete document.');
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
+  const inputClass = 'w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="flex w-full max-w-3xl max-h-[85vh] flex-col rounded-xl border border-white/[0.08] bg-bg-surface shadow-2xl"
+        className="relative flex w-full max-w-3xl max-h-[85vh] flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-bg-surface shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -77,7 +148,7 @@ const DocumentViewerModal = ({ documentId, onClose }: DocumentViewerModalProps) 
               <h3 className="truncate text-sm font-semibold text-white">
                 {loading ? 'Loading...' : doc?.title || 'Document'}
               </h3>
-              {doc?.description && (
+              {!editing && doc?.description && (
                 <p className="mt-0.5 text-xs text-text-muted">{doc.description}</p>
               )}
               {doc && (
@@ -92,15 +163,31 @@ const DocumentViewerModal = ({ documentId, onClose }: DocumentViewerModalProps) 
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {doc && (
-              <button
-                onClick={handleCopy}
-                title="Copy text"
-                className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-white"
-              >
-                {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                {copied ? 'Copied' : 'Copy'}
-              </button>
+            {doc && !editing && (
+              <>
+                <button
+                  onClick={handleCopy}
+                  title="Copy text"
+                  className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-white"
+                >
+                  {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+                <button
+                  onClick={startEditing}
+                  title="Edit document"
+                  className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-white"
+                >
+                  <Pencil size={13} /> Edit
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  title="Delete document"
+                  className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:border-red-500/30 hover:text-red-400"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+              </>
             )}
             <button onClick={onClose} className="p-1.5 text-text-muted transition-colors hover:text-white">
               <X size={18} />
@@ -127,6 +214,50 @@ const DocumentViewerModal = ({ documentId, onClose }: DocumentViewerModalProps) 
                 <RefreshCw size={14} /> Retry
               </button>
             </div>
+          ) : editing ? (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-text-muted">Name *</label>
+                <input
+                  type="text"
+                  value={draftTitle}
+                  onChange={e => setDraftTitle(e.target.value)}
+                  maxLength={200}
+                  className={`mt-1 ${inputClass}`}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-text-muted">Description</label>
+                <textarea
+                  value={draftDescription}
+                  onChange={e => setDraftDescription(e.target.value)}
+                  placeholder="Optional description"
+                  rows={2}
+                  maxLength={500}
+                  className={`mt-1 resize-none ${inputClass}`}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-text-muted">Content {isPasted && '*'}</label>
+                {isPasted ? (
+                  <textarea
+                    value={draftContent}
+                    onChange={e => setDraftContent(e.target.value)}
+                    rows={14}
+                    maxLength={100000}
+                    className={`mt-1 resize-none font-mono text-xs leading-relaxed ${inputClass}`}
+                  />
+                ) : (
+                  <p className="mt-1 rounded-lg border border-white/[0.06] bg-bg-card px-3 py-2.5 text-xs text-text-muted">
+                    This text was extracted from <span className="text-white">{doc?.fileName}</span> and can't be edited
+                    directly. To change it, delete this document and upload a new version.
+                  </p>
+                )}
+              </div>
+              {saveError && (
+                <p className="text-xs text-red-400">{saveError}</p>
+              )}
+            </div>
           ) : !doc?.content.trim() ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <FileText size={32} className="mb-3 text-text-muted" />
@@ -139,6 +270,61 @@ const DocumentViewerModal = ({ documentId, onClose }: DocumentViewerModalProps) 
             </pre>
           )}
         </div>
+
+        {/* Edit footer */}
+        {editing && (
+          <div className="flex justify-end gap-3 border-t border-white/[0.06] px-6 py-4">
+            <button
+              onClick={() => setEditing(false)}
+              className="rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || !draftTitle.trim() || (isPasted && !draftContent.trim())}
+              className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-brand-orange/90 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save changes'}
+            </button>
+          </div>
+        )}
+
+        {/* Delete confirmation */}
+        {confirmDelete && doc && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setConfirmDelete(false)}>
+            <div
+              className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-bg-surface p-6 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3">
+                <AlertTriangle size={20} className="mt-0.5 shrink-0 text-red-400" />
+                <div>
+                  <h4 className="text-sm font-semibold text-white">Delete this document?</h4>
+                  <p className="mt-1 text-xs text-text-muted">
+                    <span className="text-white">{doc.title}</span> will be permanently removed. Any assistant using it
+                    keeps the attachment but loses its content. This can't be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 flex justify-end gap-3">
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-500/90 disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
