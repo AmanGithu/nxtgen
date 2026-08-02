@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
 import DocumentViewerModal from './DocumentViewerModal';
+import DeleteAssistantDialog from './DeleteAssistantDialog';
 
 const CATEGORY_LABELS: Record<string, string> = {
   BEHAVIORAL: 'Behavioral',
@@ -42,6 +43,9 @@ const ROLE_LABELS: Record<string, string> = {
 
 const CATEGORIES = ['BEHAVIORAL', 'TECHNICAL', 'SYSTEM_DESIGN', 'GENERAL'] as const;
 
+/** How often to refresh live desktop-session state while the tab is visible. */
+const LIVE_POLL_MS = 30_000;
+
 interface Material {
   id: string;
   role: string;
@@ -59,6 +63,7 @@ interface Assistant {
   instructions: string | null;
   materials: Material[];
   sessionCount: number;
+  activeSessionCount: number;
   lastUsedAt: string | null;
   createdAt: string;
 }
@@ -377,20 +382,49 @@ const Assistants = () => {
   const [editingAssistant, setEditingAssistant] = useState<Assistant | null>(null);
   const [saving, setSaving] = useState(false);
   const [materialModal, setMaterialModal] = useState<{ assistantId: string; role: string } | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Assistant | null>(null);
   const [viewingDocId, setViewingDocId] = useState<string | null>(null);
 
-  const loadAssistants = () => {
-    setLoading(true);
-    setError(null);
+  /**
+   * `silent` is for the background poll: it refreshes the data without swapping
+   * the list for a skeleton, and keeps the last good list on a failed request
+   * rather than replacing it with an error panel.
+   */
+  const loadAssistants = (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     iAssistAPI.getAssistants().then(res => {
       if (res.data.success) setAssistants(res.data.assistants);
     }).catch(() => {
-      setError('Failed to load assistants.');
-    }).finally(() => setLoading(false));
+      if (!silent) setError('Failed to load assistants.');
+    }).finally(() => {
+      if (!silent) setLoading(false);
+    });
   };
 
   useEffect(() => { loadAssistants(); }, []);
+
+  // Live session state changes on the desktop, not here, so poll to keep the
+  // "Live" badge and the delete warning current. Paused while the tab is hidden
+  // or the create/edit form is open.
+  useEffect(() => {
+    if (showForm) return;
+
+    const refresh = () => {
+      if (!document.hidden) loadAssistants({ silent: true });
+    };
+    const timer = setInterval(refresh, LIVE_POLL_MS);
+    // Catch up immediately when returning to the tab instead of waiting a cycle.
+    document.addEventListener('visibilitychange', refresh);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [showForm]);
 
   const handleCreate = async (data: any) => {
     setSaving(true);
@@ -418,13 +452,9 @@ const Assistants = () => {
     setSaving(false);
   };
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
-    try {
-      await iAssistAPI.deleteAssistant(id);
-      loadAssistants();
-    } catch {}
-    setDeletingId(null);
+  const handleDeleted = () => {
+    setPendingDelete(null);
+    loadAssistants();
   };
 
   const handleAddMaterial = async (data: { role: string; title: string; documentId?: string; content?: string }) => {
@@ -591,6 +621,18 @@ const Assistants = () => {
                           <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold ${CATEGORY_BADGE_STYLES[cat]}`}>
                             {CATEGORY_LABELS[cat]}
                           </span>
+                          {ast.activeSessionCount > 0 && (
+                            <span
+                              title="A session is running on the desktop app"
+                              className="shrink-0 flex items-center gap-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400"
+                            >
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                              </span>
+                              {ast.activeSessionCount > 1 ? `${ast.activeSessionCount} live` : 'Live'}
+                            </span>
+                          )}
                         </div>
                         {ast.instructions && (
                           <p className="text-xs text-text-muted mt-1 line-clamp-2">{ast.instructions}</p>
@@ -605,8 +647,8 @@ const Assistants = () => {
                         <Pencil size={14} />
                       </button>
                       <button
-                        onClick={() => handleDelete(ast.id)}
-                        disabled={deletingId === ast.id}
+                        onClick={() => setPendingDelete(ast)}
+                        title="Delete assistant"
                         className="p-1.5 rounded text-text-muted hover:text-red-400 transition-colors"
                       >
                         <Trash2 size={14} />
@@ -688,6 +730,18 @@ const Assistants = () => {
             );
           })}
         </div>
+      )}
+
+      {/* Delete confirmation */}
+      {pendingDelete && (
+        <DeleteAssistantDialog
+          assistantId={pendingDelete.id}
+          name={pendingDelete.name}
+          sessionCount={pendingDelete.sessionCount}
+          activeSessionCount={pendingDelete.activeSessionCount}
+          onCancel={() => setPendingDelete(null)}
+          onDeleted={handleDeleted}
+        />
       )}
 
       {/* Document Viewer */}
