@@ -2,7 +2,7 @@ import path from 'path';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/errorHandler';
 
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 
 interface CreateDocInput {
   title: string;
@@ -64,8 +64,13 @@ export const contextDocService = {
     let content: string;
 
     if (ext === '.pdf') {
-      const pdfData = await pdfParse(file.buffer);
-      content = pdfData.text?.trim() || '';
+      const parser = new PDFParse({ data: file.buffer });
+      try {
+        const pdfData = await parser.getText({ pageJoiner: '\n' });
+        content = pdfData.text?.trim() || '';
+      } finally {
+        await parser.destroy();
+      }
       if (!content) throw new AppError('Could not extract text from PDF', 400);
     } else {
       content = file.buffer.toString('utf-8');
