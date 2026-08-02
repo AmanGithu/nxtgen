@@ -167,6 +167,18 @@ router.delete('/documents/:id', async (req: Request, res: Response, next: NextFu
   }
 });
 
+// ─── Analytics ───
+
+router.get('/analytics', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.id;
+    const analytics = await sessionService.getAnalytics(userId);
+    res.json({ success: true, analytics });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ─── Sessions ───
 
 router.get('/sessions', async (req: Request, res: Response, next: NextFunction) => {
@@ -228,7 +240,7 @@ router.post('/sessions/:id/transcript', async (req: Request, res: Response, next
       timestamp: z.number().int().default(0),
     }).parse(req.body);
 
-    await sessionService.addTranscript(param(req.params.id), data);
+    await sessionService.addTranscript(param(req.params.id), req.user!.id, data);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -239,11 +251,13 @@ router.post('/sessions/:id/transcript', async (req: Request, res: Response, next
 
 router.post('/transcribe', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { audio, mimeType } = z.object({
-      audio: z.string(),
+    const { audio, mimeType, sessionId } = z.object({
+      audio: z.string().max(7_000_000),
       mimeType: z.string(),
       sessionId: z.string().uuid(),
     }).parse(req.body);
+
+    await sessionService.verifyOwnership(sessionId, req.user!.id);
 
     const audioBuffer = Buffer.from(audio, 'base64');
     const text = await aiQueryService.transcribeAudio(audioBuffer, mimeType);
@@ -258,13 +272,16 @@ router.post('/query', async (req: Request, res: Response, next: NextFunction) =>
     const data = z.object({
       sessionId: z.string().uuid(),
       assistantId: z.string().uuid(),
-      message: z.string().min(1),
+      message: z.string().min(1).max(10000),
       conversationHistory: z.array(z.object({
         role: z.enum(['user', 'model']),
-        text: z.string(),
-      })).optional(),
-      responseType: z.string().optional(),
+        text: z.string().max(10000),
+      })).max(50).optional(),
+      responseType: z.string().max(200).optional(),
     }).parse(req.body);
+
+    await sessionService.verifyOwnership(data.sessionId, req.user!.id);
+    await assistantService.getById(data.assistantId, req.user!.id);
 
     const result = await aiQueryService.query({
       assistantId: data.assistantId,

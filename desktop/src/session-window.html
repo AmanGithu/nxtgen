@@ -357,8 +357,12 @@
     let sessionSeconds = 0;
     let timerInterval = null;
     let conversationHistory = [];
-    let transcriptBuffer = '';
     let hasEntries = false;
+
+    // Transcription accumulation — debounce fragments into full utterances
+    let pendingTranscription = '';
+    let transcriptionDebounceTimer = null;
+    const TRANSCRIPTION_DEBOUNCE_MS = 2000;
 
     // --- Audio capture ---
 
@@ -367,44 +371,47 @@
     let vadInterval = null;
     let audioContext = null;
     let analyser = null;
-    const VAD_THRESHOLD = 0.02;
+    const VAD_THRESHOLD = 0.015;
     const VAD_INTERVAL_MS = 100;
-    const CHUNK_DURATION_MS = 3000;
+    const SILENCE_DURATION_MS = 1500;
+    const MAX_CHUNK_DURATION_MS = 15000;
+    const MIN_CHUNK_DURATION_MS = 500;
     let isRecording = false;
-    let chunkTimer = null;
+    let recordingStartTime = 0;
+    let silenceStart = null;
 
     async function startAudioCapture() {
       try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            mandatory: {
-              chromeMediaSource: 'desktop',
-            },
-          },
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true,
         });
 
-        audioContext = new AudioContext();
-        const source = audioContext.createMediaStreamSource(mediaStream);
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-        source.connect(analyser);
+        displayStream.getVideoTracks().forEach(t => t.stop());
 
-        startVAD();
+        if (displayStream.getAudioTracks().length === 0) {
+          throw new Error('No audio track from display media');
+        }
+
+        mediaStream = new MediaStream(displayStream.getAudioTracks());
       } catch (err) {
-        console.error('Audio capture failed, falling back to microphone', err);
+        console.error('System audio capture failed, falling back to microphone', err);
         try {
           mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          audioContext = new AudioContext();
-          const source = audioContext.createMediaStreamSource(mediaStream);
-          analyser = audioContext.createAnalyser();
-          analyser.fftSize = 256;
-          source.connect(analyser);
-          startVAD();
         } catch (micErr) {
           console.error('Microphone capture also failed', micErr);
           liveText.textContent = 'Audio capture failed. Check permissions.';
+          return;
         }
       }
+
+      audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(mediaStream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      startVAD();
     }
 
     function startVAD() {
@@ -418,8 +425,26 @@
         }
         const rms = Math.sqrt(sum / dataArray.length);
 
-        if (rms > VAD_THRESHOLD && !isRecording) {
-          startRecordingChunk();
+        if (isRecording) {
+          const elapsed = Date.now() - recordingStartTime;
+
+          if (rms > VAD_THRESHOLD) {
+            silenceStart = null;
+          } else {
+            if (!silenceStart) {
+              silenceStart = Date.now();
+            } else if (Date.now() - silenceStart >= SILENCE_DURATION_MS) {
+              stopRecordingChunk();
+            }
+          }
+
+          if (elapsed >= MAX_CHUNK_DURATION_MS) {
+            stopRecordingChunk();
+          }
+        } else {
+          if (rms > VAD_THRESHOLD) {
+            startRecordingChunk();
+          }
         }
       }, VAD_INTERVAL_MS);
     }
@@ -427,6 +452,8 @@
     function startRecordingChunk() {
       if (isRecording || !mediaStream) return;
       isRecording = true;
+      recordingStartTime = Date.now();
+      silenceStart = null;
 
       mediaRecorder = new MediaRecorder(mediaStream, {
         mimeType: 'audio/webm;codecs=opus',
@@ -437,9 +464,11 @@
         if (e.data.size > 0) chunks.push(e.data);
       };
 
-      mediaRecorder.onstop = async () => {
+      mediaRecorder.onstop = () => {
         isRecording = false;
-        if (chunks.length === 0) return;
+        const duration = Date.now() - recordingStartTime;
+
+        if (chunks.length === 0 || duration < MIN_CHUNK_DURATION_MS) return;
 
         const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
         const reader = new FileReader();
@@ -451,22 +480,17 @@
       };
 
       mediaRecorder.start();
+    }
 
-      chunkTimer = setTimeout(() => {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
-        }
-      }, CHUNK_DURATION_MS);
+    function stopRecordingChunk() {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
     }
 
     function stopAudioCapture() {
       clearInterval(vadInterval);
       vadInterval = null;
-
-      if (chunkTimer) {
-        clearTimeout(chunkTimer);
-        chunkTimer = null;
-      }
 
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
@@ -484,6 +508,7 @@
       }
 
       isRecording = false;
+      silenceStart = null;
     }
 
     // --- Timer ---
@@ -573,6 +598,7 @@
     });
 
     window.iAssist.onStopAudioCapture(() => {
+      flushTranscription();
       stopAudioCapture();
       stopTimer();
     });
@@ -580,14 +606,28 @@
     window.iAssist.onTranscriptionUpdate((data) => {
       if (data.text) {
         liveText.textContent = data.text;
-        transcriptBuffer += (transcriptBuffer ? ' ' : '') + data.text;
 
-        addTranscriptEntry('user', data.text);
+        pendingTranscription += (pendingTranscription ? ' ' : '') + data.text;
 
-        conversationHistory.push({ role: 'user', text: data.text });
-        window.iAssist.sendQuery(data.text, conversationHistory);
+        if (transcriptionDebounceTimer) clearTimeout(transcriptionDebounceTimer);
+        transcriptionDebounceTimer = setTimeout(flushTranscription, TRANSCRIPTION_DEBOUNCE_MS);
       }
     });
+
+    function flushTranscription() {
+      if (transcriptionDebounceTimer) {
+        clearTimeout(transcriptionDebounceTimer);
+        transcriptionDebounceTimer = null;
+      }
+      if (!pendingTranscription) return;
+
+      const text = pendingTranscription;
+      pendingTranscription = '';
+
+      addTranscriptEntry('user', text);
+      conversationHistory.push({ role: 'user', text });
+      window.iAssist.sendQuery(text, conversationHistory);
+    }
 
     window.iAssist.onLlmAnswer((data) => {
       if (data.response) {

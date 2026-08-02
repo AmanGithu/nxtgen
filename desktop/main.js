@@ -8,6 +8,8 @@ const {
   shell,
   screen,
   nativeImage,
+  desktopCapturer,
+  session: electronSession,
 } = require('electron');
 const path = require('path');
 const http = require('http');
@@ -589,22 +591,33 @@ async function startSession(assistantId) {
 async function stopSession() {
   if (!isSessionActive) return;
 
-  isSessionActive = false;
   const sessionId = currentBackendSessionId;
-  const durationSeconds = Math.floor((Date.now() - sessionStartTime) / 1000);
 
   unregisterSessionShortcuts();
 
+  // Tell renderer to flush pending transcription — keep isSessionActive true
+  // so the flush query isn't dropped by the custom-query handler
   if (sessionWindow && !sessionWindow.isDestroyed()) {
     sessionWindow.webContents.send('stop-audio-capture');
-    setTimeout(() => {
-      if (sessionWindow && !sessionWindow.isDestroyed()) {
-        sessionWindow.close();
-      }
-    }, 500);
   }
 
+  // Wait for the renderer's flush IPC to arrive
+  await new Promise((r) => setTimeout(r, 200));
+
+  isSessionActive = false;
+  const durationSeconds = Math.floor((Date.now() - sessionStartTime) / 1000);
+
   broadcastToLiveWindows('session-state-changed', { active: false });
+
+  // Drain the AI queue so the final query's tokens/questions are counted
+  const drainStart = Date.now();
+  while (isAiProcessing && Date.now() - drainStart < 5000) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
+
+  if (sessionWindow && !sessionWindow.isDestroyed()) {
+    sessionWindow.close();
+  }
 
   if (sessionId) {
     try {
@@ -855,6 +868,12 @@ if (!gotLock) {
     const savedSettings = loadSettings();
     if (savedSettings.opacity !== undefined) currentOpacity = savedSettings.opacity;
     if (savedSettings.theme) currentTheme = savedSettings.theme;
+
+    electronSession.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+      desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+        callback({ video: sources[0], audio: 'loopback' });
+      });
+    });
 
     setupIPC();
     createMainWindow();

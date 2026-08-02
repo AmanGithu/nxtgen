@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Upload, Search, Trash2, FileText, X, CloudUpload,
+  Upload, Search, Trash2, FileText, X, CloudUpload, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
 
@@ -224,6 +224,7 @@ const UploadModal = ({ onUpload, onCreateText, onClose, saving }: UploadModalPro
 const Documents = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showUpload, setShowUpload] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -231,9 +232,12 @@ const Documents = () => {
 
   const loadDocs = (q?: string) => {
     setLoading(true);
+    setError(null);
     iAssistAPI.getDocuments(q || undefined).then(res => {
       if (res.data.success) setDocuments(res.data.documents);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(() => {
+      setError('Failed to load documents.');
+    }).finally(() => setLoading(false));
   };
 
   useEffect(() => { loadDocs(); }, []);
@@ -334,8 +338,37 @@ const Documents = () => {
 
       {/* Documents table */}
       {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-orange border-t-transparent" />
+        <div className="rounded-xl border border-white/[0.08] bg-bg-surface overflow-hidden animate-pulse">
+          <div className="border-b border-white/[0.06] px-4 py-3 flex gap-4">
+            {['w-8', 'flex-1', 'w-16', 'w-16', 'w-16', 'w-24', 'w-8'].map((w, i) => (
+              <div key={i} className={`h-3 ${w} rounded bg-white/[0.06]`} />
+            ))}
+          </div>
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="border-b border-white/[0.04] px-4 py-3.5 flex items-center gap-4">
+              <div className="h-3 w-4 rounded bg-white/[0.06]" />
+              <div className="flex-1 space-y-1">
+                <div className="h-4 w-40 rounded bg-white/[0.08]" />
+                <div className="h-2.5 w-56 rounded bg-white/[0.04]" />
+              </div>
+              <div className="h-5 w-10 rounded bg-white/[0.06]" />
+              <div className="h-3 w-14 rounded bg-white/[0.06]" />
+              <div className="h-3 w-12 rounded bg-white/[0.06]" />
+              <div className="h-3 w-20 rounded bg-white/[0.06]" />
+              <div className="h-4 w-4 rounded bg-white/[0.04]" />
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-red-500/20 bg-red-500/5 py-12 text-center">
+          <AlertTriangle size={32} className="text-red-400 mb-3" />
+          <p className="text-sm font-medium text-red-400">{error}</p>
+          <button
+            onClick={() => loadDocs(search)}
+            className="mt-4 flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted hover:text-white transition-colors"
+          >
+            <RefreshCw size={14} /> Retry
+          </button>
         </div>
       ) : documents.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.12] py-16 text-center">

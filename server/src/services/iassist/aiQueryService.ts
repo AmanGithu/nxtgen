@@ -1,9 +1,22 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../../config/env';
+import { prisma } from '../../lib/prisma';
 import { assistantService } from './assistantService';
 import type { AssistantCategory } from '@prisma/client';
 
 const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY || 'demo');
+
+const CONFIG_DEFAULTS: Record<string, string> = {
+  IASSIST_TRANSCRIPTION_MODEL: 'gemini-2.0-flash',
+  IASSIST_QUERY_MODEL: 'gemini-2.5-flash',
+  IASSIST_MAX_HISTORY: '40',
+  IASSIST_MAX_TOKENS: '8192',
+};
+
+async function getConfig(key: string): Promise<string> {
+  const row = await prisma.siteConfig.findUnique({ where: { key } });
+  return row?.value || CONFIG_DEFAULTS[key] || '';
+}
 
 const BASE_PROMPT = `You are an AI interview co-pilot helping the user prepare for job interviews. You are listening to a live interview and providing real-time assistance.
 
@@ -95,7 +108,8 @@ export const aiQueryService = {
       return '';
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const transcriptionModel = await getConfig('IASSIST_TRANSCRIPTION_MODEL');
+    const model = genAI.getGenerativeModel({ model: transcriptionModel });
 
     const result = await model.generateContent([
       {
@@ -129,12 +143,20 @@ export const aiQueryService = {
       };
     }
 
+    const queryModel = await getConfig('IASSIST_QUERY_MODEL');
+    const maxHistory = parseInt(await getConfig('IASSIST_MAX_HISTORY'), 10) || 40;
+    const maxTokens = parseInt(await getConfig('IASSIST_MAX_TOKENS'), 10) || 8192;
+
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: queryModel,
       systemInstruction: systemPrompt,
+      generationConfig: { maxOutputTokens: maxTokens },
     });
 
-    const contents = (params.conversationHistory || []).map((msg) => ({
+    const history = params.conversationHistory || [];
+    const trimmed = history.length > maxHistory ? history.slice(-maxHistory) : history;
+
+    const contents = trimmed.map((msg) => ({
       role: msg.role as 'user' | 'model',
       parts: [{ text: msg.text }],
     }));

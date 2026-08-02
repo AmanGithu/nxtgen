@@ -417,7 +417,106 @@ router.post('/ai-config', async (req: Request, res: Response, next: NextFunction
   }
 });
 
-// ─── 15. Audit Logs ───
+// ─── 15. I-Assist Configuration ───
+router.get('/iassist-config', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const configs = await prisma.siteConfig.findMany({
+      where: { key: { startsWith: 'IASSIST_' } }
+    });
+
+    const configMap: Record<string, string> = {
+      IASSIST_TRANSCRIPTION_MODEL: 'gemini-2.0-flash',
+      IASSIST_QUERY_MODEL: 'gemini-2.5-flash',
+      IASSIST_MAX_HISTORY: '40',
+      IASSIST_MAX_TOKENS: '8192',
+      IASSIST_VAD_SILENCE_MS: '1500',
+      IASSIST_VAD_AMPLITUDE_THRESHOLD: '0.015',
+      IASSIST_VAD_MIN_SPEECH_MS: '500',
+    };
+
+    configs.forEach(c => { configMap[c.key] = c.value; });
+
+    res.json({ success: true, config: configMap });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/iassist-config', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = req.body;
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === 'string' && key.startsWith('IASSIST_')) {
+        await prisma.siteConfig.upsert({
+          where: { key },
+          update: { value },
+          create: { key, value }
+        });
+      }
+    }
+    res.json({ success: true, message: 'I-Assist configuration updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─── 16. I-Assist Usage Stats ───
+router.get('/iassist-stats', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const [
+      totalSessions,
+      completedSessions,
+      totalAssistants,
+      totalDocuments,
+      aggregates,
+      activeUsers,
+      recentSessions
+    ] = await Promise.all([
+      prisma.iAssistSession.count(),
+      prisma.iAssistSession.count({ where: { status: 'COMPLETED' } }),
+      prisma.iAssistant.count(),
+      prisma.contextDocument.count(),
+      prisma.iAssistSession.aggregate({
+        where: { status: 'COMPLETED' },
+        _sum: { questionsAnswered: true, tokensUsed: true, durationSeconds: true },
+        _avg: { durationSeconds: true, questionsAnswered: true },
+      }),
+      prisma.iAssistSession.groupBy({
+        by: ['userId'],
+        _count: true,
+      }),
+      prisma.iAssistSession.findMany({
+        take: 5,
+        orderBy: { startedAt: 'desc' },
+        include: {
+          user: { select: { firstName: true, lastName: true, email: true } },
+          assistant: { select: { name: true, category: true } },
+        },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        totalSessions,
+        completedSessions,
+        totalAssistants,
+        totalDocuments,
+        activeUsers: activeUsers.length,
+        totalQuestions: aggregates._sum.questionsAnswered || 0,
+        totalTokens: aggregates._sum.tokensUsed || 0,
+        totalDurationSeconds: aggregates._sum.durationSeconds || 0,
+        avgDurationSeconds: Math.round(aggregates._avg.durationSeconds || 0),
+        avgQuestions: Math.round(aggregates._avg.questionsAnswered || 0),
+      },
+      recentSessions,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─── 17. Audit Logs ───
 router.get('/logs', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const logs = await prisma.auditLog.findMany({

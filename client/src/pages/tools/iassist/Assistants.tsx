@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, X, FileText, Briefcase, StickyNote,
-  Clock, MessageSquare, Upload, ChevronDown,
+  Clock, MessageSquare, Upload, ChevronDown, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
 
@@ -371,6 +371,7 @@ const AddMaterialModal = ({ role, onAdd, onClose, saving }: AddMaterialModalProp
 const Assistants = () => {
   const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingAssistant, setEditingAssistant] = useState<Assistant | null>(null);
   const [saving, setSaving] = useState(false);
@@ -379,9 +380,12 @@ const Assistants = () => {
 
   const loadAssistants = () => {
     setLoading(true);
+    setError(null);
     iAssistAPI.getAssistants().then(res => {
       if (res.data.success) setAssistants(res.data.assistants);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(() => {
+      setError('Failed to load assistants.');
+    }).finally(() => setLoading(false));
   };
 
   useEffect(() => { loadAssistants(); }, []);
@@ -508,8 +512,39 @@ const Assistants = () => {
 
       {/* Assistant list */}
       {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-orange border-t-transparent" />
+        <div className="space-y-4 animate-pulse">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="rounded-xl border border-white/[0.08] bg-bg-surface overflow-hidden">
+              <div className="p-5">
+                <div className="flex items-center gap-3">
+                  <div className="h-2.5 w-2.5 rounded-full bg-white/[0.08]" />
+                  <div className="h-4 w-44 rounded bg-white/[0.08]" />
+                  <div className="h-5 w-20 rounded-md bg-white/[0.06]" />
+                </div>
+                <div className="h-3 w-64 rounded bg-white/[0.06] mt-2 ml-[22px]" />
+              </div>
+              <div className="border-t border-white/[0.06] bg-white/[0.02] px-5 py-4 space-y-2">
+                <div className="h-3 w-24 rounded bg-white/[0.06]" />
+                <div className="h-9 w-full rounded-lg bg-white/[0.04]" />
+                <div className="h-9 w-full rounded-lg bg-white/[0.04]" />
+              </div>
+              <div className="border-t border-white/[0.06] px-5 py-3 flex gap-4">
+                <div className="h-3 w-24 rounded bg-white/[0.06]" />
+                <div className="h-3 w-20 rounded bg-white/[0.06]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-red-500/20 bg-red-500/5 py-12 text-center">
+          <AlertTriangle size={32} className="text-red-400 mb-3" />
+          <p className="text-sm font-medium text-red-400">{error}</p>
+          <button
+            onClick={loadAssistants}
+            className="mt-4 flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted hover:text-white transition-colors"
+          >
+            <RefreshCw size={14} /> Retry
+          </button>
         </div>
       ) : assistants.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.12] py-16 text-center">

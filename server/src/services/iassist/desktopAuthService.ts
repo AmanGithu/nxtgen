@@ -12,7 +12,7 @@ function generateTokens(user: { id: string; email: string; role: string }) {
   );
 
   const refreshToken = jwt.sign(
-    { id: user.id },
+    { id: user.id, jti: crypto.randomBytes(16).toString('hex') },
     env.JWT_REFRESH_SECRET,
     { expiresIn: '7d' as any }
   );

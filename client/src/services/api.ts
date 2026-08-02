@@ -95,6 +95,7 @@ export const iAssistAPI = {
   createDocument: (data: any) => api.post('/iassist/documents', data),
   deleteDocument: (id: string) => api.delete(`/iassist/documents/${id}`),
 
+  getAnalytics: () => api.get('/iassist/analytics'),
   getSessions: (period?: string) => api.get('/iassist/sessions', { params: { period } }),
   getSession: (id: string) => api.get(`/iassist/sessions/${id}`),
 

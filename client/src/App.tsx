@@ -43,7 +43,8 @@ const InterviewPrepKit = lazy(() => import('./pages/tools/InterviewPrepKit'));
 // Phase 2 Real-Time Voice & Avatar Tools
 const LiveInterviewStage = lazy(() => import('./pages/tools/LiveInterviewStage'));
 
-// I-Assist Phase 3
+// I-Assist Phase 3 + Phase 6
+const IAssistPreview = lazy(() => import('./pages/tools/IAssistPreview'));
 const IAssistDashboard = lazy(() => import('./pages/tools/iassist/Dashboard'));
 const IAssistSessionDetail = lazy(() => import('./pages/tools/iassist/SessionDetail'));
 const IAssistAssistants = lazy(() => import('./pages/tools/iassist/Assistants'));
@@ -82,6 +83,7 @@ function App() {
                   <Route path="/login" element={<Login />} />
 
                   {/* Direct Public Tool Routes */}
+                  <Route path="/tools/i-assist" element={<IAssistPreview />} />
                   <Route path="/tools/live-interview" element={<LiveInterviewStage />} />
                 </Route>
 

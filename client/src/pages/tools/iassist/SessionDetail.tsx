@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Clock, MessageSquare, Coins, Monitor, Mic, Bot } from 'lucide-react';
+import { ArrowLeft, Clock, MessageSquare, Coins, Monitor, Mic, Bot, AlertTriangle, RefreshCw } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
@@ -69,29 +69,77 @@ function renderMarkdownBold(text: string) {
   });
 }
 
+const SessionDetailSkeleton = () => (
+  <div className="p-6 text-white max-w-5xl mx-auto space-y-6 animate-pulse">
+    <div className="h-4 w-32 rounded bg-white/[0.08]" />
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <div className="h-7 w-48 rounded bg-white/[0.08]" />
+        <div className="h-5 w-20 rounded-md bg-white/[0.06]" />
+      </div>
+      <div className="h-3 w-64 rounded bg-white/[0.06]" />
+    </div>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="rounded-xl border border-white/[0.08] bg-bg-surface p-4 space-y-2">
+          <div className="h-4 w-4 mx-auto rounded bg-white/[0.06]" />
+          <div className="h-6 w-12 mx-auto rounded bg-white/[0.08]" />
+          <div className="h-3 w-16 mx-auto rounded bg-white/[0.06]" />
+        </div>
+      ))}
+    </div>
+    <div className="h-4 w-24 rounded bg-white/[0.08]" />
+    <div className="space-y-4">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="flex gap-3">
+          <div className="h-7 w-7 rounded-full bg-white/[0.06]" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-full max-w-md rounded bg-white/[0.08]" />
+            <div className="h-3 w-12 rounded bg-white/[0.06]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 const SessionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadSession = () => {
     if (!id) return;
-    let cancelled = false;
     setLoading(true);
+    setError(null);
     iAssistAPI.getSession(id).then(res => {
-      if (!cancelled && res.data.success) {
-        setSession(res.data.session);
-      }
-    }).catch(() => {}).finally(() => {
-      if (!cancelled) setLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [id]);
+      if (res.data.success) setSession(res.data.session);
+    }).catch(() => {
+      setError('Failed to load session details.');
+    }).finally(() => setLoading(false));
+  };
 
-  if (loading) {
+  useEffect(() => { loadSession(); }, [id]);
+
+  if (loading) return <SessionDetailSkeleton />;
+
+  if (error) {
     return (
-      <div className="flex justify-center py-24">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-orange border-t-transparent" />
+      <div className="p-6 text-white max-w-5xl mx-auto">
+        <Link to="/dashboard/student/tools/i-assist" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-white transition-colors mb-6">
+          <ArrowLeft size={16} /> Back to sessions
+        </Link>
+        <div className="flex flex-col items-center justify-center rounded-xl border border-red-500/20 bg-red-500/5 py-12 text-center">
+          <AlertTriangle size={32} className="text-red-400 mb-3" />
+          <p className="text-sm font-medium text-red-400">{error}</p>
+          <button
+            onClick={loadSession}
+            className="mt-4 flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted hover:text-white transition-colors"
+          >
+            <RefreshCw size={14} /> Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -102,7 +150,11 @@ const SessionDetail = () => {
         <Link to="/dashboard/student/tools/i-assist" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-white transition-colors mb-6">
           <ArrowLeft size={16} /> Back to sessions
         </Link>
-        <p className="text-text-muted">Session not found.</p>
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.12] py-12 text-center">
+          <MessageSquare size={32} className="text-text-muted mb-3" />
+          <p className="text-sm font-medium text-text-muted">Session not found</p>
+          <p className="text-xs text-text-muted mt-1">This session may have been deleted or doesn't exist.</p>
+        </div>
       </div>
     );
   }
