@@ -105,6 +105,22 @@ function isAuthenticated() {
 // BackendService — all REST calls to NxtGen
 // ---------------------------------------------------------------------------
 
+// The API reports failures as { success: false, message }. Surfacing that message
+// instead of a generic one is what lets callers tell "this assistant was deleted"
+// apart from "the request failed", so they can react differently.
+async function readErrorMessage(response, fallback) {
+  try {
+    const data = await response.json();
+    return data.message || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function isAssistantGone(err) {
+  return /assistant not found/i.test(err?.message || '');
+}
+
 const BackendService = {
   async _fetch(endpoint, options = {}) {
     const url = `${getApiBaseUrl()}${endpoint}`;
@@ -167,7 +183,7 @@ const BackendService = {
       method: 'POST',
       body: JSON.stringify({ assistantId, platform: 'desktop' }),
     });
-    if (!res.ok) throw new Error('Failed to create session');
+    if (!res.ok) throw new Error(await readErrorMessage(res, 'Failed to create session'));
     const data = await res.json();
     return data.session;
   },
@@ -202,7 +218,7 @@ const BackendService = {
       method: 'POST',
       body: JSON.stringify({ sessionId, assistantId, message, conversationHistory, responseType }),
     });
-    if (!res.ok) throw new Error('AI query failed');
+    if (!res.ok) throw new Error(await readErrorMessage(res, 'AI query failed'));
     return await res.json();
   },
 };
@@ -668,18 +684,26 @@ function handleSignOut() {
 // ---------------------------------------------------------------------------
 
 async function loadAssistants() {
-  if (!isAuthenticated()) return;
+  if (!isAuthenticated()) return [];
   try {
     const assistants = await BackendService.getAssistants();
     currentAssistants = assistants;
     broadcastToLiveWindows('assistants-availability', { assistants });
-    if (assistants.length > 0 && !currentAssistant) {
-      currentAssistant = assistants[0];
+
+    // Reconcile the selection against what the server actually still has. Without
+    // this a selection deleted on the web stays cached here and every session
+    // start fails with a 404 that the user has no way to clear.
+    const stillExists = currentAssistant && assistants.some(a => a.id === currentAssistant.id);
+    if (!stillExists) {
+      currentAssistant = assistants[0] || null;
       broadcastToLiveWindows('assistant-update', currentAssistant);
     }
+
     logger.info(`Loaded ${assistants.length} assistants`);
+    return assistants;
   } catch (err) {
     logger.error('Failed to load assistants', err.message);
+    return currentAssistants;
   }
 }
 
@@ -737,6 +761,17 @@ async function startSession(assistantId) {
     logger.info('Session started', currentBackendSessionId);
   } catch (err) {
     logger.error('Failed to start session', err.message);
+
+    if (isAssistantGone(err)) {
+      // Deleted on the web since we last fetched — resync so the stale entry
+      // disappears from the bar and the Settings dropdown.
+      await loadAssistants();
+      broadcastToLiveWindows('session-start-failed', {
+        error: 'That assistant was deleted — pick another in Settings',
+      });
+      return;
+    }
+
     broadcastToLiveWindows('session-start-failed', { error: err.message });
   }
 }
@@ -805,6 +840,7 @@ async function processAiQueue() {
 
   isAiProcessing = true;
   const request = aiRequestQueue.shift();
+  let assistantGone = false;
 
   try {
     broadcastToLiveWindows('ai-thinking', { thinking: true });
@@ -836,14 +872,26 @@ async function processAiQueue() {
     });
   } catch (err) {
     logger.error('AI query error', err.message);
+    assistantGone = isAssistantGone(err);
     broadcastToLiveWindows('llm-answer', {
-      response: 'Error: Could not get a response. Please try again.',
+      response: assistantGone
+        ? 'This assistant was deleted on the web. Ending the session.'
+        : 'Error: Could not get a response. Please try again.',
       error: true,
     });
   } finally {
     isAiProcessing = false;
     broadcastToLiveWindows('ai-thinking', { thinking: false });
-    processAiQueue();
+
+    if (assistantGone) {
+      // Every further question would fail the same way, so end the session
+      // rather than filling the transcript with identical errors.
+      aiRequestQueue = [];
+      loadAssistants();
+      stopSession();
+    } else {
+      processAiQueue();
+    }
   }
 }
 
@@ -1077,6 +1125,11 @@ function setupIPC() {
   });
 
   ipcMain.handle('get-theme', () => currentTheme);
+
+  ipcMain.handle('refresh-assistants', async () => {
+    const assistants = await loadAssistants();
+    return { assistants, assistant: currentAssistant };
+  });
 
   ipcMain.on('open-sign-in', () => {
     handleSignIn();

@@ -252,6 +252,14 @@
 
     .btn-block { width: 100%; }
 
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary:disabled:hover { background: var(--accent); }
+    .btn-outline:disabled:hover { border-color: var(--border); }
+
     /* --- Slider --- */
 
     .setting-row {
@@ -331,6 +339,27 @@
       color: var(--text-muted);
       line-height: 1.4;
     }
+
+    .assistant-row {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .icon-btn.bordered {
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      width: 34px;
+      height: auto;
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+
+    .icon-btn.bordered:hover { border-color: var(--accent); color: var(--accent); }
+
+    .icon-btn.spinning svg { animation: spin 0.7s linear infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .assistant-select {
       background: var(--surface-2);
@@ -522,9 +551,17 @@
         <div class="section-title">Assistant</div>
         <div class="section-content">
           <div class="section-desc">Pick the assistant I-Assist should use for your session</div>
-          <select class="assistant-select" id="assistant-select">
-            <option value="" disabled selected>Loading assistants…</option>
-          </select>
+          <div class="assistant-row">
+            <select class="assistant-select" id="assistant-select">
+              <option value="" disabled selected>Loading assistants…</option>
+            </select>
+            <button class="icon-btn bordered" id="btn-refresh-assistants" title="Refresh list from NxtGen">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+            </button>
+          </div>
           <div class="btn-group">
             <button class="btn btn-primary" id="btn-start-session">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -682,6 +719,20 @@
       window.iAssist.startSession();
     }
 
+    // Assistants are created and deleted on the web, so the cached list goes stale
+    // while the app runs. Refetch on open and on demand.
+    async function refreshAssistants() {
+      const btn = $('#btn-refresh-assistants');
+      btn.classList.add('spinning');
+      try {
+        const { assistants: list, assistant } = await window.iAssist.refreshAssistants();
+        populateAssistants(list || []);
+        if (assistant) assistantSelect.value = assistant.id;
+      } finally {
+        btn.classList.remove('spinning');
+      }
+    }
+
     function showAccount(user) {
       if (user) {
         accountSignedIn.classList.remove('hidden');
@@ -731,6 +782,8 @@
       e.preventDefault();
       window.iAssist.openWebDashboard();
     });
+
+    $('#btn-refresh-assistants').addEventListener('click', refreshAssistants);
 
     opacitySlider.addEventListener('input', () => {
       const val = parseFloat(opacitySlider.value);
@@ -809,6 +862,8 @@
       populateAssistants(settings.assistants || []);
       if (settings.assistant) assistantSelect.value = settings.assistant.id;
       setSessionUI(!!settings.isSessionActive);
+      // Render the cached list immediately, then reconcile with the server.
+      if (settings.isAuthenticated) refreshAssistants();
     })();
   </script>
 </body>

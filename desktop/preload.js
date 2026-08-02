@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('iAssist', {
   // --- Settings ---
   getInitialSettings: () => ipcRenderer.invoke('get-initial-settings'),
   getTheme: () => ipcRenderer.invoke('get-theme'),
+  refreshAssistants: () => ipcRenderer.invoke('refresh-assistants'),
 
   // --- Session lifecycle ---
   startSession: () => ipcRenderer.send('start-session'),

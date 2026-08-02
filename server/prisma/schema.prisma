@@ -578,6 +578,10 @@ model IAssistSession {
   id                String        @id @default(uuid())
   userId            String
   assistantId       String?
+  // Snapshotted at creation. assistantId is SetNull on delete, so without these
+  // a deleted assistant silently erases the attribution of every past session.
+  assistantName     String?
+  assistantCategory AssistantCategory?
   status            SessionStatus @default(ACTIVE)
   platform          String        @default("desktop")
   startedAt         DateTime      @default(now())
@@ -593,6 +597,7 @@ model IAssistSession {
 
   @@index([userId])
   @@index([assistantId])
+  @@index([status, startedAt])
 }
 
 model SessionTranscript {
