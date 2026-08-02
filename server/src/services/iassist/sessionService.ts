@@ -17,7 +17,7 @@ interface AddTranscriptInput {
 }
 
 /** Longer than any realistic interview, so a live session is never reaped. */
-const STALE_SESSION_HOURS = 6;
+export const STALE_SESSION_HOURS = 6;
 
 export const sessionService = {
   async getAll(userId: string, period?: 'week' | 'month' | 'all') {

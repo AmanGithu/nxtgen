@@ -4,6 +4,8 @@ import {
   Upload, Search, Trash2, FileText, X, CloudUpload, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
+import DocumentViewerModal from './DocumentViewerModal';
+import DeleteDocumentDialog from './DeleteDocumentDialog';
 
 const FILE_TYPE_STYLES: Record<string, string> = {
   pdf: 'bg-red-500/10 text-red-400 border-red-500/20',
@@ -228,7 +230,8 @@ const Documents = () => {
   const [search, setSearch] = useState('');
   const [showUpload, setShowUpload] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   const loadDocs = (q?: string) => {
     setLoading(true);
@@ -265,13 +268,9 @@ const Documents = () => {
     setSaving(false);
   };
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
-    try {
-      await iAssistAPI.deleteDocument(id);
-      loadDocs(search);
-    } catch {}
-    setDeletingId(null);
+  const handleDeleted = () => {
+    setPendingDelete(null);
+    loadDocs(search);
   };
 
   const tabs = [
@@ -411,10 +410,15 @@ const Documents = () => {
                     <tr key={doc.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-4 py-3 text-xs text-text-muted tabular-nums">{i + 1}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => setViewingId(doc.id)}
+                          title="Open document"
+                          className="flex items-center gap-2 min-w-0 text-left"
+                        >
                           <FileText size={14} className="shrink-0 text-text-muted" />
-                          <span className="text-sm text-brand-orange truncate">{doc.title}</span>
-                        </div>
+                          <span className="text-sm text-brand-orange truncate hover:underline">{doc.title}</span>
+                        </button>
                         {doc.description && (
                           <p className="text-[10px] text-text-muted mt-0.5 truncate max-w-xs">{doc.description}</p>
                         )}
@@ -435,8 +439,8 @@ const Documents = () => {
                       </td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => handleDelete(doc.id)}
-                          disabled={deletingId === doc.id}
+                          onClick={() => setPendingDelete({ id: doc.id, title: doc.title })}
+                          title="Delete document"
                           className="p-1 rounded text-text-muted hover:text-red-400 transition-colors"
                         >
                           <Trash2 size={14} />
@@ -456,6 +460,25 @@ const Documents = () => {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Delete confirmation */}
+      {pendingDelete && (
+        <DeleteDocumentDialog
+          documentId={pendingDelete.id}
+          title={pendingDelete.title}
+          onCancel={() => setPendingDelete(null)}
+          onDeleted={handleDeleted}
+        />
+      )}
+
+      {/* Document Viewer */}
+      {viewingId && (
+        <DocumentViewerModal
+          documentId={viewingId}
+          onClose={() => setViewingId(null)}
+          onChanged={() => loadDocs(search)}
+        />
       )}
 
       {/* Upload Modal */}

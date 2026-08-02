@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/errorHandler';
+import { STALE_SESSION_HOURS } from './sessionService';
 import type { AssistantCategory, MaterialRole } from '@prisma/client';
 
 interface CreateAssistantInput {
@@ -41,6 +42,17 @@ export const assistantService = {
       orderBy: { updatedAt: 'desc' },
     });
 
+    // A session only leaves ACTIVE when the desktop calls /end, so a crash strands
+    // the row. Bound by the same window the reaper uses, otherwise a long-dead
+    // session would keep warning the user forever.
+    const liveCutoff = new Date(Date.now() - STALE_SESSION_HOURS * 60 * 60 * 1000);
+    const live = await prisma.iAssistSession.groupBy({
+      by: ['assistantId'],
+      where: { userId, status: 'ACTIVE', startedAt: { gte: liveCutoff } },
+      _count: { _all: true },
+    });
+    const liveByAssistant = new Map(live.map((r) => [r.assistantId, r._count._all]));
+
     return assistants.map((a) => ({
       id: a.id,
       name: a.name,
@@ -56,6 +68,7 @@ export const assistantService = {
         hasContent: !!(m.content || m.documentId),
       })),
       sessionCount: a._count.sessions,
+      activeSessionCount: liveByAssistant.get(a.id) ?? 0,
       lastUsedAt: a.sessions[0]?.startedAt ?? null,
       createdAt: a.createdAt,
       updatedAt: a.updatedAt,

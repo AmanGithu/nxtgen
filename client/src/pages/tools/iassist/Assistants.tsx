@@ -5,6 +5,8 @@ import {
   Clock, MessageSquare, Upload, ChevronDown, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
+import DocumentViewerModal from './DocumentViewerModal';
+import DeleteAssistantDialog from './DeleteAssistantDialog';
 
 const CATEGORY_LABELS: Record<string, string> = {
   BEHAVIORAL: 'Behavioral',
@@ -41,6 +43,9 @@ const ROLE_LABELS: Record<string, string> = {
 
 const CATEGORIES = ['BEHAVIORAL', 'TECHNICAL', 'SYSTEM_DESIGN', 'GENERAL'] as const;
 
+/** How often to refresh live desktop-session state while the tab is visible. */
+const LIVE_POLL_MS = 30_000;
+
 interface Material {
   id: string;
   role: string;
@@ -58,6 +63,7 @@ interface Assistant {
   instructions: string | null;
   materials: Material[];
   sessionCount: number;
+  activeSessionCount: number;
   lastUsedAt: string | null;
   createdAt: string;
 }
@@ -376,19 +382,49 @@ const Assistants = () => {
   const [editingAssistant, setEditingAssistant] = useState<Assistant | null>(null);
   const [saving, setSaving] = useState(false);
   const [materialModal, setMaterialModal] = useState<{ assistantId: string; role: string } | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Assistant | null>(null);
+  const [viewingDocId, setViewingDocId] = useState<string | null>(null);
 
-  const loadAssistants = () => {
-    setLoading(true);
-    setError(null);
+  /**
+   * `silent` is for the background poll: it refreshes the data without swapping
+   * the list for a skeleton, and keeps the last good list on a failed request
+   * rather than replacing it with an error panel.
+   */
+  const loadAssistants = (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     iAssistAPI.getAssistants().then(res => {
       if (res.data.success) setAssistants(res.data.assistants);
     }).catch(() => {
-      setError('Failed to load assistants.');
-    }).finally(() => setLoading(false));
+      if (!silent) setError('Failed to load assistants.');
+    }).finally(() => {
+      if (!silent) setLoading(false);
+    });
   };
 
   useEffect(() => { loadAssistants(); }, []);
+
+  // Live session state changes on the desktop, not here, so poll to keep the
+  // "Live" badge and the delete warning current. Paused while the tab is hidden
+  // or the create/edit form is open.
+  useEffect(() => {
+    if (showForm) return;
+
+    const refresh = () => {
+      if (!document.hidden) loadAssistants({ silent: true });
+    };
+    const timer = setInterval(refresh, LIVE_POLL_MS);
+    // Catch up immediately when returning to the tab instead of waiting a cycle.
+    document.addEventListener('visibilitychange', refresh);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [showForm]);
 
   const handleCreate = async (data: any) => {
     setSaving(true);
@@ -416,13 +452,9 @@ const Assistants = () => {
     setSaving(false);
   };
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
-    try {
-      await iAssistAPI.deleteAssistant(id);
-      loadAssistants();
-    } catch {}
-    setDeletingId(null);
+  const handleDeleted = () => {
+    setPendingDelete(null);
+    loadAssistants();
   };
 
   const handleAddMaterial = async (data: { role: string; title: string; documentId?: string; content?: string }) => {
@@ -442,6 +474,16 @@ const Assistants = () => {
     try {
       await iAssistAPI.removeMaterial(assistantId, materialId);
       loadAssistants();
+    } catch {}
+  };
+
+  // Replacing an orphaned material has to drop it first — the server rejects a
+  // second RESUME or JOB_DESCRIPTION on the same assistant with a 409.
+  const handleReplaceMaterial = async (assistantId: string, materialId: string, role: string) => {
+    try {
+      await iAssistAPI.removeMaterial(assistantId, materialId);
+      loadAssistants();
+      setMaterialModal({ assistantId, role });
     } catch {}
   };
 
@@ -579,6 +621,18 @@ const Assistants = () => {
                           <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold ${CATEGORY_BADGE_STYLES[cat]}`}>
                             {CATEGORY_LABELS[cat]}
                           </span>
+                          {ast.activeSessionCount > 0 && (
+                            <span
+                              title="A session is running on the desktop app"
+                              className="shrink-0 flex items-center gap-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400"
+                            >
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                              </span>
+                              {ast.activeSessionCount > 1 ? `${ast.activeSessionCount} live` : 'Live'}
+                            </span>
+                          )}
                         </div>
                         {ast.instructions && (
                           <p className="text-xs text-text-muted mt-1 line-clamp-2">{ast.instructions}</p>
@@ -593,8 +647,8 @@ const Assistants = () => {
                         <Pencil size={14} />
                       </button>
                       <button
-                        onClick={() => handleDelete(ast.id)}
-                        disabled={deletingId === ast.id}
+                        onClick={() => setPendingDelete(ast)}
+                        title="Delete assistant"
                         className="p-1.5 rounded text-text-muted hover:text-red-400 transition-colors"
                       >
                         <Trash2 size={14} />
@@ -612,6 +666,8 @@ const Assistants = () => {
                     <MaterialRow
                       material={resume}
                       onRemove={() => handleRemoveMaterial(ast.id, resume.id)}
+                      onView={setViewingDocId}
+                      onReplace={() => handleReplaceMaterial(ast.id, resume.id, 'RESUME')}
                     />
                   ) : (
                     <button
@@ -627,6 +683,8 @@ const Assistants = () => {
                     <MaterialRow
                       material={jd}
                       onRemove={() => handleRemoveMaterial(ast.id, jd.id)}
+                      onView={setViewingDocId}
+                      onReplace={() => handleReplaceMaterial(ast.id, jd.id, 'JOB_DESCRIPTION')}
                     />
                   ) : (
                     <button
@@ -643,6 +701,8 @@ const Assistants = () => {
                       key={mat.id}
                       material={mat}
                       onRemove={() => handleRemoveMaterial(ast.id, mat.id)}
+                      onView={setViewingDocId}
+                      onReplace={() => handleReplaceMaterial(ast.id, mat.id, 'MATERIAL')}
                     />
                   ))}
 
@@ -672,6 +732,27 @@ const Assistants = () => {
         </div>
       )}
 
+      {/* Delete confirmation */}
+      {pendingDelete && (
+        <DeleteAssistantDialog
+          assistantId={pendingDelete.id}
+          name={pendingDelete.name}
+          sessionCount={pendingDelete.sessionCount}
+          activeSessionCount={pendingDelete.activeSessionCount}
+          onCancel={() => setPendingDelete(null)}
+          onDeleted={handleDeleted}
+        />
+      )}
+
+      {/* Document Viewer */}
+      {viewingDocId && (
+        <DocumentViewerModal
+          documentId={viewingDocId}
+          onClose={() => setViewingDocId(null)}
+          onChanged={loadAssistants}
+        />
+      )}
+
       {/* Add Material Modal */}
       {materialModal && (
         <AddMaterialModal
@@ -687,12 +768,54 @@ const Assistants = () => {
 
 // ─── Material Row ─────────────────────────────────────────────
 
-const MaterialRow = ({ material, onRemove }: { material: Material; onRemove: () => void }) => {
+const MaterialRow = ({ material, onRemove, onView, onReplace }: {
+  material: Material;
+  onRemove: () => void;
+  onView: (documentId: string) => void;
+  onReplace: () => void;
+}) => {
   const Icon = ROLE_ICONS[material.role] || StickyNote;
+
+  // A material with no content and no document is an orphan: its source document
+  // was deleted, so the assistant silently runs without this context.
+  const isOrphaned = !material.hasContent;
+
+  if (isOrphaned) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+        <AlertTriangle size={14} className="shrink-0 text-amber-400" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs text-amber-400">{material.title}</p>
+          <p className="text-[10px] text-text-muted">Content unavailable — source document was deleted</p>
+        </div>
+        <button
+          onClick={onReplace}
+          className="shrink-0 rounded-md border border-amber-500/30 px-2 py-1 text-[10px] font-medium text-amber-400 transition-colors hover:bg-amber-500/10"
+        >
+          Replace
+        </button>
+        <button onClick={onRemove} className="shrink-0 p-1 text-text-muted transition-colors hover:text-red-400">
+          <X size={13} />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3 rounded-lg bg-bg-card border border-white/[0.06] px-3 py-2">
       <Icon size={14} className="shrink-0 text-text-muted" />
-      <span className="flex-1 text-xs text-white truncate">{material.title}</span>
+      {material.documentId ? (
+        <button
+          type="button"
+          onClick={() => onView(material.documentId!)}
+          title="Open document"
+          className="flex-1 min-w-0 text-left text-xs text-brand-orange truncate hover:underline"
+        >
+          {material.title}
+        </button>
+      ) : (
+        <span className="flex-1 text-xs text-white truncate">{material.title}</span>
+      )}
       <span className="shrink-0 text-[10px] text-text-muted">
         {material.documentId ? 'From documents' : 'Direct input'}
       </span>

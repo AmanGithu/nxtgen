@@ -158,6 +158,36 @@ router.post('/documents', upload.single('file'), async (req: Request, res: Respo
   }
 });
 
+router.patch('/documents/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = z.object({
+      title: z.string().min(1).max(200).optional(),
+      description: z.string().max(500).nullable().optional(),
+      content: z.string().min(1).max(100000).optional(),
+    }).parse(req.body);
+
+    const document = await contextDocService.update(param(req.params.id), req.user!.id, data);
+
+    res.json({
+      success: true,
+      document: {
+        id: document.id,
+        title: document.title,
+        description: document.description,
+        fileName: document.fileName,
+        fileType: document.fileType,
+        fileSize: document.fileSize,
+        wordCount: document.wordCount,
+        content: document.content,
+        createdAt: document.createdAt,
+        updatedAt: document.updatedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/documents/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     await contextDocService.delete(param(req.params.id), req.user!.id);

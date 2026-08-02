@@ -2,12 +2,19 @@ import path from 'path';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/errorHandler';
 
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
+const mammoth = require('mammoth');
 
 interface CreateDocInput {
   title: string;
   description?: string;
   content: string;
+}
+
+interface UpdateDocInput {
+  title?: string;
+  description?: string | null;
+  content?: string;
 }
 
 export const contextDocService = {
@@ -35,9 +42,19 @@ export const contextDocService = {
   },
 
   async getById(id: string, userId: string) {
-    const doc = await prisma.contextDocument.findFirst({ where: { id, userId } });
+    const doc = await prisma.contextDocument.findFirst({
+      where: { id, userId },
+      include: {
+        materials: { select: { assistant: { select: { name: true } } } },
+      },
+    });
     if (!doc) throw new AppError('Document not found', 404);
-    return doc;
+
+    const { materials, ...rest } = doc;
+    // Which assistants would lose this context if the document were deleted.
+    const usedBy = [...new Set(materials.map((m) => m.assistant.name))];
+
+    return { ...rest, usedBy };
   },
 
   async create(userId: string, data: CreateDocInput) {
@@ -64,9 +81,20 @@ export const contextDocService = {
     let content: string;
 
     if (ext === '.pdf') {
-      const pdfData = await pdfParse(file.buffer);
-      content = pdfData.text?.trim() || '';
+      const parser = new PDFParse({ data: file.buffer });
+      try {
+        const pdfData = await parser.getText({ pageJoiner: '\n' });
+        content = pdfData.text?.trim() || '';
+      } finally {
+        await parser.destroy();
+      }
       if (!content) throw new AppError('Could not extract text from PDF', 400);
+    } else if (ext === '.docx') {
+      const { value } = await mammoth.extractRawText({ buffer: file.buffer });
+      content = value?.trim() || '';
+      if (!content) throw new AppError('Could not extract text from DOCX', 400);
+    } else if (ext === '.doc') {
+      throw new AppError('Legacy .doc files are not supported. Please save as .docx or PDF.', 400);
     } else {
       content = file.buffer.toString('utf-8');
     }
@@ -83,6 +111,27 @@ export const contextDocService = {
         fileSize: file.size,
         content,
         wordCount,
+      },
+    });
+  },
+
+  async update(id: string, userId: string, data: UpdateDocInput) {
+    const doc = await prisma.contextDocument.findFirst({ where: { id, userId } });
+    if (!doc) throw new AppError('Document not found', 404);
+
+    if (data.content !== undefined && doc.fileName) {
+      throw new AppError('Cannot edit the content of an uploaded file. Delete it and upload a new version.', 400);
+    }
+
+    return prisma.contextDocument.update({
+      where: { id },
+      data: {
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.content !== undefined && {
+          content: data.content,
+          wordCount: data.content.split(/\s+/).filter(Boolean).length,
+        }),
       },
     });
   },
