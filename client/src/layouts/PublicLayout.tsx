@@ -14,7 +14,7 @@ const TOOLS_LIST = [
   { name: 'Cover Letter Builder', path: '/dashboard/student/tools/cover-letter', icon: FileText, desc: '250-word role-tailored cover letters' },
   { name: 'Interview Prep Kit', path: '/dashboard/student/tools/interview-prep', icon: Bot, desc: '20 STAR-format model Q&A cards' },
   { name: 'Upload & Enhance', path: '/tools/upload-enhance', icon: Sparkles, desc: 'Auto-parse PDF & enhance action verbs' },
-  { name: 'I-Assist Teleprompter', path: '/tools/i-assist', icon: Mic, desc: 'Real-time speech transcript & hint cards' },
+  { name: 'I-Assist', path: '/tools/i-assist', icon: Mic, desc: 'AI-powered interview co-pilot' },
 ];
 
 const PublicLayout = () => {

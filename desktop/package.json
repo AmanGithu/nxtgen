@@ -1,0 +1,23 @@
+{
+  "name": "nxtgen-iassist",
+  "version": "1.0.0",
+  "description": "NxtGen I-Assist — AI-powered interview co-pilot desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "author": "NxtGen Academy",
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.0"
+  },
+  "dependencies": {
+    "electron-store": "^10.0.0"
+  }
+}

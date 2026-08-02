@@ -16,6 +16,7 @@ const UpcomingBatches = lazy(() => import('./pages/UpcomingBatches'));
 const Corporate = lazy(() => import('./pages/Corporate'));
 const ToolsPreview = lazy(() => import('./pages/ToolsPreview'));
 const Login = lazy(() => import('./pages/Login'));
+const DesktopAuthorize = lazy(() => import('./pages/DesktopAuthorize'));
 
 // Admin Modules (Slice 3)
 const AdminOverview = lazy(() => import('./pages/admin/Overview'));
@@ -40,8 +41,14 @@ const CoverLetterBuilder = lazy(() => import('./pages/tools/CoverLetterBuilder')
 const InterviewPrepKit = lazy(() => import('./pages/tools/InterviewPrepKit'));
 
 // Phase 2 Real-Time Voice & Avatar Tools
-const IAssistTeleprompter = lazy(() => import('./pages/tools/IAssistTeleprompter'));
 const LiveInterviewStage = lazy(() => import('./pages/tools/LiveInterviewStage'));
+
+// I-Assist Phase 3 + Phase 6
+const IAssistPreview = lazy(() => import('./pages/tools/IAssistPreview'));
+const IAssistDashboard = lazy(() => import('./pages/tools/iassist/Dashboard'));
+const IAssistSessionDetail = lazy(() => import('./pages/tools/iassist/SessionDetail'));
+const IAssistAssistants = lazy(() => import('./pages/tools/iassist/Assistants'));
+const IAssistDocuments = lazy(() => import('./pages/tools/iassist/Documents'));
 
 // Fallback for lazy loading
 const Loading = () => (
@@ -76,7 +83,7 @@ function App() {
                   <Route path="/login" element={<Login />} />
 
                   {/* Direct Public Tool Routes */}
-                  <Route path="/tools/i-assist" element={<IAssistTeleprompter />} />
+                  <Route path="/tools/i-assist" element={<IAssistPreview />} />
                   <Route path="/tools/live-interview" element={<LiveInterviewStage />} />
                 </Route>
 
@@ -114,12 +121,20 @@ function App() {
                     <Route path="tools/interview-prep" element={<InterviewPrepKit />} />
 
                     {/* Phase 2 Real-Time Voice & Avatar Tools */}
-                    <Route path="tools/i-assist" element={<IAssistTeleprompter />} />
                     <Route path="tools/live-interview" element={<LiveInterviewStage />} />
+
+                    {/* I-Assist Phase 3 */}
+                    <Route path="tools/i-assist" element={<IAssistDashboard />} />
+                    <Route path="tools/i-assist/session/:id" element={<IAssistSessionDetail />} />
+                    <Route path="tools/i-assist/assistants" element={<IAssistAssistants />} />
+                    <Route path="tools/i-assist/documents" element={<IAssistDocuments />} />
 
                     <Route path="*" element={<Placeholder title="Student Module Content" />} />
                   </Route>
                 </Route>
+
+                {/* Desktop Auth (standalone — no layout wrapper) */}
+                <Route path="/desktop-authorize" element={<DesktopAuthorize />} />
 
                 <Route path="/unauthorized" element={<Placeholder title="Unauthorized Access" />} />
                 <Route path="*" element={<Placeholder title="404 Not Found" />} />

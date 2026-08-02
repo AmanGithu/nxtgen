@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { clsx } from 'clsx';
-import { 
-  LayoutDashboard, Users, Settings, Calendar, BookOpen, 
-  Award, Briefcase, FileText, Menu, X, LogOut, Lock, Mic, Bot 
+import {
+  LayoutDashboard, Users, Settings, Calendar, BookOpen,
+  Award, Briefcase, FileText, Menu, X, LogOut, Lock, Mic, Bot, Cpu
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -35,6 +35,7 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
     { name: 'Certifications', path: '/dashboard/admin/certifications', icon: Award },
     { name: 'Cert Inquiries', path: '/dashboard/admin/cert-inquiries', icon: FileText },
     { name: 'Menu Editor', path: '/dashboard/admin/menu', icon: Menu },
+    { name: 'AI Config', path: '/dashboard/admin/ai-config', icon: Cpu },
   ];
 
   const studentLinks: NavLinkItem[] = [
@@ -48,7 +49,7 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
     { name: 'LinkedIn Analyser', path: '/dashboard/student/tools/linkedin-analyser', icon: Users },
     { name: 'Cover Letter Builder', path: '/dashboard/student/tools/cover-letter', icon: FileText },
     { name: 'Interview Prep Kit', path: '/dashboard/student/tools/interview-prep', icon: LayoutDashboard },
-    { name: 'I-Assist Teleprompter', path: '/dashboard/student/tools/i-assist', icon: Mic },
+    { name: 'I-Assist', path: '/dashboard/student/tools/i-assist', icon: Mic },
     { name: 'Live AI Interview', path: '/dashboard/student/tools/live-interview', icon: Bot },
     { name: 'Unlock All Packages', path: '/dashboard/student/unlock', icon: Lock },
   ];

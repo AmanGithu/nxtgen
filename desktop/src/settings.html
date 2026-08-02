@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I-Assist Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #111118;
+      --surface: #1a1a24;
+      --surface-2: #22222e;
+      --border: #2a2a3a;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --accent: #f5820b;
+      --accent-hover: #e0750a;
+      --success: #1d9e75;
+      --danger: #ef4444;
+      --radius: 8px;
+    }
+
+    body.theme-light {
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --surface-2: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+    }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      user-select: none;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .settings-container {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .settings-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .settings-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    .close-btn:hover { color: var(--text); background: var(--surface); }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+      -webkit-app-region: no-drag;
+    }
+
+    .icon-btn:hover { color: var(--text); background: var(--surface); }
+
+    .icon-btn.danger:hover { color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+
+    .header-divider {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+      margin: 0 3px;
+    }
+
+    .settings-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .settings-body::-webkit-scrollbar { width: 4px; }
+    .settings-body::-webkit-scrollbar-track { background: transparent; }
+    .settings-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .section-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* --- Account section --- */
+
+    .account-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .account-avatar {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .account-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .account-name {
+      font-weight: 600;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .account-email {
+      font-size: 11px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .account-role {
+      font-size: 10px;
+      color: var(--accent);
+      background: rgba(245, 130, 11, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-top: 2px;
+      display: inline-block;
+    }
+
+    .not-signed-in {
+      text-align: center;
+      padding: 8px 0;
+    }
+
+    .not-signed-in p {
+      color: var(--text-muted);
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+
+    /* --- Buttons --- */
+
+    .btn {
+      padding: 7px 14px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-align: center;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover { border-color: var(--text-muted); }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.1); }
+
+    .btn-block { width: 100%; }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary:disabled:hover { background: var(--accent); }
+    .btn-outline:disabled:hover { border-color: var(--border); }
+
+    /* --- Slider --- */
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .setting-label {
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .setting-value {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      min-width: 32px;
+      text-align: right;
+    }
+
+    .slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    /* --- Theme toggle --- */
+
+    .theme-toggle {
+      display: flex;
+      gap: 4px;
+      background: var(--surface-2);
+      border-radius: var(--radius);
+      padding: 2px;
+    }
+
+    .theme-option {
+      flex: 1;
+      padding: 6px 0;
+      text-align: center;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: inherit;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .theme-option.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    /* --- Assistant section --- */
+
+    .section-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .assistant-row {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .icon-btn.bordered {
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      width: 34px;
+      height: auto;
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+
+    .icon-btn.bordered:hover { border-color: var(--accent); color: var(--accent); }
+
+    .icon-btn.spinning svg { animation: spin 0.7s linear infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .assistant-select {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      width: 100%;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .assistant-select:focus { border-color: var(--accent); }
+    .assistant-select:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-group .btn {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-stop {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .btn-stop:hover { background: #dc2626; }
+
+    .create-link {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .create-link:hover { border-color: var(--accent); color: var(--text); }
+
+    /* The row already uses --surface-2, so the key chip needs its own contrast. */
+    .create-link .shortcut-keys {
+      margin-left: auto;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+
+    .shortcut-keys {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--surface-2);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .version {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .hidden { display: none !important; }
+
+    /* --- Visibility cards --- */
+
+    .visibility-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .visibility-option {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .visibility-option:hover { border-color: var(--text-muted); }
+
+    .visibility-option.active {
+      border-color: var(--accent);
+      background: rgba(245, 130, 11, 0.08);
+    }
+
+    .vis-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    .visibility-option.active .vis-icon {
+      color: var(--accent);
+      background: rgba(245, 130, 11, 0.12);
+    }
+
+    .vis-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .vis-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="settings-container">
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <div class="header-actions">
+        <button class="icon-btn" id="btn-sign-out-header" title="Sign Out">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+        <button class="icon-btn danger" id="btn-quit" title="Quit I-Assist">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+            <line x1="12" y1="2" x2="12" y2="12"/>
+          </svg>
+        </button>
+        <div class="header-divider"></div>
+        <button class="close-btn" id="btn-close" title="Close">&times;</button>
+      </div>
+    </div>
+
+    <div class="settings-body">
+      <!-- Account -->
+      <div class="section">
+        <div class="section-title">Account</div>
+        <div class="section-content">
+          <div id="account-signed-in" class="hidden">
+            <div class="account-info">
+              <div class="account-avatar" id="avatar">?</div>
+              <div class="account-details">
+                <div class="account-name" id="user-name">—</div>
+                <div class="account-email" id="user-email">—</div>
+                <span class="account-role" id="user-role">—</span>
+              </div>
+            </div>
+            <div style="margin-top: 10px;">
+              <button class="btn btn-outline btn-block" id="btn-dashboard">Open Dashboard</button>
+            </div>
+          </div>
+          <div id="account-signed-out" class="not-signed-in hidden">
+            <p>Sign in to your NxtGen account to use I-Assist</p>
+            <button class="btn btn-primary btn-block" id="btn-sign-in">Sign In with NxtGen</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assistant -->
+      <div class="section">
+        <div class="section-title">Assistant</div>
+        <div class="section-content">
+          <div class="section-desc">Pick the assistant I-Assist should use for your session</div>
+          <div class="assistant-row">
+            <select class="assistant-select" id="assistant-select">
+              <option value="" disabled selected>Loading assistants…</option>
+            </select>
+            <button class="icon-btn bordered" id="btn-refresh-assistants" title="Refresh list from NxtGen">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+            </button>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="btn-start-session">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Start Session
+            </button>
+            <button class="btn btn-outline" id="btn-start-trial">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              Start Trial Session
+            </button>
+          </div>
+          <button class="btn btn-stop btn-block hidden" id="btn-stop-session">Stop Session</button>
+          <a href="#" class="create-link" id="btn-create-assistant">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            Create an assistant on NxtGen
+          </a>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="section">
+        <div class="section-title">Appearance</div>
+        <div class="section-content">
+          <div class="setting-row">
+            <span class="setting-label">Opacity</span>
+            <input type="range" class="slider" id="opacity-slider" min="0.1" max="1" step="0.05" value="0.9">
+            <span class="setting-value" id="opacity-value">90%</span>
+          </div>
+          <div>
+            <span class="setting-label" style="display:block; margin-bottom: 6px;">Theme</span>
+            <div class="theme-toggle">
+              <button class="theme-option active" data-theme="dark">Dark</button>
+              <button class="theme-option" data-theme="light">Light</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visibility -->
+      <div class="section">
+        <div class="section-title">Visibility</div>
+        <div class="section-content">
+          <div class="visibility-list">
+            <div class="visibility-option active" data-mode="visible">
+              <div class="vis-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </div>
+              <div>
+                <div class="vis-title">Visible</div>
+                <div class="vis-desc">Normal — visible in screen shares and recordings.</div>
+              </div>
+            </div>
+            <div class="visibility-option" data-mode="invisible">
+              <div class="vis-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              </div>
+              <div>
+                <div class="vis-title">Invisible</div>
+                <div class="vis-desc">Hidden from screen shares and recordings, still usable normally.</div>
+              </div>
+            </div>
+            <div class="visibility-option" data-mode="undetectable">
+              <div class="vis-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+              <div>
+                <div class="vis-title">Undetectable</div>
+                <div class="vis-desc">Hidden from screen shares, mouse clicks pass through — keyboard only. Ctrl+Shift+Alt+Esc drops back to Invisible.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Keyboard shortcuts -->
+      <div class="section">
+        <div class="section-title">Keyboard Shortcuts</div>
+        <div class="section-content">
+          <div class="section-desc">Control your session without touching the mouse. Open the full reference below.</div>
+          <div class="create-link" id="btn-shortcuts">
+            <span>Open shortcuts reference</span>
+            <span class="shortcut-keys">Ctrl+Shift+Alt+J</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="version">NxtGen I-Assist v1.0.0</div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const btnClose = $('#btn-close');
+    const btnSignIn = $('#btn-sign-in');
+    const btnDashboard = $('#btn-dashboard');
+    const accountSignedIn = $('#account-signed-in');
+    const accountSignedOut = $('#account-signed-out');
+    const avatarEl = $('#avatar');
+    const userNameEl = $('#user-name');
+    const userEmailEl = $('#user-email');
+    const userRoleEl = $('#user-role');
+    const opacitySlider = $('#opacity-slider');
+    const opacityValue = $('#opacity-value');
+    const themeButtons = document.querySelectorAll('.theme-option');
+    const visibilityOptions = document.querySelectorAll('.visibility-option');
+    const btnShortcuts = $('#btn-shortcuts');
+    const assistantSelect = $('#assistant-select');
+    const btnStartSession = $('#btn-start-session');
+    const btnStartTrial = $('#btn-start-trial');
+    const btnStopSession = $('#btn-stop-session');
+    const btnGroup = document.querySelector('.btn-group');
+
+    let assistants = [];
+
+    function populateAssistants(list) {
+      assistants = list;
+      assistantSelect.innerHTML = '';
+      if (list.length === 0) {
+        assistantSelect.innerHTML = '<option value="" disabled selected>No assistants yet</option>';
+        btnStartSession.disabled = true;
+        btnStartTrial.disabled = true;
+        return;
+      }
+      list.forEach((a, i) => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = a.name;
+        if (i === 0) opt.selected = true;
+        assistantSelect.appendChild(opt);
+      });
+      btnStartSession.disabled = false;
+      btnStartTrial.disabled = false;
+    }
+
+    function setSessionUI(active) {
+      btnGroup.classList.toggle('hidden', active);
+      btnStopSession.classList.toggle('hidden', !active);
+      assistantSelect.disabled = active;
+    }
+
+    function beginSession() {
+      const selected = assistants.find(a => a.id === assistantSelect.value);
+      if (!selected) return;
+      window.iAssist.setAssistant(selected);
+      window.iAssist.startSession();
+    }
+
+    // Assistants are created and deleted on the web, so the cached list goes stale
+    // while the app runs. Refetch on open and on demand.
+    async function refreshAssistants() {
+      const btn = $('#btn-refresh-assistants');
+      btn.classList.add('spinning');
+      try {
+        const { assistants: list, assistant } = await window.iAssist.refreshAssistants();
+        populateAssistants(list || []);
+        if (assistant) assistantSelect.value = assistant.id;
+      } finally {
+        btn.classList.remove('spinning');
+      }
+    }
+
+    function showAccount(user) {
+      if (user) {
+        accountSignedIn.classList.remove('hidden');
+        accountSignedOut.classList.add('hidden');
+        const initials = (user.name || user.email || '?').charAt(0).toUpperCase();
+        avatarEl.textContent = initials;
+        userNameEl.textContent = user.name || '—';
+        userEmailEl.textContent = user.email || '—';
+        userRoleEl.textContent = user.role || '—';
+      } else {
+        accountSignedIn.classList.add('hidden');
+        accountSignedOut.classList.remove('hidden');
+      }
+    }
+
+    function setThemeUI(theme) {
+      themeButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === theme);
+      });
+      document.body.classList.toggle('theme-light', theme === 'light');
+    }
+
+    function setVisibilityUI(mode) {
+      visibilityOptions.forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.mode === mode);
+      });
+    }
+
+    // --- Event handlers ---
+
+    btnClose.addEventListener('click', () => window.iAssist.closeSettings());
+
+    btnSignIn.addEventListener('click', () => window.iAssist.openSignIn());
+
+    btnDashboard.addEventListener('click', () => window.iAssist.openWebDashboard());
+
+    btnStartSession.addEventListener('click', beginSession);
+    btnStartTrial.addEventListener('click', beginSession);
+    btnStopSession.addEventListener('click', () => window.iAssist.stopSession());
+
+    assistantSelect.addEventListener('change', () => {
+      const selected = assistants.find(a => a.id === assistantSelect.value);
+      if (selected) window.iAssist.setAssistant(selected);
+    });
+
+    $('#btn-create-assistant').addEventListener('click', (e) => {
+      e.preventDefault();
+      window.iAssist.openWebDashboard();
+    });
+
+    $('#btn-refresh-assistants').addEventListener('click', refreshAssistants);
+
+    opacitySlider.addEventListener('input', () => {
+      const val = parseFloat(opacitySlider.value);
+      opacityValue.textContent = `${Math.round(val * 100)}%`;
+      window.iAssist.setOpacity(val);
+    });
+
+    themeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        setThemeUI(btn.dataset.theme);
+        window.iAssist.setTheme(btn.dataset.theme);
+      });
+    });
+
+    visibilityOptions.forEach(opt => {
+      opt.addEventListener('click', () => {
+        setVisibilityUI(opt.dataset.mode);
+        window.iAssist.setVisibilityMode(opt.dataset.mode);
+      });
+    });
+
+    btnShortcuts.addEventListener('click', () => window.iAssist.openShortcutsWindow());
+
+    $('#btn-sign-out-header').addEventListener('click', () => {
+      window.iAssist.signOut();
+      showAccount(null);
+    });
+
+    $('#btn-quit').addEventListener('click', () => {
+      if (confirm('Quit I-Assist?')) window.iAssist.quitApp();
+    });
+
+    // --- IPC listeners ---
+
+    window.iAssist.onAuthStateChanged((data) => {
+      showAccount(data.isAuthenticated ? data.user || currentUser : null);
+    });
+
+    window.iAssist.onOpacityUpdate((opacity) => {
+      opacitySlider.value = opacity;
+      opacityValue.textContent = `${Math.round(opacity * 100)}%`;
+    });
+
+    window.iAssist.onThemeUpdate((theme) => {
+      setThemeUI(theme);
+    });
+
+    window.iAssist.onVisibilityUpdate((mode) => {
+      setVisibilityUI(mode);
+    });
+
+    window.iAssist.onAssistantsAvailability((data) => {
+      populateAssistants(data.assistants || []);
+    });
+
+    window.iAssist.onAssistantUpdate((assistant) => {
+      if (assistant && assistantSelect.value !== assistant.id) {
+        assistantSelect.value = assistant.id;
+      }
+    });
+
+    window.iAssist.onSessionStateChanged((data) => setSessionUI(data.active));
+
+    // --- Init ---
+
+    let currentUser = null;
+
+    (async () => {
+      const settings = await window.iAssist.getInitialSettings();
+      currentUser = settings.user;
+      showAccount(settings.isAuthenticated ? settings.user : null);
+      opacitySlider.value = settings.opacity;
+      opacityValue.textContent = `${Math.round(settings.opacity * 100)}%`;
+      setThemeUI(settings.theme);
+      setVisibilityUI(settings.visibilityMode || 'visible');
+      populateAssistants(settings.assistants || []);
+      if (settings.assistant) assistantSelect.value = settings.assistant.id;
+      setSessionUI(!!settings.isSessionActive);
+      // Render the cached list immediately, then reconcile with the server.
+      if (settings.isAuthenticated) refreshAssistants();
+    })();
+  </script>
+</body>
+</html>

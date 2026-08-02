@@ -7,6 +7,7 @@ import { env } from './config/env';
 import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
 import { setupWebSocketServer } from './websocket/server';
+import { sessionService } from './services/iassist/sessionService';
 
 const app = express();
 
@@ -27,6 +28,23 @@ const server = app.listen(env.PORT, () => {
 
 // Attach WebSocket server for real-time AI teleprompter & audio streams
 setupWebSocketServer(server);
+
+// I-Assist sessions are closed by the desktop client, so a crash leaves them
+// ACTIVE forever. Sweep on boot and hourly thereafter.
+const REAP_INTERVAL_MS = 60 * 60 * 1000;
+
+async function reapStaleSessions() {
+  try {
+    const count = await sessionService.reapStaleSessions();
+    if (count > 0) console.log(`Marked ${count} stale I-Assist session(s) as ABANDONED`);
+  } catch (err) {
+    console.error('Stale session sweep failed:', err);
+  }
+}
+
+reapStaleSessions();
+const reapTimer = setInterval(reapStaleSessions, REAP_INTERVAL_MS);
+reapTimer.unref();
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server');

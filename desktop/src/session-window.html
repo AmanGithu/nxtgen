@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I-Assist Session</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #111118;
+      --surface: #1a1a24;
+      --surface-2: #22222e;
+      --border: #2a2a3a;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --accent: #f5820b;
+      --accent-hover: #e0750a;
+      --success: #1d9e75;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --radius: 8px;
+    }
+
+    body.theme-light {
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --surface-2: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+    }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      user-select: none;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .session-container {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* --- Header --- */
+
+    .session-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .session-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .session-info .assistant-name {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .category-badge {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .badge-behavioral { background: #26215C; color: #9B93F0; }
+    .badge-technical { background: #04342C; color: #34D399; }
+    .badge-system_design { background: #4A1B0C; color: #FB923C; }
+    .badge-general { background: #27272a; color: #a1a1aa; }
+
+    .session-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      -webkit-app-region: no-drag;
+    }
+
+    .timer {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      color: var(--accent);
+      min-width: 44px;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+      -webkit-app-region: no-drag;
+    }
+
+    .icon-btn:hover { color: var(--text); background: var(--surface); }
+
+    .stop-btn {
+      background: var(--danger);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .stop-btn:hover { background: #dc2626; }
+
+    /* --- Split content: questions left, answer right --- */
+
+    .session-content {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1.8fr;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .pane {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .transcript-pane {
+      border-right: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.12);
+    }
+
+    body.theme-light .transcript-pane { background: rgba(0, 0, 0, 0.03); }
+
+    .pane-head {
+      padding: 8px 14px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .pane-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      background: var(--surface-2);
+      border-radius: 8px;
+      padding: 1px 6px;
+    }
+
+    .scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .scroll-area::-webkit-scrollbar { width: 4px; }
+    .scroll-area::-webkit-scrollbar-track { background: transparent; }
+    .scroll-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* --- Left: question list --- */
+
+    .transcript-list {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .transcript-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      border-left: 3px solid transparent;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .transcript-item:hover { background: var(--surface); }
+
+    .transcript-item.selected {
+      background: rgba(245, 130, 11, 0.1);
+      border-left-color: var(--accent);
+    }
+
+    .transcript-time {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pending-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1.2s infinite;
+    }
+
+    .transcript-text {
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--text);
+      word-wrap: break-word;
+    }
+
+    .transcript-item.selected .transcript-text { font-weight: 600; }
+
+    /* --- Right: answer --- */
+
+    .answer-body {
+      padding: 16px 18px;
+      font-size: var(--answer-font-size, 13px);
+      line-height: 1.7;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      user-select: text;
+    }
+
+    .answer-question {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+      flex-shrink: 0;
+      word-wrap: break-word;
+    }
+
+    .placeholder {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 20px;
+      line-height: 1.5;
+    }
+
+    .thinking-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 16px 18px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .thinking-dots span {
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: dotPulse 1.2s infinite;
+      margin-right: 2px;
+    }
+
+    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotPulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    /* --- Live transcription bar --- */
+
+    .live-bar {
+      border-top: 1px solid var(--border);
+      padding: 8px 14px;
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .live-bar .label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-bar .label .rec-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--danger);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .live-bar .live-text {
+      font-size: 12px;
+      color: var(--text);
+      min-height: 18px;
+      max-height: 36px;
+      overflow-y: auto;
+      word-wrap: break-word;
+    }
+
+    /* --- Query input --- */
+
+    .query-bar {
+      border-top: 1px solid var(--border);
+      padding: 8px 14px;
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .query-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      resize: none;
+    }
+
+    .query-input:focus { border-color: var(--accent); }
+    .query-input::placeholder { color: var(--text-muted); }
+
+    .send-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      align-self: flex-end;
+    }
+
+    .send-btn:hover { background: var(--accent-hover); }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="session-container">
+    <div class="session-header">
+      <div class="session-info">
+        <span class="assistant-name" id="assistant-name">Assistant</span>
+        <span class="category-badge badge-general" id="category-badge">General</span>
+      </div>
+      <div class="session-controls">
+        <span class="timer" id="timer">00:00</span>
+        <button class="icon-btn" id="btn-minimize" title="Minimize (Ctrl+Shift+Alt+M)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-hide" title="Hide window (Ctrl+Shift+Alt+T)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+        <button class="stop-btn" id="btn-stop" title="Stop session (Ctrl+Shift+Alt+K)">Stop</button>
+      </div>
+    </div>
+
+    <div class="session-content">
+      <!-- LEFT: questions heard -->
+      <div class="pane transcript-pane">
+        <div class="pane-head">
+          <span>Questions</span>
+          <span class="pane-count" id="question-count">0</span>
+        </div>
+        <div class="scroll-area" id="transcript-scroll">
+          <div class="placeholder" id="transcript-placeholder">
+            Listening for audio…<br>Questions will appear here.
+          </div>
+          <div class="transcript-list hidden" id="transcript-list"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: answer for the selected question -->
+      <div class="pane response-pane">
+        <div class="pane-head"><span>Suggested Answer</span></div>
+        <div class="answer-question hidden" id="answer-question"></div>
+        <div class="scroll-area" id="answer-scroll">
+          <div class="placeholder" id="answer-placeholder">
+            The suggested answer will appear here.
+          </div>
+          <div class="thinking-indicator hidden" id="thinking-indicator">
+            <div class="thinking-dots"><span></span><span></span><span></span></div>
+            <span>Thinking…</span>
+          </div>
+          <div class="answer-body hidden" id="answer-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="live-bar">
+      <div class="label">
+        <span class="rec-dot"></span>
+        Live Transcription
+      </div>
+      <div class="live-text" id="live-text">Waiting for speech...</div>
+    </div>
+
+    <div class="query-bar">
+      <input type="text" class="query-input" id="query-input" placeholder="Ask a question or type a command..." />
+      <button class="send-btn" id="btn-send">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const transcriptList = $('#transcript-list');
+    const transcriptPlaceholder = $('#transcript-placeholder');
+    const transcriptScroll = $('#transcript-scroll');
+    const questionCount = $('#question-count');
+    const answerBody = $('#answer-body');
+    const answerQuestion = $('#answer-question');
+    const answerPlaceholder = $('#answer-placeholder');
+    const answerScroll = $('#answer-scroll');
+    const thinkingIndicator = $('#thinking-indicator');
+    const liveText = $('#live-text');
+    const timerEl = $('#timer');
+    const btnStop = $('#btn-stop');
+    const btnMinimize = $('#btn-minimize');
+    const btnHide = $('#btn-hide');
+    const btnSend = $('#btn-send');
+    const queryInput = $('#query-input');
+    const assistantNameEl = $('#assistant-name');
+    const categoryBadge = $('#category-badge');
+
+    let sessionSeconds = 0;
+    let timerInterval = null;
+    let conversationHistory = [];
+
+    // One entry per question asked; the right pane renders whichever is selected.
+    let entries = [];
+    let selectedId = null;
+    let nextId = 1;
+
+    // Transcription accumulation — debounce fragments into full utterances
+    let pendingTranscription = '';
+    let transcriptionDebounceTimer = null;
+    const TRANSCRIPTION_DEBOUNCE_MS = 2000;
+
+    // --- Audio capture ---
+
+    let mediaStream = null;
+    let mediaRecorder = null;
+    let vadInterval = null;
+    let audioContext = null;
+    let analyser = null;
+    const VAD_THRESHOLD = 0.015;
+    const VAD_INTERVAL_MS = 100;
+    const SILENCE_DURATION_MS = 1500;
+    const MAX_CHUNK_DURATION_MS = 15000;
+    const MIN_CHUNK_DURATION_MS = 500;
+    let isRecording = false;
+    let recordingStartTime = 0;
+    let silenceStart = null;
+
+    async function startAudioCapture() {
+      try {
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true,
+        });
+
+        displayStream.getVideoTracks().forEach(t => t.stop());
+
+        if (displayStream.getAudioTracks().length === 0) {
+          throw new Error('No audio track from display media');
+        }
+
+        mediaStream = new MediaStream(displayStream.getAudioTracks());
+      } catch (err) {
+        console.error('System audio capture failed, falling back to microphone', err);
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (micErr) {
+          console.error('Microphone capture also failed', micErr);
+          liveText.textContent = 'Audio capture failed. Check permissions.';
+          return;
+        }
+      }
+
+      audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(mediaStream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      startVAD();
+    }
+
+    function startVAD() {
+      const dataArray = new Float32Array(analyser.fftSize);
+
+      vadInterval = setInterval(() => {
+        analyser.getFloatTimeDomainData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i] * dataArray[i];
+        }
+        const rms = Math.sqrt(sum / dataArray.length);
+
+        if (isRecording) {
+          const elapsed = Date.now() - recordingStartTime;
+
+          if (rms > VAD_THRESHOLD) {
+            silenceStart = null;
+          } else {
+            if (!silenceStart) {
+              silenceStart = Date.now();
+            } else if (Date.now() - silenceStart >= SILENCE_DURATION_MS) {
+              stopRecordingChunk();
+            }
+          }
+
+          if (elapsed >= MAX_CHUNK_DURATION_MS) {
+            stopRecordingChunk();
+          }
+        } else {
+          if (rms > VAD_THRESHOLD) {
+            startRecordingChunk();
+          }
+        }
+      }, VAD_INTERVAL_MS);
+    }
+
+    function startRecordingChunk() {
+      if (isRecording || !mediaStream) return;
+      isRecording = true;
+      recordingStartTime = Date.now();
+      silenceStart = null;
+
+      mediaRecorder = new MediaRecorder(mediaStream, {
+        mimeType: 'audio/webm;codecs=opus',
+      });
+
+      const chunks = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        isRecording = false;
+        const duration = Date.now() - recordingStartTime;
+
+        if (chunks.length === 0 || duration < MIN_CHUNK_DURATION_MS) return;
+
+        const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result.split(',')[1];
+          window.iAssist.sendAudioChunk(base64, 'audio/webm;codecs=opus');
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      mediaRecorder.start();
+    }
+
+    function stopRecordingChunk() {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
+    }
+
+    function stopAudioCapture() {
+      clearInterval(vadInterval);
+      vadInterval = null;
+
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
+      mediaRecorder = null;
+
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+      }
+
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+      }
+
+      isRecording = false;
+      silenceStart = null;
+    }
+
+    // --- Timer ---
+
+    function startTimer() {
+      sessionSeconds = 0;
+      timerInterval = setInterval(() => {
+        sessionSeconds++;
+        const m = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
+        const s = String(sessionSeconds % 60).padStart(2, '0');
+        timerEl.textContent = `${m}:${s}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+
+    function formatTimestamp(seconds) {
+      const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+      const s = String(seconds % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // --- Q/A model ---
+
+    function addQuestion(text) {
+      const entry = { id: nextId++, question: text, answer: null, pending: true, ts: sessionSeconds };
+      entries.push(entry);
+      selectedId = entry.id;
+      renderList();
+      renderAnswer();
+      return entry;
+    }
+
+    // Answers arrive in the order their questions were sent, so the oldest
+    // unanswered entry is the one this response belongs to.
+    function resolveAnswer(text) {
+      const entry = entries.find(e => e.pending);
+      if (!entry) return;
+      entry.answer = text;
+      entry.pending = false;
+      renderList();
+      if (selectedId === entry.id) renderAnswer();
+    }
+
+    function renderList() {
+      questionCount.textContent = String(entries.length);
+
+      if (entries.length === 0) {
+        transcriptPlaceholder.classList.remove('hidden');
+        transcriptList.classList.add('hidden');
+        return;
+      }
+      transcriptPlaceholder.classList.add('hidden');
+      transcriptList.classList.remove('hidden');
+
+      transcriptList.innerHTML = entries.map(e => `
+        <div class="transcript-item${e.id === selectedId ? ' selected' : ''}" data-id="${e.id}">
+          <div class="transcript-time">
+            ${e.pending ? '<span class="pending-dot"></span>' : ''}${formatTimestamp(e.ts)}
+          </div>
+          <div class="transcript-text">${escapeHtml(e.question)}</div>
+        </div>
+      `).join('');
+
+      transcriptScroll.scrollTop = transcriptScroll.scrollHeight;
+    }
+
+    function renderAnswer() {
+      const entry = entries.find(e => e.id === selectedId);
+
+      if (!entry) {
+        answerQuestion.classList.add('hidden');
+        answerBody.classList.add('hidden');
+        thinkingIndicator.classList.add('hidden');
+        answerPlaceholder.classList.remove('hidden');
+        return;
+      }
+
+      answerQuestion.textContent = entry.question;
+      answerQuestion.classList.remove('hidden');
+      answerPlaceholder.classList.add('hidden');
+
+      if (entry.pending) {
+        thinkingIndicator.classList.remove('hidden');
+        answerBody.classList.add('hidden');
+      } else {
+        thinkingIndicator.classList.add('hidden');
+        answerBody.textContent = entry.answer || '';
+        answerBody.classList.remove('hidden');
+      }
+
+      answerScroll.scrollTop = 0;
+    }
+
+    transcriptList.addEventListener('click', (e) => {
+      const item = e.target.closest('.transcript-item');
+      if (!item) return;
+      selectedId = Number(item.dataset.id);
+      renderList();
+      renderAnswer();
+    });
+
+    // --- Query handling ---
+
+    function sendQuery() {
+      const message = queryInput.value.trim();
+      if (!message) return;
+
+      queryInput.value = '';
+      addQuestion(message);
+      conversationHistory.push({ role: 'user', text: message });
+      window.iAssist.sendQuery(message, conversationHistory);
+    }
+
+    btnSend.addEventListener('click', sendQuery);
+    queryInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendQuery();
+      }
+    });
+
+    btnStop.addEventListener('click', () => window.iAssist.stopSession());
+    btnMinimize.addEventListener('click', () => window.iAssist.minimizeSessionWindow());
+    btnHide.addEventListener('click', () => window.iAssist.toggleSessionWindow());
+
+    // --- IPC listeners ---
+
+    window.iAssist.onStartAudioCapture((data) => {
+      if (data.assistant) {
+        assistantNameEl.textContent = data.assistant.name || 'Assistant';
+        const cat = (data.assistant.category || 'general').toLowerCase();
+        categoryBadge.className = `category-badge badge-${cat}`;
+        categoryBadge.textContent = cat.replace('_', ' ');
+      }
+      startTimer();
+      startAudioCapture();
+    });
+
+    window.iAssist.onStopAudioCapture(() => {
+      flushTranscription();
+      stopAudioCapture();
+      stopTimer();
+    });
+
+    window.iAssist.onTranscriptionUpdate((data) => {
+      if (data.text) {
+        liveText.textContent = data.text;
+
+        pendingTranscription += (pendingTranscription ? ' ' : '') + data.text;
+
+        if (transcriptionDebounceTimer) clearTimeout(transcriptionDebounceTimer);
+        transcriptionDebounceTimer = setTimeout(flushTranscription, TRANSCRIPTION_DEBOUNCE_MS);
+      }
+    });
+
+    function flushTranscription() {
+      if (transcriptionDebounceTimer) {
+        clearTimeout(transcriptionDebounceTimer);
+        transcriptionDebounceTimer = null;
+      }
+      if (!pendingTranscription) return;
+
+      const text = pendingTranscription;
+      pendingTranscription = '';
+
+      addQuestion(text);
+      conversationHistory.push({ role: 'user', text });
+      window.iAssist.sendQuery(text, conversationHistory);
+    }
+
+    window.iAssist.onLlmAnswer((data) => {
+      if (data.response) {
+        resolveAnswer(data.response);
+        conversationHistory.push({ role: 'model', text: data.response });
+      }
+    });
+
+    // The per-entry pending flag drives the spinner, so this only needs to cover
+    // the case where a response lands without any question queued.
+    window.iAssist.onAiThinking((data) => {
+      if (!data.thinking) return;
+      const entry = entries.find(e => e.id === selectedId);
+      if (entry && entry.pending) thinkingIndicator.classList.remove('hidden');
+    });
+
+    window.iAssist.onOpacityUpdate((opacity) => {
+      document.body.style.opacity = opacity;
+    });
+
+    window.iAssist.onThemeUpdate((theme) => {
+      document.body.classList.toggle('theme-light', theme === 'light');
+    });
+
+    let currentFontSize = 13;
+    window.iAssist.onAdjustFontSize((direction) => {
+      currentFontSize = direction === 'inc'
+        ? Math.min(24, currentFontSize + 1)
+        : Math.max(10, currentFontSize - 1);
+      document.documentElement.style.setProperty('--answer-font-size', currentFontSize + 'px');
+    });
+
+    // --- Init ---
+
+    (async () => {
+      const settings = await window.iAssist.getInitialSettings();
+      document.body.classList.toggle('theme-light', settings.theme === 'light');
+      if (settings.assistant) {
+        assistantNameEl.textContent = settings.assistant.name || 'Assistant';
+        const cat = (settings.assistant.category || 'general').toLowerCase();
+        categoryBadge.className = `category-badge badge-${cat}`;
+        categoryBadge.textContent = cat.replace('_', ' ');
+      }
+    })();
+  </script>
+</body>
+</html>
