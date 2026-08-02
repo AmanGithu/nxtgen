@@ -5,6 +5,7 @@ import {
   Clock, MessageSquare, Upload, ChevronDown, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
+import DocumentViewerModal from './DocumentViewerModal';
 
 const CATEGORY_LABELS: Record<string, string> = {
   BEHAVIORAL: 'Behavioral',
@@ -377,6 +378,7 @@ const Assistants = () => {
   const [saving, setSaving] = useState(false);
   const [materialModal, setMaterialModal] = useState<{ assistantId: string; role: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewingDocId, setViewingDocId] = useState<string | null>(null);
 
   const loadAssistants = () => {
     setLoading(true);
@@ -612,6 +614,7 @@ const Assistants = () => {
                     <MaterialRow
                       material={resume}
                       onRemove={() => handleRemoveMaterial(ast.id, resume.id)}
+                      onView={setViewingDocId}
                     />
                   ) : (
                     <button
@@ -627,6 +630,7 @@ const Assistants = () => {
                     <MaterialRow
                       material={jd}
                       onRemove={() => handleRemoveMaterial(ast.id, jd.id)}
+                      onView={setViewingDocId}
                     />
                   ) : (
                     <button
@@ -643,6 +647,7 @@ const Assistants = () => {
                       key={mat.id}
                       material={mat}
                       onRemove={() => handleRemoveMaterial(ast.id, mat.id)}
+                      onView={setViewingDocId}
                     />
                   ))}
 
@@ -672,6 +677,11 @@ const Assistants = () => {
         </div>
       )}
 
+      {/* Document Viewer */}
+      {viewingDocId && (
+        <DocumentViewerModal documentId={viewingDocId} onClose={() => setViewingDocId(null)} />
+      )}
+
       {/* Add Material Modal */}
       {materialModal && (
         <AddMaterialModal
@@ -687,12 +697,23 @@ const Assistants = () => {
 
 // ─── Material Row ─────────────────────────────────────────────
 
-const MaterialRow = ({ material, onRemove }: { material: Material; onRemove: () => void }) => {
+const MaterialRow = ({ material, onRemove, onView }: { material: Material; onRemove: () => void; onView: (documentId: string) => void }) => {
   const Icon = ROLE_ICONS[material.role] || StickyNote;
   return (
     <div className="flex items-center gap-3 rounded-lg bg-bg-card border border-white/[0.06] px-3 py-2">
       <Icon size={14} className="shrink-0 text-text-muted" />
-      <span className="flex-1 text-xs text-white truncate">{material.title}</span>
+      {material.documentId ? (
+        <button
+          type="button"
+          onClick={() => onView(material.documentId!)}
+          title="Open document"
+          className="flex-1 min-w-0 text-left text-xs text-brand-orange truncate hover:underline"
+        >
+          {material.title}
+        </button>
+      ) : (
+        <span className="flex-1 text-xs text-white truncate">{material.title}</span>
+      )}
       <span className="shrink-0 text-[10px] text-text-muted">
         {material.documentId ? 'From documents' : 'Direct input'}
       </span>

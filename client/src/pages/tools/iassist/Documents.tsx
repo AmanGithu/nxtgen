@@ -4,6 +4,7 @@ import {
   Upload, Search, Trash2, FileText, X, CloudUpload, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
+import DocumentViewerModal from './DocumentViewerModal';
 
 const FILE_TYPE_STYLES: Record<string, string> = {
   pdf: 'bg-red-500/10 text-red-400 border-red-500/20',
@@ -229,6 +230,7 @@ const Documents = () => {
   const [showUpload, setShowUpload] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   const loadDocs = (q?: string) => {
     setLoading(true);
@@ -411,10 +413,15 @@ const Documents = () => {
                     <tr key={doc.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-4 py-3 text-xs text-text-muted tabular-nums">{i + 1}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => setViewingId(doc.id)}
+                          title="Open document"
+                          className="flex items-center gap-2 min-w-0 text-left"
+                        >
                           <FileText size={14} className="shrink-0 text-text-muted" />
-                          <span className="text-sm text-brand-orange truncate">{doc.title}</span>
-                        </div>
+                          <span className="text-sm text-brand-orange truncate hover:underline">{doc.title}</span>
+                        </button>
                         {doc.description && (
                           <p className="text-[10px] text-text-muted mt-0.5 truncate max-w-xs">{doc.description}</p>
                         )}
@@ -456,6 +463,11 @@ const Documents = () => {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Document Viewer */}
+      {viewingId && (
+        <DocumentViewerModal documentId={viewingId} onClose={() => setViewingId(null)} />
       )}
 
       {/* Upload Modal */}
