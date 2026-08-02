@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('iAssist', {
   // --- Settings ---
   getInitialSettings: () => ipcRenderer.invoke('get-initial-settings'),
+  getTheme: () => ipcRenderer.invoke('get-theme'),
 
   // --- Session lifecycle ---
   startSession: () => ipcRenderer.send('start-session'),
@@ -29,9 +30,12 @@ contextBridge.exposeInMainWorld('iAssist', {
   openSettings: () => ipcRenderer.send('open-settings'),
   closeSettings: () => ipcRenderer.send('close-settings'),
   openWebDashboard: () => ipcRenderer.send('open-web-dashboard'),
-
-  // --- Config ---
-  setApiBaseUrl: (url) => ipcRenderer.send('set-api-base-url', url),
+  openShortcutsWindow: () => ipcRenderer.send('open-shortcuts-window'),
+  closeShortcutsWindow: () => ipcRenderer.send('close-shortcuts-window'),
+  toggleSessionWindow: () => ipcRenderer.send('toggle-session-window'),
+  hideBar: () => ipcRenderer.send('hide-bar'),
+  minimizeSessionWindow: () => ipcRenderer.send('minimize-session-window'),
+  quitApp: () => ipcRenderer.send('quit-app'),
 
   // --- Listeners (Main → Renderer) ---
   onTranscriptionUpdate: (callback) => ipcRenderer.on('transcription-update', (_e, data) => callback(data)),
@@ -43,7 +47,9 @@ contextBridge.exposeInMainWorld('iAssist', {
   onStopAudioCapture: (callback) => ipcRenderer.on('stop-audio-capture', (_e, data) => callback(data)),
   onOpacityUpdate: (callback) => ipcRenderer.on('opacity-update', (_e, data) => callback(data)),
   onThemeUpdate: (callback) => ipcRenderer.on('theme-update', (_e, data) => callback(data)),
+  onVisibilityUpdate: (callback) => ipcRenderer.on('visibility-update', (_e, data) => callback(data)),
   onAssistantUpdate: (callback) => ipcRenderer.on('assistant-update', (_e, data) => callback(data)),
+  onAdjustFontSize: (callback) => ipcRenderer.on('adjust-font-size', (_e, data) => callback(data)),
   onAssistantsAvailability: (callback) => ipcRenderer.on('assistants-availability', (_e, data) => callback(data)),
   onSessionStartFailed: (callback) => ipcRenderer.on('session-start-failed', (_e, data) => callback(data)),
 

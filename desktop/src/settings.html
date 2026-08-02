@@ -21,6 +21,15 @@
       --radius: 8px;
     }
 
+    body.theme-light {
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --surface-2: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+    }
+
     body {
       font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: transparent;
@@ -69,6 +78,39 @@
     }
 
     .close-btn:hover { color: var(--text); background: var(--surface); }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+      -webkit-app-region: no-drag;
+    }
+
+    .icon-btn:hover { color: var(--text); background: var(--surface); }
+
+    .icon-btn.danger:hover { color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+
+    .header-divider {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+      margin: 0 3px;
+    }
 
     .settings-body {
       flex: 1;
@@ -282,41 +324,72 @@
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
 
-    /* --- Server URL --- */
+    /* --- Assistant section --- */
 
-    .url-input {
+    .section-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .assistant-select {
       background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       color: var(--text);
-      padding: 6px 10px;
+      padding: 8px 10px;
       font-size: 12px;
-      font-family: 'JetBrains Mono', monospace;
+      font-family: inherit;
       width: 100%;
+      cursor: pointer;
       outline: none;
     }
 
-    .url-input:focus { border-color: var(--accent); }
+    .assistant-select:focus { border-color: var(--accent); }
+    .assistant-select:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .url-hint {
-      font-size: 10px;
-      color: var(--text-muted);
-      margin-top: -4px;
+    .btn-group {
+      display: flex;
+      gap: 8px;
     }
 
-    /* --- Shortcuts info --- */
-
-    .shortcut-list {
-      display: flex;
-      flex-direction: column;
+    .btn-group .btn {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       gap: 6px;
     }
 
-    .shortcut-row {
+    .btn-stop {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .btn-stop:hover { background: #dc2626; }
+
+    .create-link {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 7px;
       font-size: 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .create-link:hover { border-color: var(--accent); color: var(--text); }
+
+    /* The row already uses --surface-2, so the key chip needs its own contrast. */
+    .create-link .shortcut-keys {
+      margin-left: auto;
+      background: var(--bg);
+      border: 1px solid var(--border);
     }
 
     .shortcut-keys {
@@ -337,13 +410,86 @@
     }
 
     .hidden { display: none !important; }
+
+    /* --- Visibility cards --- */
+
+    .visibility-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .visibility-option {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .visibility-option:hover { border-color: var(--text-muted); }
+
+    .visibility-option.active {
+      border-color: var(--accent);
+      background: rgba(245, 130, 11, 0.08);
+    }
+
+    .vis-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    .visibility-option.active .vis-icon {
+      color: var(--accent);
+      background: rgba(245, 130, 11, 0.12);
+    }
+
+    .vis-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .vis-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
   <div class="settings-container">
     <div class="settings-header">
       <h2>Settings</h2>
-      <button class="close-btn" id="btn-close" title="Close">&times;</button>
+      <div class="header-actions">
+        <button class="icon-btn" id="btn-sign-out-header" title="Sign Out">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+        <button class="icon-btn danger" id="btn-quit" title="Quit I-Assist">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+            <line x1="12" y1="2" x2="12" y2="12"/>
+          </svg>
+        </button>
+        <div class="header-divider"></div>
+        <button class="close-btn" id="btn-close" title="Close">&times;</button>
+      </div>
     </div>
 
     <div class="settings-body">
@@ -360,15 +506,42 @@
                 <span class="account-role" id="user-role">—</span>
               </div>
             </div>
-            <div style="margin-top: 10px; display: flex; gap: 8px;">
-              <button class="btn btn-outline" style="flex:1" id="btn-dashboard">Open Dashboard</button>
-              <button class="btn btn-danger" style="flex:1" id="btn-sign-out">Sign Out</button>
+            <div style="margin-top: 10px;">
+              <button class="btn btn-outline btn-block" id="btn-dashboard">Open Dashboard</button>
             </div>
           </div>
           <div id="account-signed-out" class="not-signed-in hidden">
             <p>Sign in to your NxtGen account to use I-Assist</p>
             <button class="btn btn-primary btn-block" id="btn-sign-in">Sign In with NxtGen</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Assistant -->
+      <div class="section">
+        <div class="section-title">Assistant</div>
+        <div class="section-content">
+          <div class="section-desc">Pick the assistant I-Assist should use for your session</div>
+          <select class="assistant-select" id="assistant-select">
+            <option value="" disabled selected>Loading assistants…</option>
+          </select>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="btn-start-session">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Start Session
+            </button>
+            <button class="btn btn-outline" id="btn-start-trial">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              Start Trial Session
+            </button>
+          </div>
+          <button class="btn btn-stop btn-block hidden" id="btn-stop-session">Stop Session</button>
+          <a href="#" class="create-link" id="btn-create-assistant">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            Create an assistant on NxtGen
+          </a>
         </div>
       </div>
 
@@ -391,14 +564,47 @@
         </div>
       </div>
 
-      <!-- Server -->
+      <!-- Visibility -->
       <div class="section">
-        <div class="section-title">Server</div>
+        <div class="section-title">Visibility</div>
         <div class="section-content">
-          <div>
-            <span class="setting-label" style="display:block; margin-bottom: 6px;">API Base URL</span>
-            <input type="text" class="url-input" id="api-url" placeholder="http://localhost:3001/api">
-            <p class="url-hint">Change only if using a custom server deployment</p>
+          <div class="visibility-list">
+            <div class="visibility-option active" data-mode="visible">
+              <div class="vis-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </div>
+              <div>
+                <div class="vis-title">Visible</div>
+                <div class="vis-desc">Normal — visible in screen shares and recordings.</div>
+              </div>
+            </div>
+            <div class="visibility-option" data-mode="invisible">
+              <div class="vis-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              </div>
+              <div>
+                <div class="vis-title">Invisible</div>
+                <div class="vis-desc">Hidden from screen shares and recordings, still usable normally.</div>
+              </div>
+            </div>
+            <div class="visibility-option" data-mode="undetectable">
+              <div class="vis-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+              <div>
+                <div class="vis-title">Undetectable</div>
+                <div class="vis-desc">Hidden from screen shares, mouse clicks pass through — keyboard only. Ctrl+Shift+Alt+Esc drops back to Invisible.</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -407,23 +613,10 @@
       <div class="section">
         <div class="section-title">Keyboard Shortcuts</div>
         <div class="section-content">
-          <div class="shortcut-list">
-            <div class="shortcut-row">
-              <span>Toggle Bar</span>
-              <span class="shortcut-keys">Ctrl+Shift+Alt+I</span>
-            </div>
-            <div class="shortcut-row">
-              <span>Toggle Overlay</span>
-              <span class="shortcut-keys">Ctrl+Shift+Alt+O</span>
-            </div>
-            <div class="shortcut-row">
-              <span>Stop Session</span>
-              <span class="shortcut-keys">Ctrl+Shift+Alt+X</span>
-            </div>
-            <div class="shortcut-row">
-              <span>Open Settings</span>
-              <span class="shortcut-keys">Ctrl+Shift+Alt+S</span>
-            </div>
+          <div class="section-desc">Control your session without touching the mouse. Open the full reference below.</div>
+          <div class="create-link" id="btn-shortcuts">
+            <span>Open shortcuts reference</span>
+            <span class="shortcut-keys">Ctrl+Shift+Alt+J</span>
           </div>
         </div>
       </div>
@@ -436,7 +629,6 @@
     const $ = (sel) => document.querySelector(sel);
     const btnClose = $('#btn-close');
     const btnSignIn = $('#btn-sign-in');
-    const btnSignOut = $('#btn-sign-out');
     const btnDashboard = $('#btn-dashboard');
     const accountSignedIn = $('#account-signed-in');
     const accountSignedOut = $('#account-signed-out');
@@ -446,8 +638,49 @@
     const userRoleEl = $('#user-role');
     const opacitySlider = $('#opacity-slider');
     const opacityValue = $('#opacity-value');
-    const apiUrlInput = $('#api-url');
     const themeButtons = document.querySelectorAll('.theme-option');
+    const visibilityOptions = document.querySelectorAll('.visibility-option');
+    const btnShortcuts = $('#btn-shortcuts');
+    const assistantSelect = $('#assistant-select');
+    const btnStartSession = $('#btn-start-session');
+    const btnStartTrial = $('#btn-start-trial');
+    const btnStopSession = $('#btn-stop-session');
+    const btnGroup = document.querySelector('.btn-group');
+
+    let assistants = [];
+
+    function populateAssistants(list) {
+      assistants = list;
+      assistantSelect.innerHTML = '';
+      if (list.length === 0) {
+        assistantSelect.innerHTML = '<option value="" disabled selected>No assistants yet</option>';
+        btnStartSession.disabled = true;
+        btnStartTrial.disabled = true;
+        return;
+      }
+      list.forEach((a, i) => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = a.name;
+        if (i === 0) opt.selected = true;
+        assistantSelect.appendChild(opt);
+      });
+      btnStartSession.disabled = false;
+      btnStartTrial.disabled = false;
+    }
+
+    function setSessionUI(active) {
+      btnGroup.classList.toggle('hidden', active);
+      btnStopSession.classList.toggle('hidden', !active);
+      assistantSelect.disabled = active;
+    }
+
+    function beginSession() {
+      const selected = assistants.find(a => a.id === assistantSelect.value);
+      if (!selected) return;
+      window.iAssist.setAssistant(selected);
+      window.iAssist.startSession();
+    }
 
     function showAccount(user) {
       if (user) {
@@ -468,6 +701,13 @@
       themeButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.theme === theme);
       });
+      document.body.classList.toggle('theme-light', theme === 'light');
+    }
+
+    function setVisibilityUI(mode) {
+      visibilityOptions.forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.mode === mode);
+      });
     }
 
     // --- Event handlers ---
@@ -476,12 +716,21 @@
 
     btnSignIn.addEventListener('click', () => window.iAssist.openSignIn());
 
-    btnSignOut.addEventListener('click', () => {
-      window.iAssist.signOut();
-      showAccount(null);
+    btnDashboard.addEventListener('click', () => window.iAssist.openWebDashboard());
+
+    btnStartSession.addEventListener('click', beginSession);
+    btnStartTrial.addEventListener('click', beginSession);
+    btnStopSession.addEventListener('click', () => window.iAssist.stopSession());
+
+    assistantSelect.addEventListener('change', () => {
+      const selected = assistants.find(a => a.id === assistantSelect.value);
+      if (selected) window.iAssist.setAssistant(selected);
     });
 
-    btnDashboard.addEventListener('click', () => window.iAssist.openWebDashboard());
+    $('#btn-create-assistant').addEventListener('click', (e) => {
+      e.preventDefault();
+      window.iAssist.openWebDashboard();
+    });
 
     opacitySlider.addEventListener('input', () => {
       const val = parseFloat(opacitySlider.value);
@@ -496,9 +745,22 @@
       });
     });
 
-    apiUrlInput.addEventListener('change', () => {
-      const url = apiUrlInput.value.trim();
-      if (url) window.iAssist.setApiBaseUrl(url);
+    visibilityOptions.forEach(opt => {
+      opt.addEventListener('click', () => {
+        setVisibilityUI(opt.dataset.mode);
+        window.iAssist.setVisibilityMode(opt.dataset.mode);
+      });
+    });
+
+    btnShortcuts.addEventListener('click', () => window.iAssist.openShortcutsWindow());
+
+    $('#btn-sign-out-header').addEventListener('click', () => {
+      window.iAssist.signOut();
+      showAccount(null);
+    });
+
+    $('#btn-quit').addEventListener('click', () => {
+      if (confirm('Quit I-Assist?')) window.iAssist.quitApp();
     });
 
     // --- IPC listeners ---
@@ -516,6 +778,22 @@
       setThemeUI(theme);
     });
 
+    window.iAssist.onVisibilityUpdate((mode) => {
+      setVisibilityUI(mode);
+    });
+
+    window.iAssist.onAssistantsAvailability((data) => {
+      populateAssistants(data.assistants || []);
+    });
+
+    window.iAssist.onAssistantUpdate((assistant) => {
+      if (assistant && assistantSelect.value !== assistant.id) {
+        assistantSelect.value = assistant.id;
+      }
+    });
+
+    window.iAssist.onSessionStateChanged((data) => setSessionUI(data.active));
+
     // --- Init ---
 
     let currentUser = null;
@@ -527,7 +805,10 @@
       opacitySlider.value = settings.opacity;
       opacityValue.textContent = `${Math.round(settings.opacity * 100)}%`;
       setThemeUI(settings.theme);
-      apiUrlInput.value = settings.apiBaseUrl || '';
+      setVisibilityUI(settings.visibilityMode || 'visible');
+      populateAssistants(settings.assistants || []);
+      if (settings.assistant) assistantSelect.value = settings.assistant.id;
+      setSessionUI(!!settings.isSessionActive);
     })();
   </script>
 </body>

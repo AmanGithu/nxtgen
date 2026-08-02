@@ -213,8 +213,9 @@ const BackendService = {
 
 let currentOpacity = 0.9;
 let currentTheme = 'dark';
-let currentVisibilityMode = 'normal';
+let currentVisibilityMode = 'visible'; // 'visible' | 'invisible' | 'undetectable'
 let currentAssistant = null;
+let currentAssistants = [];
 
 // ---------------------------------------------------------------------------
 // Session state
@@ -237,16 +238,55 @@ let isAiProcessing = false;
 let mainWindow = null;
 let sessionWindow = null;
 let settingsWindow = null;
+let shortcutsWindow = null;
 let tray = null;
+
+const BAR_WIDTH = 650;
+const BAR_HEIGHT = 55;
+const SESSION_WIDTH = 1105;
+const SESSION_HEIGHT = 680;
+// Vertical gap between the bar and the panel docked beneath it.
+const DOCK_GAP = 2;
 
 function getLiveWindows(...windows) {
   return windows.filter(w => w && !w.isDestroyed());
 }
 
 function broadcastToLiveWindows(channel, data) {
-  for (const win of getLiveWindows(mainWindow, sessionWindow, settingsWindow)) {
+  for (const win of getLiveWindows(mainWindow, sessionWindow, settingsWindow, shortcutsWindow)) {
     win.webContents.send(channel, data);
   }
+}
+
+// Screen-share exclusion: 'invisible' hides the window from capture/recording,
+// 'undetectable' additionally makes it click-through (keyboard shortcuts only).
+function applyVisibilityMode(win, mode) {
+  if (!win || win.isDestroyed()) return;
+  switch (mode) {
+    case 'invisible':
+      win.setContentProtection(true);
+      win.setIgnoreMouseEvents(false);
+      break;
+    case 'undetectable':
+      win.setContentProtection(true);
+      win.setIgnoreMouseEvents(true);
+      break;
+    default: // 'visible'
+      win.setContentProtection(false);
+      win.setIgnoreMouseEvents(false);
+      break;
+  }
+}
+
+function setVisibilityMode(mode) {
+  currentVisibilityMode = mode;
+  for (const win of getLiveWindows(mainWindow, sessionWindow, settingsWindow, shortcutsWindow)) {
+    applyVisibilityMode(win, mode);
+  }
+  broadcastToLiveWindows('visibility-update', mode);
+  const settings = loadSettings();
+  settings.visibilityMode = mode;
+  saveSettings(settings);
 }
 
 function broadcastAuthState() {
@@ -259,19 +299,20 @@ function broadcastAuthState() {
 
 function createMainWindow() {
   const { width: screenWidth } = screen.getPrimaryDisplay().workAreaSize;
-  const winWidth = 380;
-  const winHeight = 140;
+  const winWidth = BAR_WIDTH;
+  const winHeight = BAR_HEIGHT;
 
   mainWindow = new BrowserWindow({
     width: winWidth,
     height: winHeight,
-    x: screenWidth - winWidth - 20,
+    x: Math.floor((screenWidth - winWidth) / 2),
     y: 20,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
+    hasShadow: false,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -281,10 +322,37 @@ function createMainWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
+  mainWindow.setAlwaysOnTop(true, 'screen-saver');
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.setOpacity(currentOpacity);
+  applyVisibilityMode(mainWindow, currentVisibilityMode);
 
-  mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('move', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const mainBounds = mainWindow.getBounds();
+    if (sessionWindow && !sessionWindow.isDestroyed()) {
+      const sessionBounds = sessionWindow.getBounds();
+      const targetX = mainBounds.x - Math.round((sessionBounds.width - mainBounds.width) / 2);
+      const targetY = mainBounds.y + mainBounds.height + DOCK_GAP;
+      if (sessionBounds.x !== targetX || sessionBounds.y !== targetY) {
+        sessionWindow.setBounds({ x: targetX, y: targetY, width: sessionBounds.width, height: sessionBounds.height }, false);
+      }
+    }
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+      const settingsBounds = settingsWindow.getBounds();
+      const targetX = mainBounds.x - Math.round((settingsBounds.width - mainBounds.width) / 2);
+      const targetY = mainBounds.y + mainBounds.height + DOCK_GAP;
+      if (settingsBounds.x !== targetX || settingsBounds.y !== targetY) {
+        settingsWindow.setBounds({ x: targetX, y: targetY, width: settingsBounds.width, height: settingsBounds.height }, false);
+      }
+    }
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.close();
+    if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.close();
+  });
 }
 
 function createSessionWindow() {
@@ -293,20 +361,21 @@ function createSessionWindow() {
     return;
   }
 
-  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-  const winWidth = 420;
-  const winHeight = 600;
+  const mainBounds = mainWindow.getBounds();
+  const winWidth = SESSION_WIDTH;
+  const winHeight = SESSION_HEIGHT;
 
   sessionWindow = new BrowserWindow({
     width: winWidth,
     height: winHeight,
-    x: screenWidth - winWidth - 20,
-    y: 160,
+    x: mainBounds.x - Math.round((winWidth - mainBounds.width) / 2),
+    y: mainBounds.y + mainBounds.height + DOCK_GAP,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: true,
+    hasShadow: false,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -316,9 +385,23 @@ function createSessionWindow() {
   });
 
   sessionWindow.loadFile(path.join(__dirname, 'src', 'session-window.html'));
+  sessionWindow.setAlwaysOnTop(true, 'screen-saver');
   sessionWindow.once('ready-to-show', () => {
     sessionWindow.show();
     sessionWindow.setOpacity(currentOpacity);
+  });
+  applyVisibilityMode(sessionWindow, currentVisibilityMode);
+
+  sessionWindow.on('resize', () => {
+    if (mainWindow && !mainWindow.isDestroyed() && sessionWindow && !sessionWindow.isDestroyed()) {
+      const mBounds = mainWindow.getBounds();
+      const sBounds = sessionWindow.getBounds();
+      const targetX = sBounds.x + Math.round((sBounds.width - mBounds.width) / 2);
+      const targetY = sBounds.y - mBounds.height - DOCK_GAP;
+      if (mBounds.x !== targetX || mBounds.y !== targetY) {
+        mainWindow.setBounds({ x: targetX, y: targetY, width: mBounds.width, height: mBounds.height }, false);
+      }
+    }
   });
 
   sessionWindow.on('closed', () => { sessionWindow = null; });
@@ -330,13 +413,19 @@ function createSettingsWindow() {
     return;
   }
 
+  const mainBounds = mainWindow.getBounds();
+
   settingsWindow = new BrowserWindow({
-    width: 400,
+    width: mainBounds.width,
     height: 500,
+    x: mainBounds.x,
+    y: mainBounds.y + mainBounds.height + DOCK_GAP,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: false,
+    resizable: true,
+    skipTaskbar: true,
+    hasShadow: false,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -346,9 +435,68 @@ function createSettingsWindow() {
   });
 
   settingsWindow.loadFile(path.join(__dirname, 'src', 'settings.html'));
+  settingsWindow.setAlwaysOnTop(true, 'screen-saver');
   settingsWindow.once('ready-to-show', () => settingsWindow.show());
+  applyVisibilityMode(settingsWindow, currentVisibilityMode);
+
+  settingsWindow.on('resize', () => {
+    if (mainWindow && !mainWindow.isDestroyed() && settingsWindow && !settingsWindow.isDestroyed()) {
+      const mBounds = mainWindow.getBounds();
+      const stBounds = settingsWindow.getBounds();
+      const targetX = stBounds.x + Math.round((stBounds.width - mBounds.width) / 2);
+      const targetY = stBounds.y - mBounds.height - DOCK_GAP;
+      if (mBounds.x !== targetX || mBounds.y !== targetY) {
+        mainWindow.setBounds({ x: targetX, y: targetY, width: mBounds.width, height: mBounds.height }, false);
+      }
+    }
+  });
 
   settingsWindow.on('closed', () => { settingsWindow = null; });
+}
+
+function createShortcutsWindow() {
+  if (shortcutsWindow && !shortcutsWindow.isDestroyed()) {
+    shortcutsWindow.focus();
+    return;
+  }
+
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+  const width = 780;
+  const height = 640;
+
+  shortcutsWindow = new BrowserWindow({
+    width,
+    height,
+    x: Math.floor((screenWidth - width) / 2),
+    y: Math.floor((screenHeight - height) / 2),
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    hasShadow: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  shortcutsWindow.loadFile(path.join(__dirname, 'src', 'shortcuts.html'));
+  shortcutsWindow.setAlwaysOnTop(true, 'screen-saver');
+  shortcutsWindow.once('ready-to-show', () => shortcutsWindow.show());
+  applyVisibilityMode(shortcutsWindow, currentVisibilityMode);
+
+  shortcutsWindow.on('closed', () => { shortcutsWindow = null; });
+}
+
+function toggleShortcutsWindow() {
+  if (shortcutsWindow && !shortcutsWindow.isDestroyed()) {
+    shortcutsWindow.close();
+  } else {
+    createShortcutsWindow();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -523,6 +671,7 @@ async function loadAssistants() {
   if (!isAuthenticated()) return;
   try {
     const assistants = await BackendService.getAssistants();
+    currentAssistants = assistants;
     broadcastToLiveWindows('assistants-availability', { assistants });
     if (assistants.length > 0 && !currentAssistant) {
       currentAssistant = assistants[0];
@@ -562,6 +711,10 @@ async function startSession(assistantId) {
     currentSessionTokensUsed = 0;
     sessionStartTime = Date.now();
     isSessionActive = true;
+
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+      settingsWindow.close();
+    }
 
     createSessionWindow();
 
@@ -699,31 +852,140 @@ async function processAiQueue() {
 // ---------------------------------------------------------------------------
 
 function registerPersistentShortcuts() {
-  const toggleBar = globalShortcut.register('CommandOrControl+Shift+Alt+I', () => {
+  globalShortcut.register('CommandOrControl+Shift+Alt+I', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
     }
   });
-  if (!toggleBar) logger.error('Failed to register toggle-bar shortcut');
 
-  const toggleSettings = globalShortcut.register('CommandOrControl+Shift+Alt+S', () => {
+  globalShortcut.register('CommandOrControl+Shift+Alt+S', () => {
     createSettingsWindow();
   });
-  if (!toggleSettings) logger.error('Failed to register settings shortcut');
+
+  // Escape hatch out of undetectable, whose click-through makes every window
+  // unusable by mouse. It drops to 'invisible' rather than 'visible' so it still
+  // restores the pointer without suddenly exposing the overlay on a live screen share.
+  globalShortcut.register('CommandOrControl+Shift+Alt+Escape', () => {
+    setVisibilityMode(currentVisibilityMode === 'undetectable' ? 'invisible' : 'visible');
+  });
+
+  globalShortcut.register('CommandOrControl+Shift+Alt+J', () => {
+    toggleShortcutsWindow();
+  });
+
+  globalShortcut.register('CommandOrControl+Shift+Alt+L', () => {
+    if (currentAssistant) startSession(currentAssistant.id);
+  });
+
+  globalShortcut.register('CommandOrControl+Shift+Alt+M', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const shouldRestore = mainWindow.isMinimized();
+    if (shouldRestore) mainWindow.restore(); else mainWindow.minimize();
+    if (sessionWindow && !sessionWindow.isDestroyed()) {
+      if (shouldRestore) sessionWindow.restore(); else sessionWindow.minimize();
+    }
+  });
+
+  globalShortcut.register('CommandOrControl+Shift+Alt+Up', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const { x, y } = mainWindow.getBounds();
+    mainWindow.setPosition(x, y - 10);
+  });
+  globalShortcut.register('CommandOrControl+Shift+Alt+Down', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const { x, y } = mainWindow.getBounds();
+    mainWindow.setPosition(x, y + 10);
+  });
+  globalShortcut.register('CommandOrControl+Shift+Alt+Left', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const { x, y } = mainWindow.getBounds();
+    mainWindow.setPosition(x - 10, y);
+  });
+  globalShortcut.register('CommandOrControl+Shift+Alt+Right', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const { x, y } = mainWindow.getBounds();
+    mainWindow.setPosition(x + 10, y);
+  });
+
+  globalShortcut.register('CommandOrControl+Shift+Alt+[', () => {
+    currentOpacity = Math.max(0.3, Math.round((currentOpacity - 0.05) * 100) / 100);
+    for (const win of getLiveWindows(mainWindow, sessionWindow, settingsWindow)) {
+      win.setOpacity(currentOpacity);
+    }
+    broadcastToLiveWindows('opacity-update', currentOpacity);
+    const settings = loadSettings();
+    settings.opacity = currentOpacity;
+    saveSettings(settings);
+  });
+  globalShortcut.register('CommandOrControl+Shift+Alt+]', () => {
+    currentOpacity = Math.min(1, Math.round((currentOpacity + 0.05) * 100) / 100);
+    for (const win of getLiveWindows(mainWindow, sessionWindow, settingsWindow)) {
+      win.setOpacity(currentOpacity);
+    }
+    broadcastToLiveWindows('opacity-update', currentOpacity);
+    const settings = loadSettings();
+    settings.opacity = currentOpacity;
+    saveSettings(settings);
+  });
+
+  globalShortcut.register('CommandOrControl+Shift+Alt+B', () => {
+    const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    currentTheme = nextTheme;
+    broadcastToLiveWindows('theme-update', nextTheme);
+    const settings = loadSettings();
+    settings.theme = nextTheme;
+    saveSettings(settings);
+  });
 }
 
 function registerSessionShortcuts() {
-  const toggleOverlay = globalShortcut.register('CommandOrControl+Shift+Alt+O', () => {
+  globalShortcut.register('CommandOrControl+Shift+Alt+K', () => {
+    stopSession();
+  });
+
+  globalShortcut.register('CommandOrControl+Shift+Alt+T', () => {
     if (sessionWindow && !sessionWindow.isDestroyed()) {
       sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
     }
   });
-  if (!toggleOverlay) logger.error('Failed to register overlay-toggle shortcut');
 
-  const stopShortcut = globalShortcut.register('CommandOrControl+Shift+Alt+X', () => {
-    stopSession();
+  globalShortcut.register('CommandOrControl+Shift+Alt+O', () => {
+    if (sessionWindow && !sessionWindow.isDestroyed()) {
+      sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
+    }
   });
-  if (!stopShortcut) logger.error('Failed to register stop-session shortcut');
+
+  globalShortcut.register('CommandOrControl+Shift+Alt+=', () => {
+    if (sessionWindow && !sessionWindow.isDestroyed()) {
+      sessionWindow.webContents.send('adjust-font-size', 'inc');
+    }
+  });
+  globalShortcut.register('CommandOrControl+Shift+Alt+-', () => {
+    if (sessionWindow && !sessionWindow.isDestroyed()) {
+      sessionWindow.webContents.send('adjust-font-size', 'dec');
+    }
+  });
+
+  globalShortcut.register('CommandOrControl+Alt+X', () => {
+    if (!sessionWindow || sessionWindow.isDestroyed()) return;
+    const bounds = sessionWindow.getBounds();
+    sessionWindow.setBounds({ width: Math.max(600, bounds.width - 50) });
+  });
+  globalShortcut.register('CommandOrControl+Shift+Alt+X', () => {
+    if (!sessionWindow || sessionWindow.isDestroyed()) return;
+    const bounds = sessionWindow.getBounds();
+    sessionWindow.setBounds({ width: Math.min(1600, bounds.width + 50) });
+  });
+  globalShortcut.register('CommandOrControl+Alt+Y', () => {
+    if (!sessionWindow || sessionWindow.isDestroyed()) return;
+    const bounds = sessionWindow.getBounds();
+    sessionWindow.setBounds({ height: Math.max(300, bounds.height - 10) });
+  });
+  globalShortcut.register('CommandOrControl+Shift+Alt+Y', () => {
+    if (!sessionWindow || sessionWindow.isDestroyed()) return;
+    const bounds = sessionWindow.getBounds();
+    sessionWindow.setBounds({ height: Math.min(900, bounds.height + 10) });
+  });
 }
 
 function unregisterSessionShortcuts() {
@@ -743,6 +1005,7 @@ function setupIPC() {
     theme: currentTheme,
     visibilityMode: currentVisibilityMode,
     assistant: currentAssistant,
+    assistants: currentAssistants,
     isSessionActive,
     apiBaseUrl: getApiBaseUrl(),
     webAppUrl: getWebAppUrl(),
@@ -798,16 +1061,7 @@ function setupIPC() {
   });
 
   ipcMain.on('set-visibility-mode', (_event, mode) => {
-    currentVisibilityMode = mode;
-    if (mode === 'hidden') {
-      for (const win of getLiveWindows(mainWindow, sessionWindow)) {
-        win.hide();
-      }
-    } else {
-      for (const win of getLiveWindows(mainWindow, sessionWindow)) {
-        win.show();
-      }
-    }
+    setVisibilityMode(mode);
   });
 
   ipcMain.on('set-theme', (_event, theme) => {
@@ -821,6 +1075,8 @@ function setupIPC() {
   ipcMain.on('sign-out', () => {
     handleSignOut();
   });
+
+  ipcMain.handle('get-theme', () => currentTheme);
 
   ipcMain.on('open-sign-in', () => {
     handleSignIn();
@@ -840,10 +1096,32 @@ function setupIPC() {
     shell.openExternal(`${getWebAppUrl()}/dashboard/student/tools/i-assist`);
   });
 
-  ipcMain.on('set-api-base-url', (_event, url) => {
-    const settings = loadSettings();
-    settings.apiBaseUrl = url;
-    saveSettings(settings);
+  ipcMain.on('open-shortcuts-window', () => {
+    createShortcutsWindow();
+  });
+
+  ipcMain.on('close-shortcuts-window', () => {
+    if (shortcutsWindow && !shortcutsWindow.isDestroyed()) {
+      shortcutsWindow.close();
+    }
+  });
+
+  ipcMain.on('toggle-session-window', () => {
+    if (sessionWindow && !sessionWindow.isDestroyed()) {
+      sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
+    }
+  });
+
+  ipcMain.on('hide-bar', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
+  });
+
+  ipcMain.on('minimize-session-window', () => {
+    if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.minimize();
+  });
+
+  ipcMain.on('quit-app', () => {
+    app.quit();
   });
 }
 
@@ -868,6 +1146,7 @@ if (!gotLock) {
     const savedSettings = loadSettings();
     if (savedSettings.opacity !== undefined) currentOpacity = savedSettings.opacity;
     if (savedSettings.theme) currentTheme = savedSettings.theme;
+    if (savedSettings.visibilityMode) currentVisibilityMode = savedSettings.visibilityMode;
 
     electronSession.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
       desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
