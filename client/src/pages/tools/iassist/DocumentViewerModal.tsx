@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, FileText, AlertTriangle, RefreshCw, Copy, Check, Pencil, Trash2 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
+import DeleteDocumentDialog from './DeleteDocumentDialog';
 
 interface FullDocument {
   id: string;
@@ -12,6 +13,8 @@ interface FullDocument {
   wordCount: number;
   content: string;
   createdAt: string;
+  /** Names of assistants that use this document as context. */
+  usedBy?: string[];
 }
 
 function formatSize(bytes: number | null): string {
@@ -46,7 +49,6 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
   const [draftContent, setDraftContent] = useState('');
 
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   // Content is only editable for pasted docs — uploaded files hold extracted text
   // that must stay in sync with the original binary.
@@ -106,7 +108,9 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
         ...(isPasted ? { content: draftContent } : {}),
       });
       if (res.data.success) {
-        setDoc(res.data.document);
+        // The PATCH response has no `usedBy` — carry it over so the delete
+        // confirmation keeps warning about dependent assistants after an edit.
+        setDoc(prev => ({ ...res.data.document, usedBy: prev?.usedBy }));
         setEditing(false);
         onChanged?.();
       } else {
@@ -118,18 +122,10 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
     setSaving(false);
   };
 
-  const handleDelete = async () => {
-    if (!doc) return;
-    setDeleting(true);
-    try {
-      await iAssistAPI.deleteDocument(doc.id);
-      onChanged?.();
-      onClose();
-    } catch {
-      setSaveError('Failed to delete document.');
-      setDeleting(false);
-      setConfirmDelete(false);
-    }
+  const handleDeleted = () => {
+    setConfirmDelete(false);
+    onChanged?.();
+    onClose();
   };
 
   const inputClass = 'w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none';
@@ -290,42 +286,17 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
           </div>
         )}
 
-        {/* Delete confirmation */}
-        {confirmDelete && doc && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setConfirmDelete(false)}>
-            <div
-              className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-bg-surface p-6 shadow-2xl"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-start gap-3">
-                <AlertTriangle size={20} className="mt-0.5 shrink-0 text-red-400" />
-                <div>
-                  <h4 className="text-sm font-semibold text-white">Delete this document?</h4>
-                  <p className="mt-1 text-xs text-text-muted">
-                    <span className="text-white">{doc.title}</span> will be permanently removed. Any assistant using it
-                    keeps the attachment but loses its content. This can't be undone.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-5 flex justify-end gap-3">
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-500/90 disabled:opacity-50"
-                >
-                  {deleting ? 'Deleting...' : 'Delete'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {confirmDelete && doc && (
+        <DeleteDocumentDialog
+          documentId={doc.id}
+          title={doc.title}
+          usedBy={doc.usedBy}
+          onCancel={() => setConfirmDelete(false)}
+          onDeleted={handleDeleted}
+        />
+      )}
     </div>
   );
 };

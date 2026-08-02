@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
 import DocumentViewerModal from './DocumentViewerModal';
+import DeleteDocumentDialog from './DeleteDocumentDialog';
 
 const FILE_TYPE_STYLES: Record<string, string> = {
   pdf: 'bg-red-500/10 text-red-400 border-red-500/20',
@@ -229,7 +230,7 @@ const Documents = () => {
   const [search, setSearch] = useState('');
   const [showUpload, setShowUpload] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
 
   const loadDocs = (q?: string) => {
@@ -267,13 +268,9 @@ const Documents = () => {
     setSaving(false);
   };
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
-    try {
-      await iAssistAPI.deleteDocument(id);
-      loadDocs(search);
-    } catch {}
-    setDeletingId(null);
+  const handleDeleted = () => {
+    setPendingDelete(null);
+    loadDocs(search);
   };
 
   const tabs = [
@@ -442,8 +439,8 @@ const Documents = () => {
                       </td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => handleDelete(doc.id)}
-                          disabled={deletingId === doc.id}
+                          onClick={() => setPendingDelete({ id: doc.id, title: doc.title })}
+                          title="Delete document"
                           className="p-1 rounded text-text-muted hover:text-red-400 transition-colors"
                         >
                           <Trash2 size={14} />
@@ -463,6 +460,16 @@ const Documents = () => {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Delete confirmation */}
+      {pendingDelete && (
+        <DeleteDocumentDialog
+          documentId={pendingDelete.id}
+          title={pendingDelete.title}
+          onCancel={() => setPendingDelete(null)}
+          onDeleted={handleDeleted}
+        />
       )}
 
       {/* Document Viewer */}

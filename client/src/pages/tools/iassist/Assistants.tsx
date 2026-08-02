@@ -447,6 +447,16 @@ const Assistants = () => {
     } catch {}
   };
 
+  // Replacing an orphaned material has to drop it first — the server rejects a
+  // second RESUME or JOB_DESCRIPTION on the same assistant with a 409.
+  const handleReplaceMaterial = async (assistantId: string, materialId: string, role: string) => {
+    try {
+      await iAssistAPI.removeMaterial(assistantId, materialId);
+      loadAssistants();
+      setMaterialModal({ assistantId, role });
+    } catch {}
+  };
+
   const tabs = [
     { label: 'Sessions', path: '/dashboard/student/tools/i-assist' },
     { label: 'Assistants', path: '/dashboard/student/tools/i-assist/assistants' },
@@ -615,6 +625,7 @@ const Assistants = () => {
                       material={resume}
                       onRemove={() => handleRemoveMaterial(ast.id, resume.id)}
                       onView={setViewingDocId}
+                      onReplace={() => handleReplaceMaterial(ast.id, resume.id, 'RESUME')}
                     />
                   ) : (
                     <button
@@ -631,6 +642,7 @@ const Assistants = () => {
                       material={jd}
                       onRemove={() => handleRemoveMaterial(ast.id, jd.id)}
                       onView={setViewingDocId}
+                      onReplace={() => handleReplaceMaterial(ast.id, jd.id, 'JOB_DESCRIPTION')}
                     />
                   ) : (
                     <button
@@ -648,6 +660,7 @@ const Assistants = () => {
                       material={mat}
                       onRemove={() => handleRemoveMaterial(ast.id, mat.id)}
                       onView={setViewingDocId}
+                      onReplace={() => handleReplaceMaterial(ast.id, mat.id, 'MATERIAL')}
                     />
                   ))}
 
@@ -701,8 +714,39 @@ const Assistants = () => {
 
 // ─── Material Row ─────────────────────────────────────────────
 
-const MaterialRow = ({ material, onRemove, onView }: { material: Material; onRemove: () => void; onView: (documentId: string) => void }) => {
+const MaterialRow = ({ material, onRemove, onView, onReplace }: {
+  material: Material;
+  onRemove: () => void;
+  onView: (documentId: string) => void;
+  onReplace: () => void;
+}) => {
   const Icon = ROLE_ICONS[material.role] || StickyNote;
+
+  // A material with no content and no document is an orphan: its source document
+  // was deleted, so the assistant silently runs without this context.
+  const isOrphaned = !material.hasContent;
+
+  if (isOrphaned) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+        <AlertTriangle size={14} className="shrink-0 text-amber-400" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs text-amber-400">{material.title}</p>
+          <p className="text-[10px] text-text-muted">Content unavailable — source document was deleted</p>
+        </div>
+        <button
+          onClick={onReplace}
+          className="shrink-0 rounded-md border border-amber-500/30 px-2 py-1 text-[10px] font-medium text-amber-400 transition-colors hover:bg-amber-500/10"
+        >
+          Replace
+        </button>
+        <button onClick={onRemove} className="shrink-0 p-1 text-text-muted transition-colors hover:text-red-400">
+          <X size={13} />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3 rounded-lg bg-bg-card border border-white/[0.06] px-3 py-2">
       <Icon size={14} className="shrink-0 text-text-muted" />

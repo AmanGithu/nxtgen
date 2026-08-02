@@ -42,9 +42,19 @@ export const contextDocService = {
   },
 
   async getById(id: string, userId: string) {
-    const doc = await prisma.contextDocument.findFirst({ where: { id, userId } });
+    const doc = await prisma.contextDocument.findFirst({
+      where: { id, userId },
+      include: {
+        materials: { select: { assistant: { select: { name: true } } } },
+      },
+    });
     if (!doc) throw new AppError('Document not found', 404);
-    return doc;
+
+    const { materials, ...rest } = doc;
+    // Which assistants would lose this context if the document were deleted.
+    const usedBy = [...new Set(materials.map((m) => m.assistant.name))];
+
+    return { ...rest, usedBy };
   },
 
   async create(userId: string, data: CreateDocInput) {
