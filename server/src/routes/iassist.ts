@@ -5,7 +5,7 @@ import { authenticate } from '../middleware/auth';
 import { assistantService } from '../services/iassist/assistantService';
 import { contextDocService } from '../services/iassist/contextDocService';
 import { sessionService } from '../services/iassist/sessionService';
-import { aiQueryService } from '../services/iassist/aiQueryService';
+import { aiQueryService, getVadConfig } from '../services/iassist/aiQueryService';
 
 const router = Router();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
@@ -322,6 +322,72 @@ router.post('/query', async (req: Request, res: Response, next: NextFunction) =>
 
     res.json({ success: true, ...result });
   } catch (error) {
+    next(error);
+  }
+});
+
+// Capture tuning for the desktop app. Admin-owned values, but readable by any
+// authenticated user since the desktop needs them to start a session.
+router.get('/config', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json({ success: true, vad: await getVadConfig() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Server-sent events variant of /query. Emits `delta` events while the model is
+// still generating, then a final `done` event carrying the full text and usage.
+router.post('/query/stream', async (req: Request, res: Response, next: NextFunction) => {
+  let streamStarted = false;
+
+  try {
+    const data = z.object({
+      sessionId: z.string().uuid(),
+      assistantId: z.string().uuid(),
+      message: z.string().min(1).max(10000),
+      conversationHistory: z.array(z.object({
+        role: z.enum(['user', 'model']),
+        text: z.string().max(10000),
+      })).max(50).optional(),
+      responseType: z.string().max(200).optional(),
+    }).parse(req.body);
+
+    await sessionService.verifyOwnership(data.sessionId, req.user!.id);
+    await assistantService.getById(data.assistantId, req.user!.id);
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    streamStarted = true;
+
+    let aborted = false;
+    req.on('close', () => { aborted = true; });
+
+    const send = (event: string, payload: unknown) => {
+      if (aborted) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+    };
+
+    const result = await aiQueryService.queryStream({
+      assistantId: data.assistantId,
+      message: data.message,
+      conversationHistory: data.conversationHistory,
+      responseType: data.responseType,
+    }, (text) => send('delta', { text }));
+
+    send('done', result);
+    res.end();
+  } catch (error) {
+    // Once headers are flushed the error handler can no longer set a status, so
+    // report the failure in-band and close the stream.
+    if (streamStarted) {
+      const message = error instanceof Error ? error.message : 'AI request failed';
+      res.write(`event: error\ndata: ${JSON.stringify({ message })}\n\n`);
+      res.end();
+      return;
+    }
     next(error);
   }
 });

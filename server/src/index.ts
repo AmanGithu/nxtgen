@@ -6,7 +6,6 @@ import cors from 'cors';
 import { env } from './config/env';
 import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
-import { setupWebSocketServer } from './websocket/server';
 import { sessionService } from './services/iassist/sessionService';
 
 const app = express();
@@ -15,8 +14,9 @@ app.use(cors({
   origin: env.CLIENT_URL,
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Audio chunks are posted as base64 JSON to /iassist/transcribe (up to ~7MB of base64)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use('/api', routes);
 
@@ -25,9 +25,6 @@ app.use(errorHandler);
 const server = app.listen(env.PORT, () => {
   console.log(`Server is running on port ${env.PORT} in ${env.NODE_ENV} mode`);
 });
-
-// Attach WebSocket server for real-time AI teleprompter & audio streams
-setupWebSocketServer(server);
 
 // I-Assist sessions are closed by the desktop client, so a crash leaves them
 // ACTIVE forever. Sweep on boot and hourly thereafter.

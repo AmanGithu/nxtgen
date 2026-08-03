@@ -8,6 +8,7 @@ import { env } from '../config/env';
 import { authenticate, authorize } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import { sendPasswordSetEmail } from '../services/emailService';
+import { CONFIG_DEFAULTS } from '../services/iassist/aiQueryService';
 
 const router = Router();
 
@@ -424,15 +425,9 @@ router.get('/iassist-config', async (req: Request, res: Response, next: NextFunc
       where: { key: { startsWith: 'IASSIST_' } }
     });
 
-    const configMap: Record<string, string> = {
-      IASSIST_TRANSCRIPTION_MODEL: 'gemini-2.0-flash',
-      IASSIST_QUERY_MODEL: 'gemini-2.5-flash',
-      IASSIST_MAX_HISTORY: '40',
-      IASSIST_MAX_TOKENS: '8192',
-      IASSIST_VAD_SILENCE_MS: '1500',
-      IASSIST_VAD_AMPLITUDE_THRESHOLD: '0.015',
-      IASSIST_VAD_MIN_SPEECH_MS: '500',
-    };
+    // Single source of truth — these must match what the runtime actually falls
+    // back to, or the admin panel shows values the app never uses.
+    const configMap: Record<string, string> = { ...CONFIG_DEFAULTS };
 
     configs.forEach(c => { configMap[c.key] = c.value; });
 

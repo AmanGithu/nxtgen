@@ -23,7 +23,7 @@ const AIConfig = () => {
   });
 
   const [iassistConfig, setIassistConfig] = useState({
-    IASSIST_TRANSCRIPTION_MODEL: 'gemini-2.0-flash',
+    IASSIST_TRANSCRIPTION_MODEL: 'gemini-3.1-flash-lite',
     IASSIST_QUERY_MODEL: 'gemini-2.5-flash',
     IASSIST_MAX_HISTORY: '40',
     IASSIST_MAX_TOKENS: '8192',
@@ -231,8 +231,9 @@ const AIConfig = () => {
                   onChange={(e) => setIassistConfig({ ...iassistConfig, IASSIST_TRANSCRIPTION_MODEL: e.target.value })}
                   className={selectClass}
                 >
-                  <option value="gemini-2.0-flash">gemini-2.0-flash (Recommended)</option>
-                  <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (Faster, lower quality)</option>
+                  <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Recommended)</option>
+                  <option value="gemini-2.0-flash">gemini-2.0-flash (no free-tier quota)</option>
+                  <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (no free-tier quota)</option>
                   <option value="gemini-1.5-flash">gemini-1.5-flash</option>
                 </select>
                 <p className={hintClass}>Converts audio chunks to text. Optimise for speed over reasoning.</p>
@@ -245,6 +246,7 @@ const AIConfig = () => {
                   onChange={(e) => setIassistConfig({ ...iassistConfig, IASSIST_QUERY_MODEL: e.target.value })}
                   className={selectClass}
                 >
+                  <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Fastest)</option>
                   <option value="gemini-2.5-flash">gemini-2.5-flash (Recommended)</option>
                   <option value="gemini-2.5-pro">gemini-2.5-pro (Higher quality, slower)</option>
                   <option value="gemini-2.0-flash">gemini-2.0-flash (Fastest)</option>
