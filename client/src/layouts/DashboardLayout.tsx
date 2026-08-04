@@ -4,9 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ROLE_LABELS } from '../lib/roles';
 import { clsx } from 'clsx';
-import { 
-  LayoutDashboard, Users, Settings, Calendar, BookOpen, 
-  Award, Briefcase, FileText, Menu, X, LogOut, Lock, Mic, Bot, Sun, Moon,
+import {
+  LayoutDashboard, Users, Settings, Calendar, BookOpen,
+  Award, Briefcase, FileText, Menu, X, LogOut, Lock, Mic, Bot, Sun, Moon, Cpu,
   Image as ImageIcon, Activity
 } from 'lucide-react';
 
@@ -42,7 +42,7 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
     { name: 'Menu Editor', path: '/dashboard/admin/menu', icon: Menu },
     { name: 'Hero Banners', path: '/dashboard/admin/banners', icon: ImageIcon },
     { name: 'Resume Templates', path: '/dashboard/admin/templates', icon: FileText },
-    { name: 'AI Config', path: '/dashboard/admin/ai-config', icon: Settings },
+    { name: 'AI Config', path: '/dashboard/admin/ai-config', icon: Cpu },
     { name: 'Audit Logs', path: '/dashboard/admin/logs', icon: Activity },
   ];
 
@@ -57,7 +57,7 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
     { name: 'LinkedIn Analyser', path: '/dashboard/student/tools/linkedin-analyser', icon: Users },
     { name: 'Cover Letter Builder', path: '/dashboard/student/tools/cover-letter', icon: FileText },
     { name: 'Interview Prep Kit', path: '/dashboard/student/tools/interview-prep', icon: LayoutDashboard },
-    { name: 'I-Assist Teleprompter', path: '/dashboard/student/tools/i-assist', icon: Mic },
+    { name: 'I-Assist', path: '/dashboard/student/tools/i-assist', icon: Mic },
     { name: 'Live AI Interview', path: '/dashboard/student/tools/live-interview', icon: Bot },
     { name: 'Unlock All Packages', path: '/dashboard/student/unlock', icon: Lock },
   ];

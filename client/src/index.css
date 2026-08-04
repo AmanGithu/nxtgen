@@ -38,6 +38,16 @@
     --surface-elevate: rgba(255, 255, 255, 0.05);
     --overlay: rgba(0, 0, 0, 0.72);
 
+    /* i-Assist question-category tints. Triplets, not hex, so Tailwind's
+       `/30` style opacity modifiers still resolve against them. */
+    --cat-behavioral: 127 119 221;
+    --cat-behavioral-bg: 38 33 92;
+    --cat-technical: 29 158 117;
+    --cat-technical-bg: 4 52 44;
+    --cat-design: 216 90 48;
+    --cat-design-bg: 74 27 12;
+    --cat-general: 136 135 128;
+
     color-scheme: dark;
   }
 
@@ -66,6 +76,16 @@
 
     --surface-elevate: rgba(15, 23, 42, 0.05);
     --overlay: rgba(15, 23, 42, 0.45);
+
+    /* Staging shipped these as dark-only tints; the light set is darkened to
+       stay legible as small badge text on a white surface. */
+    --cat-behavioral: 67 56 202;
+    --cat-behavioral-bg: 238 242 255;
+    --cat-technical: 4 120 87;
+    --cat-technical-bg: 236 253 245;
+    --cat-design: 180 83 9;
+    --cat-design-bg: 255 247 237;
+    --cat-general: 91 100 114;
 
     color-scheme: light;
   }

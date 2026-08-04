@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NxtGen I-Assist</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #111118;
+      --surface: #1a1a24;
+      --surface-2: #22222e;
+      --border: #2a2a3a;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --accent: #f5820b;
+      --accent-hover: #e0750a;
+      --success: #1d9e75;
+      --danger: #ef4444;
+    }
+
+    body.theme-light {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --border: rgba(15, 23, 42, 0.12);
+      --text: #0f172a;
+      --text-muted: rgba(15, 23, 42, 0.6);
+    }
+
+    button {
+      background: transparent;
+      border: none;
+      outline: none;
+      padding: 0;
+      cursor: pointer;
+      color: inherit;
+      font-family: inherit;
+    }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+      user-select: none;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+    }
+
+    /* --- THE BAR: single horizontal row, flat rectangular ends --- */
+    .bar {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      height: 44px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      -webkit-app-region: drag;
+    }
+
+    .bar-section {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 8px;
+      height: 22px;
+      border-right: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .bar-section.no-border { border-right: none; }
+
+    /* --- Logo --- */
+    .logo-box {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: -0.01em;
+    }
+
+    /* --- Selected assistant (read-only; chosen in Settings) --- */
+    .assistant-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .timer {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--danger);
+      flex-shrink: 0;
+    }
+
+    /* --- Status / transcription tape ---
+       min-width keeps the tape from collapsing to zero once the pill, badge and
+       action buttons are all present; those siblings are flex-shrink:0. */
+    .status-tape {
+      flex: 1 1 auto;
+      min-width: 76px;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected { background: var(--success); }
+    .status-dot.disconnected { background: var(--danger); }
+    .status-dot.active { background: var(--accent); animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    #status-text {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* --- Action buttons --- */
+    .btn-action {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: background 0.15s, color 0.15s, transform 0.15s;
+      -webkit-app-region: no-drag;
+      flex-shrink: 0;
+    }
+
+    .btn-action:hover {
+      background: var(--surface-2);
+      color: var(--text);
+      transform: scale(1.05);
+    }
+
+    .btn-action svg { width: 14px; height: 14px; stroke-width: 2.2; }
+
+    .btn-action.start {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn-action.start:hover { background: var(--accent-hover); }
+
+    .btn-action.start:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-action.active-record {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn-action.active-record:hover { background: #dc2626; }
+
+    /* --- Sign in --- */
+    .btn-signin {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+    }
+
+    .btn-signin:hover { background: var(--accent-hover); }
+
+    /* --- Pills / badges --- */
+    .user-pill {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 2px 8px;
+      background: var(--surface);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      max-width: 70px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    .visibility-badge {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      padding: 2px 5px;
+      border-radius: 6px;
+      color: #fbbf24;
+      background: rgba(251, 191, 36, 0.12);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      flex-shrink: 0;
+    }
+
+    .visibility-badge.mode-undetectable {
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.12);
+      border-color: rgba(248, 113, 113, 0.3);
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body id="app-body">
+  <div class="bar" id="main-bar">
+    <!-- Logo -->
+    <div class="bar-section">
+      <div class="logo-box">
+        <span>I-Assist</span>
+      </div>
+    </div>
+
+    <!-- Assistant + timer -->
+    <div class="bar-section" id="assistant-section">
+      <span class="assistant-label" id="assistant-label">No assistant</span>
+      <span class="timer hidden" id="timer">00:00</span>
+    </div>
+
+    <!-- Status / transcription tape -->
+    <div class="status-tape" id="status-tape">
+      <span class="status-dot connected" id="status-dot"></span>
+      <span id="status-text">Ready</span>
+    </div>
+
+    <!-- Signed out -->
+    <div id="auth-controls" class="bar-section no-border hidden">
+      <button class="btn-signin" id="btn-sign-in">
+        Sign In
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+      </button>
+      <button class="btn-action" id="btn-settings-guest" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </div>
+
+    <!-- Signed in -->
+    <div id="session-controls" class="bar-section no-border hidden">
+      <span class="user-pill hidden" id="user-pill"></span>
+      <span class="visibility-badge hidden" id="visibility-badge"></span>
+
+      <button class="btn-action hidden" id="btn-toggle-window" title="Show / hide session window">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      </button>
+
+      <button class="btn-action start" id="btn-start-stop" title="Start session">
+        <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <svg id="stop-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display:none;"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/></svg>
+      </button>
+
+      <button class="btn-action" id="btn-settings" title="Settings (Ctrl+Shift+Alt+S)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+
+      <button class="btn-action" id="btn-hide" title="Hide bar (Ctrl+Shift+Alt+I)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const assistantLabel = $('#assistant-label');
+    const assistantSection = $('#assistant-section');
+    const btnStartStop = $('#btn-start-stop');
+    const playIcon = $('#play-icon');
+    const stopIcon = $('#stop-icon');
+    const btnToggleWindow = $('#btn-toggle-window');
+    const btnSettings = $('#btn-settings');
+    const btnSettingsGuest = $('#btn-settings-guest');
+    const btnHide = $('#btn-hide');
+    const btnSignIn = $('#btn-sign-in');
+    const statusDot = $('#status-dot');
+    const statusText = $('#status-text');
+    const timerEl = $('#timer');
+    const authControls = $('#auth-controls');
+    const sessionControls = $('#session-controls');
+    const visibilityBadge = $('#visibility-badge');
+    const userPill = $('#user-pill');
+
+    let selectedAssistant = null;
+    let sessionActive = false;
+    let timerInterval = null;
+    let sessionSeconds = 0;
+
+    function updateTimer() {
+      sessionSeconds++;
+      const m = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
+      const s = String(sessionSeconds % 60).padStart(2, '0');
+      timerEl.textContent = `${m}:${s}`;
+    }
+
+    function showAuthView(signedOut) {
+      authControls.classList.toggle('hidden', !signedOut);
+      sessionControls.classList.toggle('hidden', signedOut);
+      assistantSection.classList.toggle('hidden', signedOut);
+      if (signedOut) statusText.textContent = 'Sign in to get started';
+    }
+
+    function setVisibilityBadge(mode) {
+      if (mode === 'invisible' || mode === 'undetectable') {
+        visibilityBadge.textContent = mode;
+        visibilityBadge.classList.toggle('mode-undetectable', mode === 'undetectable');
+        visibilityBadge.classList.remove('hidden');
+      } else {
+        visibilityBadge.classList.add('hidden');
+      }
+    }
+
+    function setUserPill(user) {
+      if (user) {
+        userPill.textContent = user.name || (user.email || '').split('@')[0] || 'User';
+        userPill.title = user.email || '';
+        userPill.classList.remove('hidden');
+      } else {
+        userPill.classList.add('hidden');
+      }
+    }
+
+    // The bar only displays the selection — it is chosen in the Settings window.
+    function setAssistant(assistant) {
+      selectedAssistant = assistant || null;
+      assistantLabel.textContent = selectedAssistant ? selectedAssistant.name : 'No assistant';
+      btnStartStop.disabled = !selectedAssistant;
+      if (!selectedAssistant && !sessionActive) {
+        statusText.textContent = 'Choose an assistant in Settings';
+      }
+    }
+
+    function setSessionState(active) {
+      sessionActive = active;
+
+      if (active) {
+        sessionSeconds = 0;
+        timerEl.textContent = '00:00';
+        timerEl.classList.remove('hidden');
+        playIcon.style.display = 'none';
+        stopIcon.style.display = 'block';
+        btnStartStop.classList.remove('start');
+        btnStartStop.classList.add('active-record');
+        btnStartStop.title = 'Stop session';
+        btnToggleWindow.classList.remove('hidden');
+        statusDot.className = 'status-dot active';
+        statusText.textContent = 'Session active';
+        timerInterval = setInterval(updateTimer, 1000);
+      } else {
+        timerEl.classList.add('hidden');
+        playIcon.style.display = 'block';
+        stopIcon.style.display = 'none';
+        btnStartStop.classList.add('start');
+        btnStartStop.classList.remove('active-record');
+        btnStartStop.title = 'Start session';
+        btnToggleWindow.classList.add('hidden');
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = 'Ready';
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    // --- Event handlers ---
+
+    btnStartStop.addEventListener('click', () => {
+      if (sessionActive) {
+        window.iAssist.stopSession();
+        return;
+      }
+      if (selectedAssistant) {
+        window.iAssist.setAssistant(selectedAssistant);
+        window.iAssist.startSession();
+      }
+    });
+
+    btnToggleWindow.addEventListener('click', () => window.iAssist.toggleSessionWindow());
+    btnSettings.addEventListener('click', () => window.iAssist.openSettings());
+    btnSettingsGuest.addEventListener('click', () => window.iAssist.openSettings());
+    btnHide.addEventListener('click', () => window.iAssist.hideBar());
+    btnSignIn.addEventListener('click', () => window.iAssist.openSignIn());
+
+    // --- IPC listeners ---
+
+    window.iAssist.onAuthStateChanged((data) => {
+      showAuthView(!data.isAuthenticated);
+      setUserPill(data.isAuthenticated ? data.user : null);
+    });
+
+    window.iAssist.onVisibilityUpdate((mode) => setVisibilityBadge(mode));
+
+    window.iAssist.onThemeUpdate((theme) => {
+      document.body.classList.toggle('theme-light', theme === 'light');
+    });
+
+    window.iAssist.onAssistantsAvailability((data) => {
+      const list = data.assistants || [];
+      // Keep the current pick if it survived the refresh, else fall back to the first.
+      const stillThere = selectedAssistant && list.find(a => a.id === selectedAssistant.id);
+      setAssistant(stillThere || list[0] || null);
+    });
+
+    window.iAssist.onAssistantUpdate((assistant) => setAssistant(assistant));
+
+    window.iAssist.onSessionStateChanged((data) => setSessionState(data.active));
+
+    window.iAssist.onTranscriptionUpdate((data) => {
+      if (sessionActive && data.text) statusText.textContent = data.text;
+    });
+
+    window.iAssist.onSessionStartFailed((data) => {
+      statusDot.className = 'status-dot disconnected';
+      statusText.textContent = data.error || 'Failed to start';
+      setTimeout(() => {
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = 'Ready';
+      }, 3000);
+    });
+
+    // --- Init ---
+
+    (async () => {
+      const settings = await window.iAssist.getInitialSettings();
+      showAuthView(!settings.isAuthenticated);
+      setUserPill(settings.isAuthenticated ? settings.user : null);
+      setVisibilityBadge(settings.visibilityMode);
+      document.body.classList.toggle('theme-light', settings.theme === 'light');
+      setAssistant(settings.assistant || (settings.assistants || [])[0] || null);
+      if (settings.isSessionActive) setSessionState(true);
+    })();
+  </script>
+</body>
+</html>

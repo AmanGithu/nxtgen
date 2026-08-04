@@ -12,6 +12,8 @@ import siteRouter from './site';
 import resumeRouter from './resume';
 import linkedinRouter from './linkedin';
 import guestRouter from './guest';
+import iassistRouter from './iassist';
+import iassistDesktopRouter from './iassistDesktop';
 
 const router = Router();
 
@@ -28,5 +30,7 @@ router.use('/site', siteRouter);
 router.use('/resumes', resumeRouter);
 router.use('/linkedin', linkedinRouter);
 router.use('/guest', guestRouter);
+router.use('/iassist/desktop', iassistDesktopRouter);
+router.use('/iassist', iassistRouter);
 
 export default router;

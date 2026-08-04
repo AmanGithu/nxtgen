@@ -77,36 +77,59 @@ enum TemplateCategory {
   PREMIUM
 }
 
+enum AssistantCategory {
+  BEHAVIORAL
+  TECHNICAL
+  SYSTEM_DESIGN
+  GENERAL
+}
+
+enum MaterialRole {
+  RESUME
+  JOB_DESCRIPTION
+  MATERIAL
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
 // ─── Core Identity & Auth ───
 
 model User {
-  id            String       @id @default(uuid())
-  email         String       @unique
-  passwordHash  String?
-  firstName     String?
-  lastName      String?
-  phone         String?
-  avatarUrl     String?
-  role          UserRole     @default(SITE_USER)
-  status        UserStatus   @default(ACTIVE)
-  oauthProvider OAuthProvider?
-  mustChangePassword Boolean  @default(false)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id                 String         @id @default(uuid())
+  email              String         @unique
+  passwordHash       String?
+  firstName          String?
+  lastName           String?
+  phone              String?
+  avatarUrl          String?
+  role               UserRole       @default(SITE_USER)
+  status             UserStatus     @default(ACTIVE)
+  oauthProvider      OAuthProvider?
+  mustChangePassword Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   // Relations
-  accounts            Account[]
-  sessions            Session[]
-  inviteTokens         UserInviteToken[]
-  batchEnrollments    BatchStudent[]
-  progress            StudentProgress[]
-  subscriptions       Subscription[]
-  creditBalance       CreditBalance?
-  toolUsageLogs       ToolUsageLog[]
-  resumes             UserResume[]
-  builderResumes      Resume[]
-  certInquiries       CertificationInquiry[]
-  auditLogs           AuditLog[]
+  accounts         Account[]
+  sessions         Session[]
+  inviteTokens     UserInviteToken[]
+  batchEnrollments BatchStudent[]
+  progress         StudentProgress[]
+  subscriptions    Subscription[]
+  creditBalance    CreditBalance?
+  toolUsageLogs    ToolUsageLog[]
+  resumes          UserResume[]
+  builderResumes   Resume[]
+  certInquiries    CertificationInquiry[]
+  auditLogs        AuditLog[]
+  iAssistants      IAssistant[]
+  iAssistSessions  IAssistSession[]
+  contextDocuments ContextDocument[]
+  desktopAuthCodes DesktopAuthCode[]
 
   @@index([email])
   @@index([role])
@@ -143,12 +166,12 @@ model Session {
 }
 
 model UserInviteToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  token     String   @unique @db.VarChar(256)
+  token     String    @unique @db.VarChar(256)
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -159,26 +182,26 @@ model UserInviteToken {
 // ─── Academy & Learning ───
 
 model Course {
-  id            String         @id @default(uuid())
-  title         String
-  slug          String         @unique
-  category      CourseCategory
-  description   String         @db.Text
-  shortDesc     String?        @db.VarChar(500)
-  modules       Json?          // Array of module objects
-  thumbnail     String?
-  duration      String?
-  prerequisites String?        @db.Text
-  careerOutcomes String?       @db.Text
-  isActive      Boolean        @default(true)
-  sortOrder     Int            @default(0)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id             String         @id @default(uuid())
+  title          String
+  slug           String         @unique
+  category       CourseCategory
+  description    String         @db.Text
+  shortDesc      String?        @db.VarChar(500)
+  modules        Json? // Array of module objects
+  thumbnail      String?
+  duration       String?
+  prerequisites  String?        @db.Text
+  careerOutcomes String?        @db.Text
+  isActive       Boolean        @default(true)
+  sortOrder      Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   // Relations
-  batches             Batch[]
-  certifications      CourseCertification[]
-  corporateCourses    CorporateCourse[]
+  batches          Batch[]
+  certifications   CourseCertification[]
+  corporateCourses CorporateCourse[]
 
   @@index([category])
   @@index([slug])
@@ -200,19 +223,19 @@ model Batch {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  course       Course        @relation(fields: [courseId], references: [id])
-  students     BatchStudent[]
-  schedules    ClassSchedule[]
-  materials    StudyMaterial[]
+  course    Course          @relation(fields: [courseId], references: [id])
+  students  BatchStudent[]
+  schedules ClassSchedule[]
+  materials StudyMaterial[]
 
   @@index([courseId])
   @@index([status])
 }
 
 model BatchStudent {
-  id        String   @id @default(uuid())
-  batchId   String
-  studentId String
+  id         String   @id @default(uuid())
+  batchId    String
+  studentId  String
   enrolledAt DateTime @default(now())
 
   batch   Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
@@ -229,7 +252,7 @@ model ClassSchedule {
   title     String
   dateTime  DateTime
   zoomLink  String?
-  duration  Int?     // Duration in minutes
+  duration  Int? // Duration in minutes
   status    String   @default("scheduled") // scheduled, completed, cancelled
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -245,8 +268,8 @@ model StudyMaterial {
   batchId     String
   type        MaterialType
   title       String
-  driveFileId String?      // Google Drive File ID
-  driveUrl    String?      // Direct link
+  driveFileId String? // Google Drive File ID
+  driveUrl    String? // Direct link
   description String?      @db.Text
   sortOrder   Int          @default(0)
   createdAt   DateTime     @default(now())
@@ -259,16 +282,16 @@ model StudyMaterial {
 }
 
 model StudentProgress {
-  id               String @id @default(uuid())
+  id               String    @id @default(uuid())
   userId           String
-  courseId          String
-  completedModules Json?  // Array of completed module IDs
-  overallProgress  Float  @default(0) // Percentage
+  courseId         String
+  completedModules Json? // Array of completed module IDs
+  overallProgress  Float     @default(0) // Percentage
   assignmentScores Json?
   quizScores       Json?
   lastAccessedAt   DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -277,14 +300,14 @@ model StudentProgress {
 }
 
 model Certification {
-  id           String  @id @default(uuid())
+  id           String   @id @default(uuid())
   name         String
   provider     String?
   link         String?
-  prerequisite String? @db.Text
-  isActive     Boolean @default(true)
-  ctaEnabled   Boolean @default(true)
-  sortOrder    Int     @default(0)
+  prerequisite String?  @db.Text
+  isActive     Boolean  @default(true)
+  ctaEnabled   Boolean  @default(true)
+  sortOrder    Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -294,7 +317,7 @@ model Certification {
 
 model CourseCertification {
   id              String @id @default(uuid())
-  courseId         String
+  courseId        String
   certificationId String
 
   course        Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -317,48 +340,48 @@ model CertificationInquiry {
   updatedAt         DateTime      @updatedAt
 
   certification Certification? @relation(fields: [certificationId], references: [id])
-  user          User?           @relation(fields: [userId], references: [id])
+  user          User?          @relation(fields: [userId], references: [id])
 
   @@index([status])
   @@index([createdAt(sort: Desc)])
 }
 
 model Internship {
-  id               String         @id @default(uuid())
-  title            String
-  description      String         @db.Text
-  programType      InternshipType
-  duration         String         // e.g., "12 Weeks"
-  eligibility      String?        @db.Text
-  learningOutcomes Json?          // Array of outcome strings
-  projectHighlights Json?         // Array of project highlight objects
-  isActive         Boolean        @default(true)
-  applicationLink  String?
-  startDate        DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id                String         @id @default(uuid())
+  title             String
+  description       String         @db.Text
+  programType       InternshipType
+  duration          String // e.g., "12 Weeks"
+  eligibility       String?        @db.Text
+  learningOutcomes  Json? // Array of outcome strings
+  projectHighlights Json? // Array of project highlight objects
+  isActive          Boolean        @default(true)
+  applicationLink   String?
+  startDate         DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 }
 
 // ─── Corporate & Upcoming ───
 
 model UpcomingBatch {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   courseName  String
   startDate   DateTime
   webinarDate DateTime?
-  description String?  @db.Text
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  description String?   @db.Text
+  isPublished Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model CorporateCourse {
-  id              String  @id @default(uuid())
-  courseId         String
+  id                String  @id @default(uuid())
+  courseId          String
   customDescription String? @db.Text
-  targetAudience  String?
-  isActive        Boolean @default(true)
-  sortOrder       Int     @default(0)
+  targetAudience    String?
+  isActive          Boolean @default(true)
+  sortOrder         Int     @default(0)
 
   course Course @relation(fields: [courseId], references: [id])
 
@@ -384,12 +407,12 @@ model Subscription {
 }
 
 model CreditBalance {
-  id           String @id @default(uuid())
-  userId       String @unique
-  totalCredits Int    @default(0)
-  usedCredits  Int    @default(0)
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  totalCredits Int       @default(0)
+  usedCredits  Int       @default(0)
   lastRecharge DateTime?
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -433,7 +456,7 @@ model UserResume {
   userId       String
   templateId   String?
   title        String   @default("Untitled Resume")
-  resumeData   Json     // Full resume JSON data
+  resumeData   Json // Full resume JSON data
   lastModified DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -447,12 +470,12 @@ model UserResume {
 // ─── Admin Configuration ───
 
 model MenuItem {
-  id        String  @id @default(uuid())
+  id        String   @id @default(uuid())
   label     String
   href      String
   parentId  String?
-  sortOrder Int     @default(0)
-  isActive  Boolean @default(true)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
   icon      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -462,14 +485,14 @@ model MenuItem {
 }
 
 model HeroBanner {
-  id        String  @id @default(uuid())
+  id        String   @id @default(uuid())
   title     String
   subtitle  String?
   imageUrl  String?
   ctaText   String?
   ctaLink   String?
-  sortOrder Int     @default(0)
-  isActive  Boolean @default(true)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -588,4 +611,116 @@ model InternshipApplication {
 
   @@index([internshipId])
   @@index([createdAt(sort: Desc)])
+}
+
+// ─── I-Assist (Interview Assistant) ───
+
+model IAssistant {
+  id              String            @id @default(uuid())
+  userId          String
+  name            String
+  category        AssistantCategory @default(GENERAL)
+  targetRole      String?
+  experienceYears Int?
+  instructions    String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materials AssistantMaterial[]
+  sessions  IAssistSession[]
+
+  @@index([userId])
+}
+
+model AssistantMaterial {
+  id          String       @id @default(uuid())
+  assistantId String
+  documentId  String?
+  role        MaterialRole
+  title       String
+  content     String?      @db.Text
+  createdAt   DateTime     @default(now())
+
+  assistant IAssistant       @relation(fields: [assistantId], references: [id], onDelete: Cascade)
+  document  ContextDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([assistantId])
+  @@index([documentId])
+}
+
+model ContextDocument {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  description String?
+  fileName    String?
+  fileType    String?
+  fileSize    Int?
+  content     String   @db.LongText
+  wordCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materials AssistantMaterial[]
+
+  @@index([userId])
+}
+
+model IAssistSession {
+  id                String        @id @default(uuid())
+  userId            String
+  assistantId       String?
+  // Snapshotted at creation. assistantId is SetNull on delete, so without these
+  // a deleted assistant silently erases the attribution of every past session.
+  assistantName     String?
+  assistantCategory AssistantCategory?
+  status            SessionStatus @default(ACTIVE)
+  platform          String        @default("desktop")
+  startedAt         DateTime      @default(now())
+  endedAt           DateTime?
+  durationSeconds   Int?
+  questionsAnswered Int           @default(0)
+  tokensUsed        Int           @default(0)
+  createdAt         DateTime      @default(now())
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assistant   IAssistant?         @relation(fields: [assistantId], references: [id], onDelete: SetNull)
+  transcripts SessionTranscript[]
+
+  @@index([userId])
+  @@index([assistantId])
+  @@index([status, startedAt])
+}
+
+model SessionTranscript {
+  id         String   @id @default(uuid())
+  sessionId  String
+  speaker    String
+  text       String   @db.Text
+  isQuestion Boolean  @default(false)
+  response   String?  @db.Text
+  tokens     Int      @default(0)
+  timestamp  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  session IAssistSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model DesktopAuthCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  state     String
+  userId    String
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([code])
+  @@index([userId])
 }

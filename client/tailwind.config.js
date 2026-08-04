@@ -20,7 +20,14 @@ export default {
         'line': 'var(--border-base)',
         'line-strong': 'var(--border-strong)',
         'elevate': 'var(--surface-elevate)',
-        'overlay': 'var(--overlay)'
+        'overlay': 'var(--overlay)',
+        'cat-behavioral': 'rgb(var(--cat-behavioral) / <alpha-value>)',
+        'cat-behavioral-bg': 'rgb(var(--cat-behavioral-bg) / <alpha-value>)',
+        'cat-technical': 'rgb(var(--cat-technical) / <alpha-value>)',
+        'cat-technical-bg': 'rgb(var(--cat-technical-bg) / <alpha-value>)',
+        'cat-design': 'rgb(var(--cat-design) / <alpha-value>)',
+        'cat-design-bg': 'rgb(var(--cat-design-bg) / <alpha-value>)',
+        'cat-general': 'rgb(var(--cat-general) / <alpha-value>)'
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

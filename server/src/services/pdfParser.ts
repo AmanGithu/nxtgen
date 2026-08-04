@@ -1,6 +1,6 @@
 import { aiService } from './aiService';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 
 export interface ParsedResumeData {
   contactInfo: {
@@ -35,8 +35,13 @@ export const pdfParserService = {
   async parseResumePdf(pdfBuffer: Buffer): Promise<ParsedResumeData> {
     let rawText = '';
     try {
-      const pdfData = await pdfParse(pdfBuffer);
-      rawText = pdfData.text.trim();
+      const parser = new PDFParse({ data: pdfBuffer });
+      try {
+        const pdfData = await parser.getText({ pageJoiner: '\n' });
+        rawText = (pdfData.text || '').trim();
+      } finally {
+        await parser.destroy();
+      }
     } catch (err) {
       console.warn('pdf-parse failed, raw text empty:', err);
     }
