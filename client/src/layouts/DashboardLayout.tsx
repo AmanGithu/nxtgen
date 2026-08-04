@@ -70,7 +70,7 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
     { name: 'LinkedIn Analyser', path: '/dashboard/tools/linkedin-analyser', icon: Users },
     { name: 'Cover Letter Builder', path: '/dashboard/tools/cover-letter', icon: FileText },
     { name: 'Interview Prep Kit', path: '/dashboard/tools/interview-prep', icon: LayoutDashboard },
-    { name: 'I-Assist Teleprompter', path: '/dashboard/tools/i-assist', icon: Mic },
+    { name: 'I-Assist', path: '/dashboard/tools/i-assist', icon: Mic },
     { name: 'Live AI Interview', path: '/dashboard/tools/live-interview', icon: Bot },
     { name: 'Unlock All Packages', path: '/dashboard/tools/unlock', icon: Lock },
   ];
