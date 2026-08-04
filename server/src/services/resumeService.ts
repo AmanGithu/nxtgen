@@ -1,5 +1,7 @@
 import { ResumeRepository } from '../repositories/resumeRepository';
 import { BillingService } from './billingService';
+import { entitlementService } from './entitlementService';
+import { FEATURE } from '../lib/entitlements';
 import { logger } from '../lib/logger';
 import {
   ResumeData,
@@ -296,7 +298,9 @@ export class ResumeService {
     if (!r) throw new Error('Resume not found');
     const data = parseData(r.data);
 
-    await billingService.chargeCredits(userId, AI_ACTION_COST, 'resume_ai_cover_letter');
+    /* Deliberately not metered: one résumé is sent to many companies, so
+       capping cover letters would penalise the tool's whole purpose. */
+    await billingService.recordFreeUsage(userId, 'resume_ai_cover_letter');
     const { result: body, usage } = await withFallback((p) => p.coverLetter(data, input));
     await resumeRepository.upsertCoverLetter(resumeId, {
       company: input.company ?? '', role: input.role ?? '', manager: input.hiringManager ?? '',
@@ -330,7 +334,8 @@ export class ResumeService {
     if (!input.jd.trim()) return { questions: [], tips: [], usage: null as UsageMeta | null };
     const data = parseData(r.data);
 
-    await billingService.chargeCredits(userId, AI_ACTION_COST, 'resume_ai_interview_prep');
+    await entitlementService.assertWithinLimit(userId, FEATURE.INTERVIEW);
+    await billingService.recordFreeUsage(userId, 'resume_ai_interview_prep');
     const { result, usage } = await withFallback((p) => p.interviewPrep(data, input));
     await resumeRepository.upsertInterviewPrep(resumeId, { role: input.role ?? '', jd: input.jd, questions: JSON.stringify(result) });
     return { questions: result.questions, tips: result.tips, usage };

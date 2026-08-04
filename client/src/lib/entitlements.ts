@@ -19,8 +19,14 @@ export interface Entitlements {
   canUsePremiumTemplates: boolean;
   /** null = unlimited. */
   maxResumes: number | null;
-  /** null = unlimited; guests are additionally capped server-side by IP. */
-  maxAiActions: number | null;
+  /** AI passes over a résumé per month (rewrite + summary + tailor). */
+  maxIterations: number | null;
+  /** LinkedIn profile analyses per month. */
+  maxLinkedIn: number | null;
+  /** Interview question generations per month. */
+  maxInterview: number | null;
+  /* Cover letters are intentionally absent — unlimited on every tier, because
+     one résumé is sent to many companies. */
 }
 
 const GUEST: Entitlements = {
@@ -29,7 +35,9 @@ const GUEST: Entitlements = {
   canExport: false,
   canUsePremiumTemplates: false,
   maxResumes: 0,
-  maxAiActions: 5,
+  maxIterations: 5,
+  maxLinkedIn: 2,
+  maxInterview: 2,
 };
 
 const FREE: Entitlements = {
@@ -41,7 +49,9 @@ const FREE: Entitlements = {
   canExport: true,
   canUsePremiumTemplates: false,
   maxResumes: 1,
-  maxAiActions: 25,
+  maxIterations: 10,
+  maxLinkedIn: 10,
+  maxInterview: 10,
 };
 
 const PAID: Entitlements = {
@@ -50,7 +60,9 @@ const PAID: Entitlements = {
   canExport: true,
   canUsePremiumTemplates: true,
   maxResumes: null,
-  maxAiActions: null,
+  maxIterations: null,
+  maxLinkedIn: null,
+  maxInterview: null,
 };
 
 /** Plans that unlock the paid tier. FREE is not one of them. */

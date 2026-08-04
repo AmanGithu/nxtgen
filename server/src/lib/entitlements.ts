@@ -14,11 +14,17 @@
 
 export type Tier = 'guest' | 'free' | 'paid';
 
-/** Countable actions. Values match ToolUsageLog.toolName so usage is one query. */
+/** Countable actions. Each has its own allowance rather than sharing a pool. */
 export const FEATURE = {
   EXPORT: 'resume_export',
-  TAILOR: 'resume_ai_tailor',
-  AI: 'ai_action',
+  /** AI passes over a résumé — rewrite, summary, tailor. Capped together
+      because they are all "another go at the same document". */
+  ITERATION: 'resume_iteration',
+  LINKEDIN: 'linkedin_analyse',
+  INTERVIEW: 'interview_prep',
+  /* Cover letters are deliberately absent: one résumé is sent to many
+     companies, so metering them would penalise the normal way the tool is
+     used. They stay unlimited on every tier. */
 } as const;
 
 export interface Limits {
@@ -26,10 +32,12 @@ export interface Limits {
   maxResumes: number | null;
   /** PDF/DOCX downloads per calendar month. null = unlimited. */
   maxExportsPerMonth: number | null;
-  /** JD tailoring runs per calendar month. null = unlimited. */
-  maxTailorsPerMonth: number | null;
-  /** Generative AI calls per calendar month. null = unlimited. */
-  maxAiPerMonth: number | null;
+  /** AI passes over a résumé per month (rewrite + summary + tailor). */
+  maxIterationsPerMonth: number | null;
+  /** LinkedIn profile analyses per month. */
+  maxLinkedInPerMonth: number | null;
+  /** Interview question generations per month. */
+  maxInterviewPerMonth: number | null;
   canSave: boolean;
   canUsePremiumTemplates: boolean;
 }
@@ -41,8 +49,9 @@ export const LIMITS: Record<Tier, Limits> = {
   guest: {
     maxResumes: 0,
     maxExportsPerMonth: 0,
-    maxTailorsPerMonth: 0,
-    maxAiPerMonth: 5,
+    maxIterationsPerMonth: 5,
+    maxLinkedInPerMonth: 2,
+    maxInterviewPerMonth: 2,
     canSave: false,
     canUsePremiumTemplates: false,
   },
@@ -50,16 +59,18 @@ export const LIMITS: Record<Tier, Limits> = {
   free: {
     maxResumes: 1,
     maxExportsPerMonth: 3,
-    maxTailorsPerMonth: 3,
-    maxAiPerMonth: 25,
+    maxIterationsPerMonth: 10,
+    maxLinkedInPerMonth: 10,
+    maxInterviewPerMonth: 10,
     canSave: true,
     canUsePremiumTemplates: false,
   },
   paid: {
     maxResumes: null,
     maxExportsPerMonth: null,
-    maxTailorsPerMonth: null,
-    maxAiPerMonth: null,
+    maxIterationsPerMonth: null,
+    maxLinkedInPerMonth: null,
+    maxInterviewPerMonth: null,
     canSave: true,
     canUsePremiumTemplates: true,
   },
@@ -84,10 +95,12 @@ export function limitMessage(feature: string, limit: number, tier: Tier): string
   switch (feature) {
     case FEATURE.EXPORT:
       return `You've used all ${limit} downloads this month.${upgrade}`;
-    case FEATURE.TAILOR:
-      return `You've used all ${limit} JD tailoring runs this month.${upgrade}`;
-    case FEATURE.AI:
-      return `You've used all ${limit} AI actions this month.${upgrade}`;
+    case FEATURE.ITERATION:
+      return `You've used all ${limit} résumé AI iterations this month.${upgrade}`;
+    case FEATURE.LINKEDIN:
+      return `You've used all ${limit} LinkedIn analyses this month.${upgrade}`;
+    case FEATURE.INTERVIEW:
+      return `You've used all ${limit} interview question sets this month.${upgrade}`;
     default:
       return `Monthly limit of ${limit} reached.${upgrade}`;
   }

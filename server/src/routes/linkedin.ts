@@ -5,6 +5,8 @@ import { consumeGuestAction, peekGuestQuota } from '../lib/guestQuota';
 import { AppError } from '../middleware/errorHandler';
 import { analyseLinkedIn } from '../services/linkedinAnalyser';
 import { extractPdfText, extractDocxText } from '../services/resume/textExtract';
+import { entitlementService } from '../services/entitlementService';
+import { FEATURE } from '../lib/entitlements';
 
 const router = Router();
 
@@ -41,6 +43,12 @@ const readUpload = async (base64: string, fileName = '', mimeType = '') => {
 
 router.post('/analyse', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    /* This route was previously unmetered entirely — signed-in users could
+       run unlimited analyses while every other AI tool was capped. Guests
+       still fall through to the per-browser/per-IP guest quota. */
+    const userId = (req as any).user?.id;
+    if (userId) await entitlementService.assertWithinLimit(userId, FEATURE.LINKEDIN);
+
     const body = analyseSchema.parse(req.body);
 
     let text = (body.text ?? '').trim();

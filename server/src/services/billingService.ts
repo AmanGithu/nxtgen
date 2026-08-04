@@ -55,6 +55,11 @@ export class BillingService {
     logger.debug(`[billing] charged ${amount} credit(s) to ${userId} for ${reason}`);
   }
 
+  /** Log an action for analytics without consuming any allowance. */
+  async recordFreeUsage(userId: string, toolName: string): Promise<void> {
+    await this.recordUsage(userId, toolName, 0);
+  }
+
   private async recordUsage(userId: string, toolName: string, creditsConsumed: number): Promise<void> {
     try {
       await prisma.toolUsageLog.create({

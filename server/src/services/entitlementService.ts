@@ -14,7 +14,7 @@ import {
 export interface EntitlementSnapshot {
   tier: Tier;
   limits: Limits;
-  used: { resumes: number; exports: number; tailors: number; ai: number };
+  used: { resumes: number; exports: number; iterations: number; linkedin: number; interview: number };
   /** When the monthly counters next reset, ISO. */
   resetsAt: string;
 }
@@ -111,11 +111,12 @@ export class EntitlementService {
   /** Everything the client needs to render locks and "2 of 3 left" copy. */
   async snapshot(userId: string): Promise<EntitlementSnapshot> {
     const tier = await this.tierFor(userId);
-    const [resumes, exports, tailors, ai] = await Promise.all([
+    const [resumes, exports, iterations, linkedin, interview] = await Promise.all([
       prisma.resume.count({ where: { userId } }),
       this.usedThisPeriod(userId, FEATURE.EXPORT),
-      this.usedThisPeriod(userId, FEATURE.TAILOR),
-      this.usedThisPeriod(userId, FEATURE.AI),
+      this.usedThisPeriod(userId, FEATURE.ITERATION),
+      this.usedThisPeriod(userId, FEATURE.LINKEDIN),
+      this.usedThisPeriod(userId, FEATURE.INTERVIEW),
     ]);
 
     const next = currentPeriodStart();
@@ -124,7 +125,7 @@ export class EntitlementService {
     return {
       tier,
       limits: LIMITS[tier],
-      used: { resumes, exports, tailors, ai },
+      used: { resumes, exports, iterations, linkedin, interview },
       resetsAt: next.toISOString(),
     };
   }
@@ -142,9 +143,13 @@ export class EntitlementService {
     const limit =
       feature === FEATURE.EXPORT
         ? limits.maxExportsPerMonth
-        : feature === FEATURE.TAILOR
-          ? limits.maxTailorsPerMonth
-          : limits.maxAiPerMonth;
+        : feature === FEATURE.ITERATION
+          ? limits.maxIterationsPerMonth
+          : feature === FEATURE.LINKEDIN
+            ? limits.maxLinkedInPerMonth
+            : feature === FEATURE.INTERVIEW
+              ? limits.maxInterviewPerMonth
+              : null; // anything unlisted (cover letters) is unmetered
 
     if (limit === null) return; // unlimited
 
@@ -160,26 +165,14 @@ export class EntitlementService {
   }
 
   /**
-   * Throw unless the user has AI allowance left this period.
+   * Throw unless the user has résumé AI iterations left.
    *
-   * Separate from assertWithinLimit because AI usage is spread across several
-   * toolNames (resume_ai_summary, resume_ai_rewrite, …) and has to be counted
-   * as one pooled allowance rather than per-tool.
+   * Rewrite, summary and tailor share one allowance: they are all another
+   * pass over the same document, so metering them separately would let the
+   * same "keep trying until it reads well" loop run three times over.
    */
   async assertAiWithinLimit(userId: string): Promise<void> {
-    const tier = await this.tierFor(userId);
-    const limit = LIMITS[tier].maxAiPerMonth;
-    if (limit === null) return;
-
-    if (!(await this.claim(userId, FEATURE.AI, limit))) {
-      throw new AppError(limitMessage(FEATURE.AI, limit, tier), 402, {
-        code: 'LIMIT_REACHED',
-        feature: FEATURE.AI,
-        limit,
-        used: limit,
-        tier,
-      });
-    }
+    await this.assertWithinLimit(userId, FEATURE.ITERATION);
   }
 
   /**

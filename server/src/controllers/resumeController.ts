@@ -173,8 +173,8 @@ export const runTailor = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
-    /* chargeCredits already logs the run, so this only has to gate it. */
-    await entitlementService.assertWithinLimit(userId, FEATURE.TAILOR);
+    /* Tailoring draws on the shared résumé-iteration allowance; chargeCredits
+       claims the slot, so this would double-count if it claimed as well. */
     const { jd, intensity } = req.body;
     if (!jd) return res.status(400).json({ message: 'jd is required' });
     res.json(await resumeService.runTailor(userId, req.params.id as string, jd, intensity || 'balanced'));
