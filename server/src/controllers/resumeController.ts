@@ -50,6 +50,7 @@ export const createResume = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
     await entitlementService.assertCanCreateResume(userId);
     const { title, template, data } = req.body ?? {};
+    await entitlementService.assertCanUseTemplate(userId, template);
     res.status(201).json(await resumeService.createResume(userId, { title, template, data }));
   } catch (error: any) { handleError(res, 'Create resume', error, userId); }
 };
@@ -59,6 +60,7 @@ export const updateResume = async (req: AuthRequest, res: Response) => {
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
     const { data, template, title } = req.body;
+    await entitlementService.assertCanUseTemplate(userId, template);
     await resumeService.updateResume(req.params.id as string, userId, { data, template, title });
     res.status(204).send();
   } catch (error: any) { handleError(res, 'Update resume', error, userId); }
@@ -176,6 +178,7 @@ export const updateVersion = async (req: AuthRequest, res: Response) => {
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
     const { data, template } = req.body;
+    await entitlementService.assertCanUseTemplate(userId, template);
     await resumeService.updateVersion(req.params.versionId as string, userId, { data, template });
     res.status(204).send();
   } catch (error: any) { handleError(res, 'Update version', error, userId); }
@@ -269,6 +272,7 @@ export const exportResumeDocx = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
     /* Checked before rendering so a blocked request costs no PDF/DOCX work. */
     await entitlementService.assertWithinLimit(userId, FEATURE.EXPORT);
+    await entitlementService.assertResumeTemplateAllowed(userId, req.params.id as string);
     const out = await resumeService.exportResumeDocx(req.params.id as string, userId);
     if (!out) return res.status(404).json({ message: 'Resume not found' });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -284,6 +288,7 @@ export const exportVersionDocx = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
     /* Checked before rendering so a blocked request costs no PDF/DOCX work. */
     await entitlementService.assertWithinLimit(userId, FEATURE.EXPORT);
+    await entitlementService.assertVersionTemplateAllowed(userId, req.params.versionId as string);
     const out = await resumeService.exportVersionDocx(req.params.versionId as string, userId);
     if (!out) return res.status(404).json({ message: 'Version not found' });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -314,6 +319,7 @@ export const exportResumePdf = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
     /* Checked before rendering so a blocked request costs no PDF/DOCX work. */
     await entitlementService.assertWithinLimit(userId, FEATURE.EXPORT);
+    await entitlementService.assertResumeTemplateAllowed(userId, req.params.id as string);
     const out = await resumeService.exportResumePdf(req.params.id as string, userId);
     if (!out) return res.status(404).json({ message: 'Resume not found' });
     res.setHeader('Content-Type', 'application/pdf');
@@ -329,6 +335,7 @@ export const exportVersionPdf = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
     /* Checked before rendering so a blocked request costs no PDF/DOCX work. */
     await entitlementService.assertWithinLimit(userId, FEATURE.EXPORT);
+    await entitlementService.assertVersionTemplateAllowed(userId, req.params.versionId as string);
     const out = await resumeService.exportVersionPdf(req.params.versionId as string, userId);
     if (!out) return res.status(404).json({ message: 'Version not found' });
     res.setHeader('Content-Type', 'application/pdf');

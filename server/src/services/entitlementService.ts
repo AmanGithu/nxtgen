@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { isPremiumTemplate } from '../lib/resumeTemplates';
 import { AppError } from '../middleware/errorHandler';
 import {
   Tier,
@@ -164,23 +165,49 @@ export class EntitlementService {
     }
   }
 
-  /** Throw unless the user may use a PREMIUM template. */
-  async assertCanUseTemplate(userId: string, templateId?: string | null): Promise<void> {
-    if (!templateId) return;
-    const template = await prisma.resumeTemplate.findUnique({
-      where: { id: templateId },
-      select: { category: true, name: true },
-    });
-    if (!template || template.category !== 'PREMIUM') return;
+  /**
+   * Throw unless the user may use `template`.
+   *
+   * Checked on every path that can put a template onto a résumé — create,
+   * update, version update — and again at export, because a résumé may still
+   * carry a premium template applied while the account was on a paid plan (or
+   * before students were correctly moved to the free tier).
+   */
+  async assertCanUseTemplate(userId: string, template?: string | null): Promise<void> {
+    if (!isPremiumTemplate(template)) return;
 
     const tier = await this.tierFor(userId);
-    if (!LIMITS[tier].canUsePremiumTemplates) {
-      throw new AppError(`"${template.name}" is a premium template.`, 402, {
-        code: 'LIMIT_REACHED',
-        feature: 'premium-template',
-        tier,
-      });
-    }
+    if (LIMITS[tier].canUsePremiumTemplates) return;
+
+    throw new AppError(
+      `"${template}" is a premium template. Switch to a free template or upgrade to use it.`,
+      402,
+      { code: 'LIMIT_REACHED', feature: 'premium-template', template, tier }
+    );
+  }
+
+  /**
+   * Guard an export by the template the document is actually stored with.
+   *
+   * The write-path checks above stop a free user *applying* a premium
+   * template, but a résumé can already carry one — applied while the account
+   * was paid, or while students were incorrectly resolving to the paid tier.
+   * Without this, that document stays exportable forever.
+   */
+  async assertResumeTemplateAllowed(userId: string, resumeId: string): Promise<void> {
+    const r = await prisma.resume.findFirst({
+      where: { id: resumeId, userId },
+      select: { template: true },
+    });
+    if (r) await this.assertCanUseTemplate(userId, r.template);
+  }
+
+  async assertVersionTemplateAllowed(userId: string, versionId: string): Promise<void> {
+    const v = await prisma.resumeVersion.findFirst({
+      where: { id: versionId, resume: { userId } },
+      select: { template: true },
+    });
+    if (v) await this.assertCanUseTemplate(userId, v.template);
   }
 
   /** Record one use of a counted feature. Must follow the successful action. */
