@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./context/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { UpgradeProvider } from "./context/UpgradeContext";
+import UpgradeDialog from "./components/UpgradeDialog";
 import { ThemeProvider } from "./context/ThemeContext";
 import PublicLayout from "./layouts/PublicLayout";
 import DashboardLayout from "./layouts/DashboardLayout";
@@ -98,219 +100,229 @@ function App() {
       <ErrorBoundary>
         <ThemeProvider>
           <AuthProvider>
-            <BrowserRouter>
-              <Suspense fallback={<Loading />}>
-                <Routes>
-                  {/* Public Routes */}
-                  <Route element={<PublicLayout />}>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/courses" element={<Courses />} />
-                    <Route
-                      path="/certifications"
-                      element={<Certifications />}
-                    />
-                    <Route path="/internship" element={<Internship />} />
-                    <Route
-                      path="/upcoming-batches"
-                      element={<UpcomingBatches />}
-                    />
-                    <Route path="/corporate" element={<Corporate />} />
-                    <Route path="/tools/:toolId" element={<ToolsPreview />} />
-                    <Route path="/login" element={<Login />} />
+            <UpgradeProvider>
+              <UpgradeDialog />
+              <BrowserRouter>
+                <Suspense fallback={<Loading />}>
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route element={<PublicLayout />}>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/courses" element={<Courses />} />
+                      <Route
+                        path="/certifications"
+                        element={<Certifications />}
+                      />
+                      <Route path="/internship" element={<Internship />} />
+                      <Route
+                        path="/upcoming-batches"
+                        element={<UpcomingBatches />}
+                      />
+                      <Route path="/corporate" element={<Corporate />} />
+                      <Route path="/tools/:toolId" element={<ToolsPreview />} />
+                      <Route path="/login" element={<Login />} />
 
-                    {/* Direct Public Tool Routes */}
-                    <Route
-                      path="/tools/i-assist"
-                      element={<IAssistPreview />}
-                    />
-                    <Route
-                      path="/tools/live-interview"
-                      element={<LiveInterviewStage />}
-                    />
-                  </Route>
-
-                  {/* Admin Routes (Slice 3) */}
-                  <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-                    <Route
-                      path="/dashboard/admin"
-                      element={<DashboardLayout variant="admin" />}
-                    >
-                      <Route index element={<AdminOverview />} />
-                      <Route path="users" element={<UserManagement />} />
-                      <Route path="batches" element={<BatchConfig />} />
-                      <Route path="scheduler" element={<ClassScheduler />} />
-                      <Route path="upcoming" element={<UpcomingManager />} />
-                      <Route path="materials" element={<StudyMaterials />} />
+                      {/* Direct Public Tool Routes */}
                       <Route
-                        path="certifications"
-                        element={<CertificationsManager />}
+                        path="/tools/i-assist"
+                        element={<IAssistPreview />}
                       />
                       <Route
-                        path="cert-inquiries"
-                        element={<CertInquiries />}
-                      />
-                      <Route path="ai-config" element={<AIConfig />} />
-                      <Route path="menu" element={<MenuEditor />} />
-                      <Route path="banners" element={<HeroBanners />} />
-                      <Route path="templates" element={<ResumeTemplates />} />
-                      <Route path="logs" element={<AuditLogs />} />
-                      <Route
-                        path="internships"
-                        element={<InternshipsManager />}
-                      />
-                      <Route path="corporate" element={<CorporateCourses />} />
-                      <Route path="courses" element={<CoursesManager />} />
-                      <Route
-                        path="*"
-                        element={<Placeholder title="Admin Module Content" />}
+                        path="/tools/live-interview"
+                        element={<LiveInterviewStage />}
                       />
                     </Route>
-                  </Route>
 
-                  {/* Career Toolkit — open to everyone, including signed-out
+                    {/* Admin Routes (Slice 3) */}
+                    <Route
+                      element={<ProtectedRoute allowedRoles={["admin"]} />}
+                    >
+                      <Route
+                        path="/dashboard/admin"
+                        element={<DashboardLayout variant="admin" />}
+                      >
+                        <Route index element={<AdminOverview />} />
+                        <Route path="users" element={<UserManagement />} />
+                        <Route path="batches" element={<BatchConfig />} />
+                        <Route path="scheduler" element={<ClassScheduler />} />
+                        <Route path="upcoming" element={<UpcomingManager />} />
+                        <Route path="materials" element={<StudyMaterials />} />
+                        <Route
+                          path="certifications"
+                          element={<CertificationsManager />}
+                        />
+                        <Route
+                          path="cert-inquiries"
+                          element={<CertInquiries />}
+                        />
+                        <Route path="ai-config" element={<AIConfig />} />
+                        <Route path="menu" element={<MenuEditor />} />
+                        <Route path="banners" element={<HeroBanners />} />
+                        <Route path="templates" element={<ResumeTemplates />} />
+                        <Route path="logs" element={<AuditLogs />} />
+                        <Route
+                          path="internships"
+                          element={<InternshipsManager />}
+                        />
+                        <Route
+                          path="corporate"
+                          element={<CorporateCourses />}
+                        />
+                        <Route path="courses" element={<CoursesManager />} />
+                        <Route
+                          path="*"
+                          element={<Placeholder title="Admin Module Content" />}
+                        />
+                      </Route>
+                    </Route>
+
+                    {/* Career Toolkit — open to everyone, including signed-out
                     visitors. They get the full editing experience; saving and
                     exporting are gated inside the tools, which is the whole
                     point of the funnel. */}
-                  <Route>
-                    <Route
-                      path="/dashboard/tools"
-                      element={<DashboardLayout variant="tools" />}
-                    >
+                    <Route>
                       <Route
-                        index
-                        element={<Navigate to="resume-builder" replace />}
-                      />
-                      <Route
-                        path="resume-builder"
-                        element={<ResumeBuilder />}
-                      />
-                      <Route path="ats-checker" element={<ATSChecker />} />
-                      <Route path="tailor-resume" element={<JDTailor />} />
-                      <Route
-                        path="linkedin-analyser"
-                        element={<LinkedInAnalyser />}
-                      />
-                      <Route
-                        path="cover-letter"
-                        element={<CoverLetterBuilder />}
-                      />
-                      <Route
-                        path="interview-prep"
-                        element={<InterviewPrepKit />}
-                      />
-                      <Route
-                        path="upload-enhance"
-                        element={<UploadEnhance />}
-                      />
-                      {/* Phase 2 replaced the standalone teleprompter with the
+                        path="/dashboard/tools"
+                        element={<DashboardLayout variant="tools" />}
+                      >
+                        <Route
+                          index
+                          element={<Navigate to="resume-builder" replace />}
+                        />
+                        <Route
+                          path="resume-builder"
+                          element={<ResumeBuilder />}
+                        />
+                        <Route path="ats-checker" element={<ATSChecker />} />
+                        <Route path="tailor-resume" element={<JDTailor />} />
+                        <Route
+                          path="linkedin-analyser"
+                          element={<LinkedInAnalyser />}
+                        />
+                        <Route
+                          path="cover-letter"
+                          element={<CoverLetterBuilder />}
+                        />
+                        <Route
+                          path="interview-prep"
+                          element={<InterviewPrepKit />}
+                        />
+                        <Route
+                          path="upload-enhance"
+                          element={<UploadEnhance />}
+                        />
+                        {/* Phase 2 replaced the standalone teleprompter with the
                         full i-Assist suite, which is student-only. Signed-out
                         and site users get the preview instead of a dead route. */}
-                      <Route path="i-assist" element={<IAssistPreview />} />
-                      <Route
-                        path="live-interview"
-                        element={<LiveInterviewStage />}
-                      />
-                      <Route path="unlock" element={<UnlockModal />} />
-                      <Route
-                        path="*"
-                        element={<Placeholder title="Tool Not Found" />}
-                      />
+                        <Route path="i-assist" element={<IAssistPreview />} />
+                        <Route
+                          path="live-interview"
+                          element={<LiveInterviewStage />}
+                        />
+                        <Route path="unlock" element={<UnlockModal />} />
+                        <Route
+                          path="*"
+                          element={<Placeholder title="Tool Not Found" />}
+                        />
+                      </Route>
                     </Route>
-                  </Route>
 
-                  {/* Student Routes (Slice 4, Phase 1B & Phase 2 Tools) */}
-                  <Route
-                    element={
-                      <ProtectedRoute allowedRoles={["student", "admin"]} />
-                    }
-                  >
+                    {/* Student Routes (Slice 4, Phase 1B & Phase 2 Tools) */}
                     <Route
-                      path="/dashboard/student"
-                      element={<DashboardLayout variant="student" />}
+                      element={
+                        <ProtectedRoute allowedRoles={["student", "admin"]} />
+                      }
                     >
-                      <Route index element={<StudentOverview />} />
-                      <Route path="materials" element={<ProtectedPlayer />} />
-                      <Route path="schedule" element={<StudentSchedule />} />
                       <Route
-                        path="certifications"
-                        element={<StudentCertifications />}
-                      />
-                      <Route path="unlock" element={<UnlockModal />} />
+                        path="/dashboard/student"
+                        element={<DashboardLayout variant="student" />}
+                      >
+                        <Route index element={<StudentOverview />} />
+                        <Route path="materials" element={<ProtectedPlayer />} />
+                        <Route path="schedule" element={<StudentSchedule />} />
+                        <Route
+                          path="certifications"
+                          element={<StudentCertifications />}
+                        />
+                        <Route path="unlock" element={<UnlockModal />} />
 
-                      {/* AI Career Tools Suite */}
-                      <Route
-                        path="tools/resume-builder"
-                        element={<ResumeBuilder />}
-                      />
-                      <Route
-                        path="tools/ats-checker"
-                        element={<ATSChecker />}
-                      />
-                      <Route
-                        path="tools/tailor-resume"
-                        element={<JDTailor />}
-                      />
-                      <Route
-                        path="tools/linkedin-analyser"
-                        element={<LinkedInAnalyser />}
-                      />
-                      <Route
-                        path="tools/cover-letter"
-                        element={<CoverLetterBuilder />}
-                      />
-                      <Route
-                        path="tools/interview-prep"
-                        element={<InterviewPrepKit />}
-                      />
+                        {/* AI Career Tools Suite */}
+                        <Route
+                          path="tools/resume-builder"
+                          element={<ResumeBuilder />}
+                        />
+                        <Route
+                          path="tools/ats-checker"
+                          element={<ATSChecker />}
+                        />
+                        <Route
+                          path="tools/tailor-resume"
+                          element={<JDTailor />}
+                        />
+                        <Route
+                          path="tools/linkedin-analyser"
+                          element={<LinkedInAnalyser />}
+                        />
+                        <Route
+                          path="tools/cover-letter"
+                          element={<CoverLetterBuilder />}
+                        />
+                        <Route
+                          path="tools/interview-prep"
+                          element={<InterviewPrepKit />}
+                        />
 
-                      {/* Phase 2 Real-Time Voice & Avatar Tools */}
-                      <Route
-                        path="tools/live-interview"
-                        element={<LiveInterviewStage />}
-                      />
+                        {/* Phase 2 Real-Time Voice & Avatar Tools */}
+                        <Route
+                          path="tools/live-interview"
+                          element={<LiveInterviewStage />}
+                        />
 
-                      {/* I-Assist Phase 3 */}
-                      <Route
-                        path="tools/i-assist"
-                        element={<IAssistDashboard />}
-                      />
-                      <Route
-                        path="tools/i-assist/session/:id"
-                        element={<IAssistSessionDetail />}
-                      />
-                      <Route
-                        path="tools/i-assist/assistants"
-                        element={<IAssistAssistants />}
-                      />
-                      <Route
-                        path="tools/i-assist/documents"
-                        element={<IAssistDocuments />}
-                      />
+                        {/* I-Assist Phase 3 */}
+                        <Route
+                          path="tools/i-assist"
+                          element={<IAssistDashboard />}
+                        />
+                        <Route
+                          path="tools/i-assist/session/:id"
+                          element={<IAssistSessionDetail />}
+                        />
+                        <Route
+                          path="tools/i-assist/assistants"
+                          element={<IAssistAssistants />}
+                        />
+                        <Route
+                          path="tools/i-assist/documents"
+                          element={<IAssistDocuments />}
+                        />
 
-                      <Route
-                        path="*"
-                        element={<Placeholder title="Student Module Content" />}
-                      />
+                        <Route
+                          path="*"
+                          element={
+                            <Placeholder title="Student Module Content" />
+                          }
+                        />
+                      </Route>
                     </Route>
-                  </Route>
 
-                  {/* Desktop Auth (standalone — no layout wrapper) */}
-                  <Route
-                    path="/desktop-authorize"
-                    element={<DesktopAuthorize />}
-                  />
+                    {/* Desktop Auth (standalone — no layout wrapper) */}
+                    <Route
+                      path="/desktop-authorize"
+                      element={<DesktopAuthorize />}
+                    />
 
-                  <Route
-                    path="/unauthorized"
-                    element={<Placeholder title="Unauthorized Access" />}
-                  />
-                  <Route
-                    path="*"
-                    element={<Placeholder title="404 Not Found" />}
-                  />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
+                    <Route
+                      path="/unauthorized"
+                      element={<Placeholder title="Unauthorized Access" />}
+                    />
+                    <Route
+                      path="*"
+                      element={<Placeholder title="404 Not Found" />}
+                    />
+                  </Routes>
+                </Suspense>
+              </BrowserRouter>
+            </UpgradeProvider>
           </AuthProvider>
         </ThemeProvider>
       </ErrorBoundary>

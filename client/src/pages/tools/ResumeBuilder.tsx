@@ -10,6 +10,7 @@ import { injectKeyword } from "../../lib/resume/tailor";
 import { entitlementsFor } from "../../lib/entitlements";
 import { saveGuestResume, readGuestResume, guestHeaders } from "../../lib/guestStore";
 import SignInGate from "../../components/SignInGate";
+import { useUpgrade } from "../../context/UpgradeContext";
 import {
   scoreReadiness,
   scoreResume,
@@ -130,6 +131,7 @@ export default function ResumeBuilder() {
   const ent = entitlementsFor(!!token, (user as any)?.plan, (user as any)?.role);
   const isGuest = ent.tier === "guest";
   const [gate, setGate] = useState<null | "save" | "export" | "premium-template" | "extra-resume">(null);
+  const { promptUpgrade } = useUpgrade();
   const navigate = useNavigate();
   const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
 
@@ -613,12 +615,22 @@ export default function ResumeBuilder() {
         a.remove();
         window.URL.revokeObjectURL(downloadUrl);
         toast("Download ready!");
-      } else {
-        toast("Compilation failed");
+        return;
       }
+
+      /* This is a plain fetch, so it bypasses the axios interceptor that
+         normally turns a plan limit into the upgrade prompt — read the body
+         and raise it here. Hitting a limit is an expected step in the funnel;
+         reporting it as a failed export made the product look broken. */
+      const body = await res.json().catch(() => null);
+      if (res.status === 402 && body?.code === "LIMIT_REACHED") {
+        promptUpgrade(body);
+        return;
+      }
+      toast(body?.message || "Couldn't create the file. Please try again.");
     } catch (err) {
       console.error(err);
-      toast("Failed to export");
+      toast("Couldn't reach the server. Check your connection and try again.");
     }
   };
 

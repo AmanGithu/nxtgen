@@ -12,6 +12,7 @@ import siteRouter from './site';
 import resumeRouter from './resume';
 import linkedinRouter from './linkedin';
 import guestRouter from './guest';
+import billingRouter from './billing';
 import iassistRouter from './iassist';
 import iassistDesktopRouter from './iassistDesktop';
 
@@ -30,6 +31,7 @@ router.use('/site', siteRouter);
 router.use('/resumes', resumeRouter);
 router.use('/linkedin', linkedinRouter);
 router.use('/guest', guestRouter);
+router.use('/billing', billingRouter);
 router.use('/iassist/desktop', iassistDesktopRouter);
 router.use('/iassist', iassistRouter);
 

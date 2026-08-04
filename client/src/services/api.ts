@@ -20,6 +20,16 @@ api.interceptors.response.use(
   response => response,
   async error => {
     const originalRequest = error.config;
+
+    /* A plan limit is a product moment, not a failure. Raise it once here so
+       every call site gets the upgrade prompt instead of each one having to
+       tell "blocked by plan" apart from "request failed" — which is how a
+       limit ended up surfacing as a generic error toast. */
+    if (error.response?.status === 402 && error.response?.data?.code === 'LIMIT_REACHED') {
+      window.dispatchEvent(
+        new CustomEvent('nxtgen:limit-reached', { detail: error.response.data })
+      );
+    }
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&

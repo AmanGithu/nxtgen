@@ -11,6 +11,9 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string(),
   JWT_EXPIRES_IN: z.string().default('15m'),
   CLIENT_URL: z.string().default('http://localhost:5173'),
+  /* Stopgap while there is no payment provider: lets the Upgrade button grant
+     the plan directly. MUST be false once checkout exists. */
+  ALLOW_SELF_UPGRADE: z.string().optional().transform((v) => v === 'true'),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GITHUB_CLIENT_ID: z.string().optional(),
