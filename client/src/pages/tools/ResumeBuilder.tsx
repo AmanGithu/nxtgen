@@ -1615,8 +1615,21 @@ export default function ResumeBuilder() {
                     <>
                       <div className="field-grid">
                         <div className="field">
-                          <label className="field__label">Full name</label>
-                          <input className="input" value={editorData.name} onChange={(e) => mutateData((d) => { d.name = e.target.value; })} />
+                          <label className="field__label">
+                            Full name
+                            {user && <span style={{ opacity: 0.6, fontWeight: 400 }}> · from your account</span>}
+                          </label>
+                          {/* The server stamps the account's identity onto every
+                              save, so an editable box here would silently revert
+                              and read as a bug. Guests still type their own. */}
+                          <input
+                            className="input"
+                            value={editorData.name}
+                            readOnly={!!user}
+                            title={user ? 'Your résumé uses the name on your account.' : undefined}
+                            style={user ? { opacity: 0.75, cursor: 'not-allowed' } : undefined}
+                            onChange={(e) => { if (!user) mutateData((d) => { d.name = e.target.value; }); }}
+                          />
                         </div>
                         <div className="field">
                           <label className="field__label">Target role</label>
@@ -1625,6 +1638,13 @@ export default function ResumeBuilder() {
                       </div>
                       <div className="field" style={mt3}>
                         <label className="field__label">Contact details</label>
+                        {user && (
+                          <p style={{ fontSize: 11, opacity: 0.6, margin: "4px 0 0", lineHeight: 1.5 }}>
+                            Your account email and phone are used automatically — a résumé belongs to
+                            the person whose account it is. Add anything else here: location, portfolio,
+                            LinkedIn.
+                          </p>
+                        )}
                         {editorData.contact.map((c, idx) => (
                           <div key={idx} style={{ ...rowStyle, marginTop: 6 }}>
                             <input

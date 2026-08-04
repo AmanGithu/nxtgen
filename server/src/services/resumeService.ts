@@ -1,3 +1,4 @@
+import { prisma } from '../lib/prisma';
 import { ResumeRepository } from '../repositories/resumeRepository';
 import { BillingService } from './billingService';
 import { entitlementService } from './entitlementService';
@@ -9,6 +10,7 @@ import {
   BLANK_RESUME,
   sanitizeResumeData,
 } from './resume/resumeData';
+import { lockIdentity } from './resume/identityLock';
 import { extractPdfText, extractDocxText } from './resume/textExtract';
 import { parseResumeText } from './resume/parseResume';
 import { parseLinkedInText, looksLikeLinkedIn } from './resume/parseLinkedIn';
@@ -25,6 +27,15 @@ const billingService = new BillingService();
 // parsing/scoring/export stays free — only actual model calls are metered.
 const AI_ACTION_COST = 1;
 
+/** The account's identity, used to stamp every résumé it owns. */
+async function profileIdentity(userId: string) {
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { firstName: true, lastName: true, email: true, phone: true },
+  });
+  return u;
+}
+
 function parseData(json: string): ResumeData {
   return sanitizeResumeData(JSON.parse(json));
 }
@@ -37,6 +48,18 @@ export interface DashResume {
 }
 
 export class ResumeService {
+  /**
+   * Stamp the owner's identity onto a résumé before it is stored.
+   *
+   * Applied on every write path — create, update, tailored version, import —
+   * so there is no route by which someone else's name and contact details can
+   * end up on an account's résumé.
+   */
+  private async withOwnerIdentity(userId: string, data: ResumeData): Promise<ResumeData> {
+    const profile = await profileIdentity(userId);
+    return profile ? lockIdentity(data, profile) : data;
+  }
+
   async listResumes(userId: string): Promise<DashResume[]> {
     const rows = await resumeRepository.findByUserId(userId);
     return rows.map((r) => ({
@@ -94,7 +117,7 @@ export class ResumeService {
     return resumeRepository.create(userId, {
       title: seed?.title?.trim() || 'Untitled resume',
       template: seed?.template || 'classic',
-      data: JSON.stringify(seed?.data ? sanitizeResumeData(seed.data as any) : BLANK_RESUME),
+      data: JSON.stringify(await this.withOwnerIdentity(userId, seed?.data ? sanitizeResumeData(seed.data as any) : BLANK_RESUME)),
     }, tx);
   }
 
@@ -119,7 +142,7 @@ export class ResumeService {
 
   async updateResume(id: string, userId: string, patch: { data?: ResumeData; template?: string; title?: string }): Promise<boolean> {
     const { count } = await resumeRepository.update(id, userId, {
-      ...(patch.data ? { data: JSON.stringify(patch.data) } : {}),
+      ...(patch.data ? { data: JSON.stringify(await this.withOwnerIdentity(userId, patch.data)) } : {}),
       ...(patch.template ? { template: patch.template } : {}),
       ...(patch.title ? { title: patch.title } : {}),
     });
@@ -128,7 +151,7 @@ export class ResumeService {
 
   async updateVersion(id: string, userId: string, patch: { data?: ResumeData; template?: string }) {
     await resumeRepository.updateVersion(id, userId, {
-      ...(patch.data ? { data: JSON.stringify(patch.data) } : {}),
+      ...(patch.data ? { data: JSON.stringify(await this.withOwnerIdentity(userId, patch.data)) } : {}),
       ...(patch.template ? { template: patch.template } : {}),
     });
   }
@@ -161,7 +184,7 @@ export class ResumeService {
 
     const useLinkedIn = isLinkedIn || (text.trim() ? looksLikeLinkedIn(text) : false);
     const parsed = !text.trim() ? {} : useLinkedIn ? parseLinkedInText(text) : parseResumeText(text);
-    const data = sanitizeResumeData(parsed);
+    const data = await this.withOwnerIdentity(userId, sanitizeResumeData(parsed));
 
     const suffix = isLinkedIn ? 'LinkedIn import' : 'imported';
     const title = data.name ? `${data.name} — ${suffix}` : isLinkedIn ? 'LinkedIn import' : 'Imported resume';
