@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { ResumeService } from '../services/resumeService';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../lib/logger';
+import { entitlementService } from '../services/entitlementService';
+import { FEATURE } from '../lib/entitlements';
 
 const resumeService = new ResumeService();
 
@@ -9,8 +11,19 @@ const resumeService = new ResumeService();
     surface that as 402 rather than a generic 500. */
 function handleError(res: Response, action: string, error: any, userId?: string) {
   logger.error(`${action} error for user ${userId}: ${error.message}`);
-  const status = /not enough credits/i.test(error.message) ? 402 : /not found/i.test(error.message) ? 404 : 500;
-  res.status(status).json({ message: error.message });
+  /* Prefer the status the error carries. The message sniffing below is a
+     fallback for plain Errors thrown deeper in the service layer — without
+     the statusCode branch, a deliberate 402 from an entitlement check would
+     be reported to the client as a 500 server fault. */
+  const status =
+    typeof error.statusCode === 'number'
+      ? error.statusCode
+      : /not enough credits/i.test(error.message)
+        ? 402
+        : /not found/i.test(error.message)
+          ? 404
+          : 500;
+  res.status(status).json({ message: error.message, ...(error.details ?? {}) });
 }
 
 export const listResumes = async (req: AuthRequest, res: Response) => {
@@ -35,6 +48,7 @@ export const createResume = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    await entitlementService.assertCanCreateResume(userId);
     const { title, template, data } = req.body ?? {};
     res.status(201).json(await resumeService.createResume(userId, { title, template, data }));
   } catch (error: any) { handleError(res, 'Create resume', error, userId); }
@@ -126,6 +140,8 @@ export const runTailor = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    /* chargeCredits already logs the run, so this only has to gate it. */
+    await entitlementService.assertWithinLimit(userId, FEATURE.TAILOR);
     const { jd, intensity } = req.body;
     if (!jd) return res.status(400).json({ message: 'jd is required' });
     res.json(await resumeService.runTailor(userId, req.params.id as string, jd, intensity || 'balanced'));
@@ -251,11 +267,14 @@ export const exportResumeDocx = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    /* Checked before rendering so a blocked request costs no PDF/DOCX work. */
+    await entitlementService.assertWithinLimit(userId, FEATURE.EXPORT);
     const out = await resumeService.exportResumeDocx(req.params.id as string, userId);
     if (!out) return res.status(404).json({ message: 'Resume not found' });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${out.fileName}"`);
     res.send(out.buffer);
+    await entitlementService.recordUse(userId, FEATURE.EXPORT, out.fileName);
   } catch (error: any) { handleError(res, 'Export resume docx', error, userId); }
 };
 
@@ -263,11 +282,14 @@ export const exportVersionDocx = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    /* Checked before rendering so a blocked request costs no PDF/DOCX work. */
+    await entitlementService.assertWithinLimit(userId, FEATURE.EXPORT);
     const out = await resumeService.exportVersionDocx(req.params.versionId as string, userId);
     if (!out) return res.status(404).json({ message: 'Version not found' });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${out.fileName}"`);
     res.send(out.buffer);
+    await entitlementService.recordUse(userId, FEATURE.EXPORT, out.fileName);
   } catch (error: any) { handleError(res, 'Export version docx', error, userId); }
 };
 
@@ -275,11 +297,14 @@ export const exportCoverLetterDocx = async (req: AuthRequest, res: Response) => 
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    /* Checked before rendering so a blocked request costs no PDF/DOCX work. */
+    await entitlementService.assertWithinLimit(userId, FEATURE.EXPORT);
     const out = await resumeService.exportCoverLetterDocx(req.params.id as string, userId);
     if (!out) return res.status(404).json({ message: 'Cover letter not found' });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${out.fileName}"`);
     res.send(out.buffer);
+    await entitlementService.recordUse(userId, FEATURE.EXPORT, out.fileName);
   } catch (error: any) { handleError(res, 'Export cover letter docx', error, userId); }
 };
 
@@ -287,11 +312,14 @@ export const exportResumePdf = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    /* Checked before rendering so a blocked request costs no PDF/DOCX work. */
+    await entitlementService.assertWithinLimit(userId, FEATURE.EXPORT);
     const out = await resumeService.exportResumePdf(req.params.id as string, userId);
     if (!out) return res.status(404).json({ message: 'Resume not found' });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${out.fileName}"`);
     res.send(out.buffer);
+    await entitlementService.recordUse(userId, FEATURE.EXPORT, out.fileName);
   } catch (error: any) { handleError(res, 'Export resume pdf', error, userId); }
 };
 
@@ -299,11 +327,14 @@ export const exportVersionPdf = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    /* Checked before rendering so a blocked request costs no PDF/DOCX work. */
+    await entitlementService.assertWithinLimit(userId, FEATURE.EXPORT);
     const out = await resumeService.exportVersionPdf(req.params.versionId as string, userId);
     if (!out) return res.status(404).json({ message: 'Version not found' });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${out.fileName}"`);
     res.send(out.buffer);
+    await entitlementService.recordUse(userId, FEATURE.EXPORT, out.fileName);
   } catch (error: any) { handleError(res, 'Export version pdf', error, userId); }
 };
 
@@ -311,10 +342,13 @@ export const exportCoverLetterPdf = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    /* Checked before rendering so a blocked request costs no PDF/DOCX work. */
+    await entitlementService.assertWithinLimit(userId, FEATURE.EXPORT);
     const out = await resumeService.exportCoverLetterPdf(req.params.id as string, userId);
     if (!out) return res.status(404).json({ message: 'Cover letter not found' });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${out.fileName}"`);
     res.send(out.buffer);
+    await entitlementService.recordUse(userId, FEATURE.EXPORT, out.fileName);
   } catch (error: any) { handleError(res, 'Export cover letter pdf', error, userId); }
 };

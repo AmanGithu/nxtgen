@@ -35,7 +35,10 @@ const GUEST: Entitlements = {
 const FREE: Entitlements = {
   tier: 'free',
   canSave: true,
-  canExport: false,
+  /* Free users get a small number of real downloads rather than none — they
+     leave with a CV, which is what makes the paid tier worth buying. The
+     count is enforced server-side; this flag only controls the UI. */
+  canExport: true,
   canUsePremiumTemplates: false,
   maxResumes: 1,
   maxAiActions: 25,
@@ -50,16 +53,24 @@ const PAID: Entitlements = {
   maxAiActions: null,
 };
 
-/** Plans that count as paid. Students get the paid experience with their course. */
+/** Plans that unlock the paid tier. FREE is not one of them. */
 const PAID_PLANS = new Set(['BASIC', 'PRO', 'ENTERPRISE']);
 
+/**
+ * Tier comes from the subscription, NOT the role.
+ *
+ * Enrolling in a batch buys the course; it does not buy the premium résumé
+ * features. A student is a free user of the toolkit — same one résumé, same
+ * capped exports — until they pay for a plan. Only staff are unrestricted,
+ * so they can reproduce and support any account.
+ */
 export const entitlementsFor = (
   isAuthenticated: boolean,
   plan?: string | null,
   role?: string | null
 ): Entitlements => {
   if (!isAuthenticated) return GUEST;
-  if (role === 'admin' || role === 'student') return PAID;
+  if (role === 'admin') return PAID;
   return PAID_PLANS.has((plan || '').toUpperCase()) ? PAID : FREE;
 };
 

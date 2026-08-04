@@ -5,11 +5,17 @@ import { Prisma } from '@prisma/client';
 export class AppError extends Error {
   statusCode: number;
   isOperational: boolean;
+  /** Optional machine-readable payload, surfaced to the client alongside the
+      message. Entitlement blocks use it to carry `code: 'LIMIT_REACHED'` plus
+      the feature and counts, so the UI can show the right upgrade prompt
+      instead of parsing prose. */
+  details?: Record<string, unknown>;
 
-  constructor(message: string, statusCode: number) {
+  constructor(message: string, statusCode: number, details?: Record<string, unknown>) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = true;
+    this.details = details;
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -26,6 +32,7 @@ export const errorHandler = (
     return res.status(err.statusCode).json({
       success: false,
       message: err.message,
+      ...(err.details ?? {}),
     });
   }
 

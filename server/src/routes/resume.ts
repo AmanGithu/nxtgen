@@ -10,6 +10,7 @@ import {
   exportResumePdf, exportVersionPdf, exportCoverLetterPdf,
 } from '../controllers/resumeController';
 import { authenticate } from '../middleware/auth';
+import { entitlementService } from '../services/entitlementService';
 
 const router = Router();
 
@@ -18,6 +19,13 @@ router.use(authenticate);
 router.get('/', listResumes);
 router.post('/', createResume);
 router.post('/import', importResume);
+
+/** Tier, limits and usage — what the UI needs to render locks and counters. */
+router.get('/entitlements', async (req: any, res, next) => {
+  try {
+    res.json({ success: true, ...(await entitlementService.snapshot(req.user.id)) });
+  } catch (e) { next(e); }
+});
 
 router.get('/:id', getResume);
 router.patch('/:id', updateResume);

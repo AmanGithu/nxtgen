@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { AppError } from '../middleware/errorHandler';
+import { entitlementService } from './entitlementService';
 
 /**
  * Credit accounting for AI tool actions.
@@ -12,11 +13,16 @@ import { AppError } from '../middleware/errorHandler';
  */
 export class BillingService {
   async chargeCredits(userId: string, amount: number, reason: string): Promise<void> {
+    /* Every generative action funnels through here, so this is the one place
+       the monthly AI allowance has to be enforced. It runs before the balance
+       logic because a tier limit outranks any credit grant. */
+    await entitlementService.assertAiWithinLimit(userId);
+
     const balance = await prisma.creditBalance.findUnique({ where: { userId } });
 
-    // No balance row means the user has never been granted credits. Treat that
-    // as unlimited rather than blocking: gating is a product decision that
-    // belongs with the subscription work, not silently here.
+    // No balance row means no credits were ever granted explicitly. The tier
+    // allowance checked above is the real limit for those users; credits are
+    // an additional, purchasable pool on top of it.
     if (!balance) {
       logger.debug(`[billing] no CreditBalance for ${userId}; skipping charge for ${reason}`);
       await this.recordUsage(userId, reason, amount);
