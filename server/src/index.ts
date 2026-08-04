@@ -14,8 +14,10 @@ app.use(cors({
   origin: env.CLIENT_URL,
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Resume/LinkedIn import posts the file as base64 JSON, which blows past the
+// 100kb default — a 200kb PDF arrives as ~290kb of body.
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use('/api', routes);
 

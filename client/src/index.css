@@ -5,16 +5,82 @@
 @tailwind utilities;
 
 @layer base {
+  /* ─── Theme tokens ───────────────────────────────────────────────────────
+     Every colour in the app resolves through these, so a theme is a matter of
+     re-valuing the block rather than duplicating utilities with `dark:`.
+
+     :root carries the DARK values because dark is the product's default and
+     its original design — if the boot script or JS ever fails, the site still
+     renders exactly as it always has instead of flashing an unstyled light.
+
+     Naming is by role, not by shade: `--text-strong` is "the primary
+     foreground", which is near-white on dark and near-black on light. That is
+     why the light block can invert lightness without any rule knowing.
+     ──────────────────────────────────────────────────────────────────────── */
   :root {
     --brand-orange: #f5820b;
+    /* Constant across themes: the label on a filled orange/red button. Solid
+       accent fills stay dark enough that white text is correct in both. */
+    --on-brand: #ffffff;
+
     --bg-canvas: #0a0a0f;
     --bg-surface: #111118;
     --bg-card: #1a1a24;
+
+    --text-strong: #ffffff;
     --text-muted: #9ca3af;
+
+    --border-subtle: rgba(255, 255, 255, 0.04);
+    --border-base: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+
+    /* Hover wash over a surface, and the scrim behind modals. */
+    --surface-elevate: rgba(255, 255, 255, 0.05);
+    --overlay: rgba(0, 0, 0, 0.72);
+
+    color-scheme: dark;
   }
-  
+
+  :root[data-theme='light'] {
+    /* Light themes need a deeper accent. #f5820b reads at 2.6:1 on white —
+       failing AA as body text AND as the label colour on filled buttons.
+       #a85400 clears 4.5:1 against every light surface in all three roles
+       (text, fill, border), so one value keeps the whole theme compliant. */
+    --brand-orange: #a85400;
+    --on-brand: #ffffff;
+
+    /* Elevation reads inverted in light: the page recedes to grey and
+       panels come forward as white, so cards need no shadow to separate. */
+    --bg-canvas: #eceff3;
+    --bg-surface: #ffffff;
+    /* Recessed rather than raised: inputs use this over bg-surface, so it
+       carries the field affordance that a hairline border alone cannot. */
+    --bg-card: #f1f4f8;
+
+    --text-strong: #0f172a;
+    --text-muted: #5b6472;
+
+    --border-subtle: rgba(15, 23, 42, 0.08);
+    --border-base: rgba(15, 23, 42, 0.16);
+    --border-strong: rgba(15, 23, 42, 0.28);
+
+    --surface-elevate: rgba(15, 23, 42, 0.05);
+    --overlay: rgba(15, 23, 42, 0.45);
+
+    color-scheme: light;
+  }
+
   html, body {
-    @apply bg-bg-canvas text-white font-sans antialiased;
+    @apply bg-bg-canvas text-strong font-sans antialiased;
+  }
+
+  /* Horizontal card rails scroll without a visible bar */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
   /* Custom scrollbar */
@@ -26,9 +92,24 @@
     @apply bg-bg-canvas;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-bg-surface rounded-full border border-white/[0.08];
+    @apply bg-bg-surface rounded-full border border-line;
   }
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-bg-card;
   }
+}
+
+/* Tool pages that manage their own internal scrolling (side panel + results)
+   need to fill the dashboard viewport instead of growing the page. The
+   dashboard renders <Outlet/> inside an unsized `p-8` div, so `h-full` has
+   nothing to resolve against and both panes scroll as one block.
+
+   Negative margin cancels that padding so the page runs full-bleed; the
+   matching padding puts the inner spacing back. */
+.tool-fill {
+  height: calc(100vh - 4rem);
+  margin: -2rem;
+  padding: 2rem;
+  min-height: 0;
+  overflow: hidden;
 }

@@ -26,7 +26,7 @@ const AdminOverview = () => {
   };
 
   return (
-    <div className="space-y-8 p-6 text-white">
+    <div className="space-y-8 p-6 text-strong">
       <div>
         <h1 className="font-display text-3xl font-bold">Admin Control Center</h1>
         <p className="text-sm text-text-muted mt-1">NxtGen Academy system health, user metrics, and platform logs.</p>
@@ -34,7 +34,7 @@ const AdminOverview = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-white/[0.08] bg-bg-card p-6">
+        <div className="rounded-xl border border-line bg-bg-card p-6">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-text-muted uppercase">Total Users</span>
             <Users className="h-5 w-5 text-brand-orange" />
@@ -42,7 +42,7 @@ const AdminOverview = () => {
           <p className="mt-4 font-display text-3xl font-bold">{loading ? '...' : stats.totalUsers}</p>
         </div>
 
-        <div className="rounded-xl border border-white/[0.08] bg-bg-card p-6">
+        <div className="rounded-xl border border-line bg-bg-card p-6">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-text-muted uppercase">Active Students</span>
             <GraduationCap className="h-5 w-5 text-brand-orange" />
@@ -50,7 +50,7 @@ const AdminOverview = () => {
           <p className="mt-4 font-display text-3xl font-bold">{loading ? '...' : stats.totalStudents}</p>
         </div>
 
-        <div className="rounded-xl border border-white/[0.08] bg-bg-card p-6">
+        <div className="rounded-xl border border-line bg-bg-card p-6">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-text-muted uppercase">Active Cohorts</span>
             <Layers className="h-5 w-5 text-brand-orange" />
@@ -58,7 +58,7 @@ const AdminOverview = () => {
           <p className="mt-4 font-display text-3xl font-bold">{loading ? '...' : stats.totalBatches}</p>
         </div>
 
-        <div className="rounded-xl border border-white/[0.08] bg-bg-card p-6">
+        <div className="rounded-xl border border-line bg-bg-card p-6">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-text-muted uppercase">New Inquiries</span>
             <MessageSquare className="h-5 w-5 text-brand-orange" />
@@ -69,8 +69,8 @@ const AdminOverview = () => {
 
       {/* System Status & Recent Logs */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2 rounded-xl border border-white/[0.08] bg-bg-surface p-6">
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+        <div className="lg:col-span-2 rounded-xl border border-line bg-bg-surface p-6">
+          <div className="flex items-center justify-between border-b border-line pb-4">
             <h3 className="font-display text-lg font-bold">Recent System Activity</h3>
             <Activity size={18} className="text-brand-orange" />
           </div>
@@ -80,9 +80,9 @@ const AdminOverview = () => {
               <p className="text-sm text-text-muted py-4">No recent activity logs.</p>
             ) : (
               recentLogs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between rounded-lg border border-white/[0.05] bg-bg-card p-3 text-xs">
+                <div key={log.id} className="flex items-center justify-between rounded-lg border border-line-subtle bg-bg-card p-3 text-xs">
                   <div>
-                    <span className="font-semibold text-white">{log.action}</span>
+                    <span className="font-semibold text-strong">{log.action}</span>
                     <span className="ml-2 text-text-muted">{log.user?.email || 'System'}</span>
                   </div>
                   <span className="text-text-muted">{new Date(log.timestamp).toLocaleTimeString()}</span>
@@ -92,8 +92,8 @@ const AdminOverview = () => {
           </div>
         </div>
 
-        <div className="rounded-xl border border-white/[0.08] bg-bg-surface p-6">
-          <div className="flex items-center gap-2 border-b border-white/[0.08] pb-4">
+        <div className="rounded-xl border border-line bg-bg-surface p-6">
+          <div className="flex items-center gap-2 border-b border-line pb-4">
             <ShieldCheck size={20} className="text-green-400" />
             <h3 className="font-display text-lg font-bold">Platform Status</h3>
           </div>

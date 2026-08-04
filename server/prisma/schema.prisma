@@ -104,6 +104,7 @@ model User {
   creditBalance       CreditBalance?
   toolUsageLogs       ToolUsageLog[]
   resumes             UserResume[]
+  builderResumes      Resume[]
   certInquiries       CertificationInquiry[]
   auditLogs           AuditLog[]
 
@@ -192,6 +193,10 @@ model Batch {
   maxStudents  Int         @default(30)
   driveFolder  String?     // Google Drive folder URL
   status       BatchStatus @default(DRAFT)
+  /// Pre-launch webinar for prospects. Marketing-only; ignored by operations.
+  webinarDate  DateTime?
+  /// Whether this batch appears on the public /upcoming-batches page.
+  isPublished  Boolean     @default(false)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -494,4 +499,93 @@ model AuditLog {
   @@index([userId])
   @@index([timestamp(sort: Desc)])
   @@index([action])
+}
+
+// ─── Resume Builder (ported from MindSync) ───
+// `data` holds the full resume JSON; `template` is a code-defined template id
+// from client/src/lib/resumeTemplates.ts, not a ResumeTemplate row.
+
+model Resume {
+  id            String          @id @default(uuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  template      String          @default("classic")
+  data          String          @db.LongText
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  versions      ResumeVersion[]
+  coverLetter   CoverLetter?
+  interviewPrep InterviewPrep?
+
+  @@index([userId])
+  @@map("resumes")
+}
+
+model ResumeVersion {
+  id         String   @id @default(uuid())
+  resumeId   String
+  resume     Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  role       String
+  company    String
+  template   String   @default("classic")
+  data       String   @db.LongText
+  ats        Int      @default(0)
+  jdText     String?  @db.LongText
+  jdKeywords String?  @db.Text // JSON-encoded string[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([resumeId])
+  @@map("resume_versions")
+}
+
+model CoverLetter {
+  id        String   @id @default(uuid())
+  resumeId  String   @unique
+  resume    Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  company   String   @default("")
+  role      String   @default("")
+  manager   String   @default("")
+  tone      String   @default("professional")
+  jd        String   @db.LongText
+  body      String   @db.LongText
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cover_letters")
+}
+
+model InterviewPrep {
+  id        String   @id @default(uuid())
+  resumeId  String   @unique
+  resume    Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  role      String   @default("")
+  jd        String   @db.LongText
+  questions String   @db.LongText
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("interview_preps")
+}
+
+/// Internship applications, including the applicant's CV.
+/// The file is stored in-row as bytes: at résumé sizes (~200KB) this is well
+/// within MySQL's comfort zone and avoids a hard dependency on object storage.
+/// Swap `fileData` for an S3 key later without touching the rest of the flow.
+model InternshipApplication {
+  id            String   @id @default(uuid())
+  internshipId  String?
+  programTitle  String
+  fullName      String
+  email         String
+  phone         String
+  resumeFileName String?
+  resumeMimeType String?
+  fileData      Bytes?   @db.LongBlob
+  status        String   @default("NEW")
+  createdAt     DateTime @default(now())
+
+  @@index([internshipId])
+  @@index([createdAt(sort: Desc)])
 }

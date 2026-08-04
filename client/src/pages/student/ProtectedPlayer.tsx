@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Video, FileText, Lock, Play, ShieldAlert } from 'lucide-react';
 import api from '../../services/api';
+import { materialFileId, drivePreviewUrl } from '../../lib/drive';
 
 const ProtectedPlayer = () => {
   const [materials, setMaterials] = useState<any[]>([]);
@@ -53,44 +54,59 @@ const ProtectedPlayer = () => {
 
   const filteredMaterials = materials.filter(m => m.type === activeTab);
 
+  /* Null when the admin saved a material without a usable Drive reference —
+     the viewport says so rather than showing an empty black box. */
+  const fileId = selectedMaterial ? materialFileId(selectedMaterial) : null;
+
   return (
-    <div className="space-y-6 p-6 text-white">
+    <div className="space-y-6 p-6 text-strong">
       <div>
         <h1 className="font-display text-2xl font-bold">Study Material & Protected Video Player</h1>
         <p className="text-xs text-text-muted">Access-controlled DRM-lite player with dynamic student watermarking (no download buttons available).</p>
       </div>
 
       {/* Protected Player Viewport */}
-      <div className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-black aspect-video flex items-center justify-center">
-        {/* Placeholder Protected Video Player */}
-        <div className="text-center space-y-3 z-10">
-          <Play className="mx-auto h-16 w-16 text-brand-orange animate-pulse cursor-pointer" />
-          <p className="text-sm font-semibold text-white">
-            {selectedMaterial ? selectedMaterial.title : 'Select a recording or note below'}
-          </p>
-          <span className="inline-flex items-center gap-1 rounded bg-brand-orange/20 px-3 py-1 text-xs font-bold text-brand-orange">
-            <ShieldAlert size={14} /> DRM-Lite Protection Active (No Download Available)
-          </span>
-        </div>
+      <div className="relative overflow-hidden rounded-xl border border-line bg-black aspect-video flex items-center justify-center">
+        {fileId ? (
+          <iframe
+            key={fileId}
+            src={drivePreviewUrl(fileId)}
+            title={selectedMaterial?.title || 'Study material'}
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+            className="absolute inset-0 h-full w-full border-0"
+          />
+        ) : (
+          <div className="text-center space-y-3 z-10 px-6">
+            <Play className="mx-auto h-16 w-16 text-brand-orange" />
+            <p className="text-sm font-semibold text-strong">
+              {selectedMaterial ? selectedMaterial.title : 'Select a recording or note below'}
+            </p>
+            <span className="inline-flex items-center gap-1 rounded bg-brand-orange/20 px-3 py-1 text-xs font-bold text-brand-orange">
+              <ShieldAlert size={14} />
+              {selectedMaterial ? 'No Drive file linked to this material' : 'DRM-Lite Protection Active'}
+            </span>
+          </div>
+        )}
 
         {/* ─── DYNAMIC CANVAS WATERMARK OVERLAY ─── */}
         <canvas
           ref={canvasRef}
           width={800}
           height={450}
-          className="absolute inset-0 pointer-events-none w-full h-full"
+          className="absolute inset-0 z-10 pointer-events-none w-full h-full"
         />
       </div>
 
       {/* Horizontal Tabs (Sorted Date Descending) */}
-      <div className="border-b border-white/[0.08]">
+      <div className="border-b border-line">
         <div className="flex gap-6">
           {(['RECORDING', 'NOTES', 'ASSIGNMENT', 'QUIZ'] as const).map((type) => (
             <button
               key={type}
               onClick={() => setActiveTab(type)}
               className={`pb-3 text-xs font-bold uppercase transition-colors relative ${
-                activeTab === type ? 'text-brand-orange' : 'text-text-muted hover:text-white'
+                activeTab === type ? 'text-brand-orange' : 'text-text-muted hover:text-strong'
               }`}
             >
               {type === 'RECORDING' ? 'Recorded Sessions' : type === 'NOTES' ? 'Class Notes' : type}
@@ -112,18 +128,20 @@ const ProtectedPlayer = () => {
               className={`flex items-center justify-between rounded-lg border p-4 cursor-pointer transition-all ${
                 selectedMaterial?.id === m.id
                   ? 'border-brand-orange bg-brand-orange/10'
-                  : 'border-white/[0.08] bg-bg-surface hover:bg-white/[0.04]'
+                  : 'border-line bg-bg-surface hover:bg-elevate'
               }`}
             >
               <div className="flex items-center gap-3">
                 {m.type === 'RECORDING' ? <Video className="text-brand-orange" size={20} /> : <FileText className="text-brand-orange" size={20} />}
                 <div>
-                  <h4 className="text-sm font-semibold text-white">{m.title}</h4>
+                  <h4 className="text-sm font-semibold text-strong">{m.title}</h4>
                   <p className="text-xs text-text-muted">Uploaded on {new Date(m.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
 
-              <span className="text-xs font-semibold text-text-muted">Direct Inline View →</span>
+              <span className="text-xs font-semibold text-text-muted">
+                {materialFileId(m) ? 'Direct Inline View →' : 'No file linked'}
+              </span>
             </div>
           ))
         )}

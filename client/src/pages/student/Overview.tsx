@@ -30,7 +30,7 @@ const StudentOverview = () => {
   ];
 
   return (
-    <div className="space-y-8 p-6 text-white">
+    <div className="space-y-8 p-6 text-strong">
       <div>
         <h1 className="font-display text-3xl font-bold">Student Learning Portal</h1>
         <p className="text-sm text-text-muted mt-1">Track cohort progress, upcoming live Zoom classes, and access protected study materials.</p>
@@ -39,10 +39,10 @@ const StudentOverview = () => {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         
         {/* Course Progress Donut Chart & Module Bars */}
-        <div className="lg:col-span-2 space-y-6 rounded-xl border border-white/[0.08] bg-bg-surface p-6">
+        <div className="lg:col-span-2 space-y-6 rounded-xl border border-line bg-bg-surface p-6">
           <h3 className="font-display text-lg font-bold">Generative AI Masterclass — Progress</h3>
 
-          <div className="flex flex-col sm:flex-row items-center gap-8 border-b border-white/[0.08] pb-6">
+          <div className="flex flex-col sm:flex-row items-center gap-8 border-b border-line pb-6">
             {/* Donut Chart Visual */}
             <div className="relative flex h-36 w-36 items-center justify-center rounded-full border-8 border-brand-orange border-t-white/10 shadow-lg">
               <div className="text-center">
@@ -55,7 +55,7 @@ const StudentOverview = () => {
               {moduleBars.map((mod, idx) => (
                 <div key={idx} className="space-y-1">
                   <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-white">{mod.title}</span>
+                    <span className="text-strong">{mod.title}</span>
                     <span className="text-brand-orange">{mod.progress}%</span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-bg-card overflow-hidden">
@@ -73,13 +73,13 @@ const StudentOverview = () => {
           <div className="flex items-center justify-between rounded-lg border border-brand-orange/30 bg-brand-orange/10 p-4">
             <div className="space-y-1">
               <span className="text-xs font-bold text-brand-orange uppercase">Next Live Class</span>
-              <h4 className="font-semibold text-white text-sm">Module 3: Multi-Agent Orchestration with LangGraph</h4>
+              <h4 className="font-semibold text-strong text-sm">Module 3: Multi-Agent Orchestration with LangGraph</h4>
               <p className="text-xs text-text-muted">Tomorrow, 7:00 PM IST (Live Zoom Session)</p>
             </div>
 
             <button
               onClick={() => window.open('https://zoom.us', '_blank')}
-              className="rounded-lg bg-brand-orange px-4 py-2 text-xs font-semibold text-white hover:bg-brand-orange/90 shadow-md shrink-0"
+              className="rounded-lg bg-brand-orange px-4 py-2 text-xs font-semibold text-on-brand hover:bg-brand-orange/90 shadow-md shrink-0"
             >
               Join Class (Zoom) →
             </button>
@@ -89,7 +89,7 @@ const StudentOverview = () => {
 
         {/* Subscription & Credits Sidebar */}
         <div className="space-y-6">
-          <div className="rounded-xl border border-white/[0.08] bg-bg-surface p-6 space-y-4">
+          <div className="rounded-xl border border-line bg-bg-surface p-6 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase text-text-muted">Active Plan</span>
               <span className="rounded bg-brand-orange/20 px-2.5 py-0.5 text-xs font-bold text-brand-orange">
@@ -97,20 +97,20 @@ const StudentOverview = () => {
               </span>
             </div>
 
-            <div className="border-t border-white/[0.08] pt-3 text-xs text-text-muted space-y-2">
+            <div className="border-t border-line pt-3 text-xs text-text-muted space-y-2">
               <div className="flex justify-between">
                 <span>AI Credits Available:</span>
-                <span className="font-bold text-white">85 / 100</span>
+                <span className="font-bold text-strong">85 / 100</span>
               </div>
               <div className="flex justify-between">
                 <span>Access End Date:</span>
-                <span className="font-bold text-white">Dec 31, 2026</span>
+                <span className="font-bold text-strong">Dec 31, 2026</span>
               </div>
             </div>
 
             <a
               href="/dashboard/student/unlock"
-              className="block w-full rounded-lg border border-brand-orange/40 bg-brand-orange/10 py-2.5 text-center text-xs font-semibold text-brand-orange hover:bg-brand-orange hover:text-white transition-colors"
+              className="block w-full rounded-lg border border-brand-orange/40 bg-brand-orange/10 py-2.5 text-center text-xs font-semibold text-brand-orange hover:bg-brand-orange hover:text-on-brand transition-colors"
             >
               Unlock All Tools & Package Upgrades →
             </a>

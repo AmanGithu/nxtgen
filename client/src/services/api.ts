@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+// Falls back to a relative path so the Vite dev proxy (and same-origin
+// deployments) work even when VITE_API_URL is unset.
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: API_BASE_URL,
 });
 
 api.interceptors.request.use(config => {
@@ -26,7 +30,9 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
-          const res = await axios.post('http://localhost:3001/api/auth/refresh', { refreshToken });
+          // Bare axios (not `api`) so this request skips the interceptor and
+          // cannot recurse if the refresh itself 401s.
+          const res = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
           if (res.data?.accessToken) {
             localStorage.setItem('token', res.data.accessToken);
             api.defaults.headers.common['Authorization'] = `Bearer ${res.data.accessToken}`;
@@ -76,9 +82,63 @@ export const upcomingAPI = {
   getAll: () => api.get('/upcoming-batches'),
 };
 
+/** Public site configuration — admin-editable nav and hero banners. */
+export const siteAPI = {
+  getMenu: () => api.get('/site/menu'),
+  getBanners: () => api.get('/site/banners'),
+};
+
+export const adminMenuAPI = {
+  getAll: () => api.get('/admin/menu'),
+  create: (data: any) => api.post('/admin/menu', data),
+  update: (id: string, data: any) => api.patch(`/admin/menu/${id}`, data),
+  remove: (id: string) => api.delete(`/admin/menu/${id}`),
+};
+
+export const adminBannersAPI = {
+  getAll: () => api.get('/admin/banners'),
+  create: (data: any) => api.post('/admin/banners', data),
+  update: (id: string, data: any) => api.patch(`/admin/banners/${id}`, data),
+  remove: (id: string) => api.delete(`/admin/banners/${id}`),
+};
+
+export const adminTemplatesAPI = {
+  getAll: () => api.get('/admin/templates'),
+  create: (data: any) => api.post('/admin/templates', data),
+  update: (id: string, data: any) => api.patch(`/admin/templates/${id}`, data),
+  deactivate: (id: string) => api.delete(`/admin/templates/${id}`),
+};
+
+export const adminLogsAPI = {
+  getAll: () => api.get('/admin/logs'),
+  getToolUsage: (params?: { toolName?: string; page?: number; limit?: number }) =>
+    api.get('/admin/tool-usage', { params }),
+};
+
 export const corporateAPI = {
   getAll: () => api.get('/corporate'),
   inquire: (data: any) => api.post('/corporate/inquire', data),
 };
 
 export default api;
+
+export const adminInternshipsAPI = {
+  getAll: () => api.get('/admin/internships'),
+  create: (data: any) => api.post('/admin/internships', data),
+  update: (id: string, data: any) => api.patch(`/admin/internships/${id}`, data),
+  deactivate: (id: string) => api.delete(`/admin/internships/${id}`),
+};
+
+export const adminCorporateAPI = {
+  getAll: () => api.get('/admin/corporate'),
+  add: (data: any) => api.post('/admin/corporate', data),
+  update: (id: string, data: any) => api.patch(`/admin/corporate/${id}`, data),
+  remove: (id: string) => api.delete(`/admin/corporate/${id}`),
+};
+
+export const adminCoursesAPI = {
+  getAll: () => api.get('/admin/courses'),
+  create: (data: any) => api.post('/admin/courses', data),
+  update: (id: string, data: any) => api.patch(`/admin/courses/${id}`, data),
+  retire: (id: string) => api.delete(`/admin/courses/${id}`),
+};

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Users, UserPlus, Search, Shield, Mail, CheckCircle2, X } from 'lucide-react';
+import { Users, UserPlus, Search, Shield, Mail, CheckCircle2, X, Trash2, Ban, CheckCircle } from 'lucide-react';
 import api from '../../services/api';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 interface UserItem {
   id: string;
@@ -14,6 +15,7 @@ interface UserItem {
 
 const UserManagement = () => {
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<{ user: any; message: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -33,6 +35,32 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers();
   }, [search, roleFilter, page]);
+
+  /** Suspending blocks sign-in but keeps the person's history. */
+  const setStatus = async (user: any, status: 'ACTIVE' | 'SUSPENDED') => {
+    try {
+      await api.patch(`/admin/users/${user.id}/status`, { status });
+      await fetchUsers();
+    } catch (err: any) {
+      console.error('Failed to change user status:', err.response?.data?.message || err);
+    }
+  };
+
+  /* Deleting cascades to enrolments, résumés and progress. The server refuses
+     the first attempt and reports what would be lost. */
+  const deleteUser = async (user: any, confirmed = false) => {
+    try {
+      const res = await api.delete(`/admin/users/${user.id}${confirmed ? '?confirm=true' : ''}`);
+      if (res.data.success) {
+        setPendingDelete(null);
+        await fetchUsers();
+      }
+    } catch (err: any) {
+      const data = err.response?.data;
+      if (data?.requiresConfirmation) setPendingDelete({ user, message: data.message });
+      else console.error('Failed to delete user:', data?.message || err);
+    }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -79,7 +107,18 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="space-y-6 p-6 text-white">
+    <div className="space-y-6 p-6 text-strong">
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Delete ${pendingDelete.user.email}?`}
+          message={pendingDelete.message}
+          confirmLabel="Delete permanently"
+          altLabel="Suspend instead"
+          onAlt={() => { setStatus(pendingDelete.user, 'SUSPENDED'); setPendingDelete(null); }}
+          onConfirm={() => deleteUser(pendingDelete.user, true)}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold">User Directory & Provisioning</h1>
@@ -88,7 +127,7 @@ const UserManagement = () => {
 
         <button
           onClick={() => setIsInviteOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange/90"
+          className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand hover:bg-brand-orange/90"
         >
           <UserPlus size={16} />
           ➕ Invite User via Resend Link
@@ -96,7 +135,7 @@ const UserManagement = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-white/[0.08] bg-bg-surface p-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-line bg-bg-surface p-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
           <input
@@ -104,14 +143,14 @@ const UserManagement = () => {
             placeholder="Search users by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-white/[0.08] bg-bg-card pl-10 pr-4 py-2 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+            className="w-full rounded-lg border border-line bg-bg-card pl-10 pr-4 py-2 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
           />
         </div>
 
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="rounded-lg border border-white/[0.08] bg-bg-card px-4 py-2 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+          className="rounded-lg border border-line bg-bg-card px-4 py-2 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
         >
           <option value="">All Roles</option>
           <option value="ADMIN">ADMIN</option>
@@ -121,26 +160,27 @@ const UserManagement = () => {
       </div>
 
       {/* Users Data Table */}
-      <div className="rounded-xl border border-white/[0.08] bg-bg-surface overflow-hidden">
+      <div className="rounded-xl border border-line bg-bg-surface overflow-hidden">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-white/[0.08] bg-bg-card text-xs uppercase text-text-muted">
+          <thead className="border-b border-line bg-bg-card text-xs uppercase text-text-muted">
             <tr>
               <th className="px-6 py-3">User</th>
               <th className="px-6 py-3">Email</th>
               <th className="px-6 py-3">Role</th>
               <th className="px-6 py-3">Status</th>
               <th className="px-6 py-3">Joined Date</th>
+              <th className="px-6 py-3 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.08]">
+          <tbody className="divide-y divide-line">
             {loading ? (
-              <tr><td colSpan={5} className="px-6 py-8 text-center text-text-muted">Loading users...</td></tr>
+              <tr><td colSpan={6} className="px-6 py-8 text-center text-text-muted">Loading users...</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={5} className="px-6 py-8 text-center text-text-muted">No users found.</td></tr>
+              <tr><td colSpan={6} className="px-6 py-8 text-center text-text-muted">No users found.</td></tr>
             ) : (
               users.map((u) => (
-                <tr key={u.id} className="hover:bg-white/[0.02]">
-                  <td className="px-6 py-4 font-semibold text-white">
+                <tr key={u.id} className="hover:bg-elevate">
+                  <td className="px-6 py-4 font-semibold text-strong">
                     {u.firstName} {u.lastName}
                   </td>
                   <td className="px-6 py-4 text-text-muted">{u.email}</td>
@@ -148,7 +188,7 @@ const UserManagement = () => {
                     <select
                       value={u.role}
                       onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                      className="rounded bg-bg-card border border-white/[0.08] px-2 py-1 text-xs text-brand-orange font-bold focus:outline-hidden"
+                      className="rounded bg-bg-card border border-line px-2 py-1 text-xs text-brand-orange font-bold focus:outline-hidden"
                     >
                       <option value="ADMIN">ADMIN</option>
                       <option value="STUDENT">STUDENT</option>
@@ -163,6 +203,34 @@ const UserManagement = () => {
                   <td className="px-6 py-4 text-xs text-text-muted">
                     {new Date(u.createdAt).toLocaleDateString()}
                   </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-end gap-2">
+                      {u.status === 'ACTIVE' ? (
+                        <button
+                          onClick={() => setStatus(u, 'SUSPENDED')}
+                          title="Suspend — blocks sign-in, keeps history"
+                          className="rounded p-1.5 text-text-muted transition-colors hover:bg-elevate hover:text-strong"
+                        >
+                          <Ban size={15} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setStatus(u, 'ACTIVE')}
+                          title="Reactivate"
+                          className="rounded p-1.5 text-text-muted transition-colors hover:bg-green-500/10 hover:text-green-400"
+                        >
+                          <CheckCircle size={15} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteUser(u)}
+                        title="Delete permanently"
+                        className="rounded p-1.5 text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-400"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
@@ -172,17 +240,17 @@ const UserManagement = () => {
 
       {/* ─── INVITE USER MODAL ─── */}
       {isInviteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-bg-surface p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h3 className="font-display text-lg font-bold text-white">Invite User (Resend Email)</h3>
-              <button onClick={() => setIsInviteOpen(false)} className="text-text-muted hover:text-white"><X size={20} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-xl border border-line bg-bg-surface p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h3 className="font-display text-lg font-bold text-strong">Invite User (Resend Email)</h3>
+              <button onClick={() => setIsInviteOpen(false)} className="text-text-muted hover:text-strong"><X size={20} /></button>
             </div>
 
             {inviteSuccess ? (
               <div className="py-8 text-center">
                 <CheckCircle2 className="mx-auto h-10 w-10 text-brand-orange" />
-                <p className="mt-2 text-sm font-semibold text-white">{inviteSuccess}</p>
+                <p className="mt-2 text-sm font-semibold text-strong">{inviteSuccess}</p>
               </div>
             ) : (
               <form onSubmit={handleInviteSubmit} className="mt-4 space-y-4">
@@ -191,7 +259,7 @@ const UserManagement = () => {
                   <input
                     type="text" required placeholder="Alex" value={inviteForm.firstName}
                     onChange={(e) => setInviteForm({ ...inviteForm, firstName: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2 text-sm text-white focus:border-brand-orange"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2 text-sm text-strong focus:border-brand-orange"
                   />
                 </div>
 
@@ -200,7 +268,7 @@ const UserManagement = () => {
                   <input
                     type="text" placeholder="Sterling" value={inviteForm.lastName}
                     onChange={(e) => setInviteForm({ ...inviteForm, lastName: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2 text-sm text-white focus:border-brand-orange"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2 text-sm text-strong focus:border-brand-orange"
                   />
                 </div>
 
@@ -209,7 +277,7 @@ const UserManagement = () => {
                   <input
                     type="email" required placeholder="alex@example.com" value={inviteForm.email}
                     onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2 text-sm text-white focus:border-brand-orange"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2 text-sm text-strong focus:border-brand-orange"
                   />
                 </div>
 
@@ -218,7 +286,7 @@ const UserManagement = () => {
                   <select
                     value={inviteForm.role}
                     onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as any })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2 text-sm text-white focus:border-brand-orange"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2 text-sm text-strong focus:border-brand-orange"
                   >
                     <option value="STUDENT">STUDENT</option>
                     <option value="ADMIN">ADMIN</option>
@@ -226,7 +294,7 @@ const UserManagement = () => {
                   </select>
                 </div>
 
-                <button type="submit" className="w-full rounded-lg bg-brand-orange py-2.5 text-sm font-semibold text-white hover:bg-brand-orange/90">
+                <button type="submit" className="w-full rounded-lg bg-brand-orange py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-orange/90">
                   Send 24-hr Password Set Link
                 </button>
               </form>

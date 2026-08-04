@@ -63,17 +63,17 @@ const ToolsPreview = () => {
   const Icon = tool.icon;
 
   return (
-    <div className="min-h-screen bg-bg-canvas py-12 text-white">
+    <div className="min-h-screen bg-bg-canvas py-12 text-strong">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         
-        <div className="rounded-2xl border border-white/[0.08] bg-bg-surface p-8 sm:p-12">
+        <div className="rounded-2xl border border-line bg-bg-surface p-8 sm:p-12">
           <div className="flex items-center gap-4">
             <div className="rounded-xl bg-brand-orange/10 p-3 text-brand-orange">
               <Icon size={32} />
             </div>
             <div>
               <span className="text-xs font-semibold text-brand-orange uppercase tracking-wider">AI Career Tool</span>
-              <h1 className="font-display text-3xl font-bold text-white">{tool.title}</h1>
+              <h1 className="font-display text-3xl font-bold text-strong">{tool.title}</h1>
             </div>
           </div>
 
@@ -82,8 +82,8 @@ const ToolsPreview = () => {
           </p>
 
           {/* Features */}
-          <div className="mt-8 border-t border-b border-white/[0.08] py-6">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Core Tool Capabilities:</h3>
+          <div className="mt-8 border-t border-b border-line py-6">
+            <h3 className="text-sm font-semibold text-strong uppercase tracking-wider">Core Tool Capabilities:</h3>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {tool.features.map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-sm text-text-muted">
@@ -95,11 +95,11 @@ const ToolsPreview = () => {
           </div>
 
           {/* Call to Action */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl bg-bg-card p-6 border border-white/[0.08]">
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl bg-bg-card p-6 border border-line">
             <div className="flex items-center gap-3">
               <Lock className="text-brand-orange" size={24} />
               <div>
-                <h4 className="font-bold text-white text-sm">Tool Access & Subscriptions</h4>
+                <h4 className="font-bold text-strong text-sm">Tool Access & Subscriptions</h4>
                 <p className="text-xs text-text-muted">Available with Basic, Pro, or Enterprise NxtGen Academy subscription plans.</p>
               </div>
             </div>
@@ -107,14 +107,14 @@ const ToolsPreview = () => {
             {isAuthenticated ? (
               <Link
                 to="/dashboard/student"
-                className="rounded-lg bg-brand-orange px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange/90"
+                className="rounded-lg bg-brand-orange px-6 py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-orange/90"
               >
                 Launch Tool in Dashboard →
               </Link>
             ) : (
               <Link
                 to="/login"
-                className="rounded-lg bg-brand-orange px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-orange/90"
+                className="rounded-lg bg-brand-orange px-6 py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-orange/90"
               >
                 Sign In to Access Tool →
               </Link>

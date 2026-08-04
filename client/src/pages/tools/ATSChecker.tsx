@@ -1,127 +1,248 @@
-import { useState } from 'react';
-import { Target, Upload, CheckCircle2, AlertTriangle, Sparkles, FileText } from 'lucide-react';
-import api from '../../services/api';
+import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, FileText } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
+import ScoreRing from '../../components/resume/ScoreRing';
+import {
+  scoreResume,
+  extractKeywords,
+  sectionCoverage,
+  GENERIC_JD,
+} from '../../lib/resume/ats';
+import { sanitizeResumeData, type ResumeData } from '../../lib/resume/resumeData';
+import { readGuestResume } from '../../lib/guestStore';
 
+import '../../styles/resume/editor.css';
+import '../../styles/resume/resume-workspace.css';
+import '../../styles/resume/nxtgen-theme.css';
+
+interface ResumeSummary {
+  id: string;
+  title: string;
+}
+
+const toneFor = (n: number) => (n >= 75 ? 'success' : n >= 50 ? 'warning' : 'danger');
+
+/**
+ * Standalone ATS Score Checker.
+ *
+ * Scoring is the same `ats.ts` the resume editor uses — this page is simply
+ * where a job description gets pasted. With no description it falls back to a
+ * generic role profile and scores summary + experience only, which is exactly
+ * what the live chip in the editor topbar reports.
+ */
 const ATSChecker = () => {
-  const [resumeText, setResumeText] = useState(
-    'JOHN DOE - Senior AI Engineer\nSan Francisco, CA • j.doe@nxtgen.ai\n\nEXPERIENCE:\nNeuralSync Systems - Lead Machine Learning Engineer (2022 - Present)\n• Developed and deployed high-performance RAG pipelines reducing latency by 45% for enterprise clients.\n• Orchestrated multi-agent teams using PyTorch and CUDA.\n\nEDUCATION:\nM.S. in Artificial Intelligence - Stanford University (2018)\n\nSKILLS:\nPython, PyTorch, LangChain, Fast API, Docker, WebSockets'
-  );
-  
-  const [loading, setLoading] = useState(false);
-  const [atsResult, setAtsResult] = useState<any>({
-    score: 88,
-    formattingScore: 92,
-    keywordScore: 82,
-    sectionScore: 90,
-    missingKeywords: ['RAG', 'LangChain', 'Vector Database', 'PEFT', 'LoRA'],
-    summaryFeedback: 'Excellent single-column layout with high keyword density. Recommend adding specific vector database names (Pinecone/Chroma).'
-  });
+  const { token } = useAuth();
+  const [resumes, setResumes] = useState<ResumeSummary[]>([]);
+  const [activeId, setActiveId] = useState<string>('');
+  const [data, setData] = useState<ResumeData | null>(null);
+  const [jd, setJd] = useState(() => localStorage.getItem('atsJd') || '');
+  const [loading, setLoading] = useState(true);
 
-  const handleRunATSCheck = async () => {
-    setLoading(true);
-    try {
-      const res = await api.post('/tools/ats-score', { resumeText });
-      if (res.data.success) {
-        setAtsResult(res.data.result);
+  useEffect(() => {
+    if (!token) {
+      // Guests have no saved résumés — use whatever they've built in the
+      // browser so the tool still works before they sign up.
+      const stored = readGuestResume();
+      if (stored) {
+        setResumes([{ id: 'guest', title: stored.title }]);
+        setActiveId('guest');
+        setData(sanitizeResumeData(stored.data));
       }
-    } catch (err) {
-      console.error('ATS check failed:', err);
-    } finally {
       setLoading(false);
+      return;
     }
-  };
+    const load = async () => {
+      try {
+        const res = await fetch('/api/resumes', { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const list = await res.json();
+          setResumes(list);
+          if (list.length) setActiveId(list[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to load resumes:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [token]);
+
+  useEffect(() => {
+    if (!activeId || !token) return;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/resumes/${activeId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const payload = await res.json();
+          setData(sanitizeResumeData(payload.data || payload));
+        }
+      } catch (err) {
+        console.error('Failed to load resume:', err);
+      }
+    };
+    load();
+  }, [activeId, token]);
+
+  // Shared with the editor so both screens report the same score.
+  useEffect(() => {
+    localStorage.setItem('atsJd', jd);
+  }, [jd]);
+
+  const atsKeywords = useMemo(() => (jd.trim() ? extractKeywords(jd) : []), [jd]);
+  const usingGenericJd = atsKeywords.length === 0;
+  const scoreKeywords = useMemo(
+    () => (usingGenericJd ? extractKeywords(GENERIC_JD) : atsKeywords),
+    [usingGenericJd, atsKeywords]
+  );
+  const atsAnalysis = useMemo(
+    () => (data ? scoreResume(data, scoreKeywords, usingGenericJd ? 'core' : 'all') : null),
+    [data, scoreKeywords, usingGenericJd]
+  );
+  const atsCoverage = useMemo(
+    () => (data ? sectionCoverage(data, scoreKeywords) : null),
+    [data, scoreKeywords]
+  );
+
+  if (loading) {
+    return <div className="text-text-muted">Loading your resumes…</div>;
+  }
+
+  if (!resumes.length) {
+    return (
+      <div className="rounded-xl border border-line bg-bg-surface p-10 text-center">
+        <FileText size={28} className="mx-auto text-text-muted" />
+        <p className="mt-3 font-medium text-strong">No resumes yet</p>
+        <p className="mt-1 text-sm text-text-muted">
+          Build or import a resume first, then come back to score it against a job description.
+        </p>
+        <Link
+          to="/dashboard/tools/resume-builder"
+          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand transition-colors hover:bg-orange-600"
+        >
+          <ArrowLeft size={16} />
+          Go to Resume Builder
+        </Link>
+      </div>
+    );
+  }
+
+  const atsTone = atsAnalysis ? toneFor(atsAnalysis.score) : 'danger';
 
   return (
-    <div className="p-6 text-white max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold">ATS Score Checker & Parser Audit</h1>
-        <p className="text-xs text-text-muted">Analyze your resume formatting, keyword density, and ATS match algorithm score.</p>
+    <div className="resume-workspace space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 className="font-display text-2xl font-bold text-strong">ATS Score Checker</h2>
+          <p className="mt-1 text-sm text-text-muted">
+            Paste a job description to score your resume against it. Leave it empty for a generic role profile.
+          </p>
+        </div>
+        <select
+          value={activeId}
+          onChange={(e) => setActiveId(e.target.value)}
+          className="rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong focus:border-brand-orange focus:outline-none"
+        >
+          {resumes.map((r) => (
+            <option key={r.id} value={r.id}>{r.title}</option>
+          ))}
+        </select>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        
-        {/* Left Column (50%): Upload & Parsed Text Preview */}
-        <div className="space-y-4 rounded-xl border border-white/[0.08] bg-bg-surface p-6">
-          <h3 className="font-display text-base font-bold">Resume Upload & Live Parsed Preview</h3>
-
-          {/* Upload Dropzone */}
-          <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-white/20 bg-bg-card p-6 text-center cursor-pointer hover:border-brand-orange transition-colors">
-            <Upload className="h-8 w-8 text-brand-orange" />
-            <p className="mt-2 text-xs text-text-muted">Drag & drop your resume PDF / DOCX here or click to browse</p>
+      {atsAnalysis && atsCoverage && (
+        <div className="ats-panel">
+          <div className="ats-panel__hero">
+            <ScoreRing value={atsAnalysis.score} size={104} stroke={10} fontSize={30} cap="ATS" />
+            <div className="ats-panel__hero-txt">
+              <span className={`badge badge--${atsTone}`}>
+                <span className="badge__dot" /> {atsAnalysis.matched}/{atsAnalysis.total} keywords matched
+              </span>
+              <p className="dock__note" style={{ margin: 0 }}>
+                {usingGenericJd ? (
+                  <>Measured on your <b>summary and experience</b> against a generic role profile.</>
+                ) : (
+                  <>Measured on your <b>whole résumé</b> against the job description below.</>
+                )}
+              </p>
+            </div>
           </div>
 
-          {/* Live Parsed Preview Textarea */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-text-muted">Live Parsed Text Extract</label>
+          <div className="field">
+            <label className="field__label">Job description</label>
             <textarea
-              rows={12}
-              value={resumeText}
-              onChange={(e) => setResumeText(e.target.value)}
-              className="w-full rounded-lg border border-white/[0.08] bg-bg-card p-3 text-xs text-white font-mono focus:border-brand-orange"
+              className="textarea"
+              style={{ minHeight: 160 }}
+              value={jd}
+              placeholder="Paste a job description to score against it — leave empty to use a generic role profile…"
+              onChange={(e) => setJd(e.target.value)}
+              spellCheck={false}
             />
+            <span className="field__help">
+              {usingGenericJd
+                ? 'Empty — scoring summary + experience against a generic role profile.'
+                : 'Scoring the whole résumé against your description. Shared with the editor.'}
+            </span>
           </div>
 
-          <button
-            onClick={handleRunATSCheck}
-            disabled={loading}
-            className="w-full rounded-lg bg-brand-orange py-3 text-sm font-semibold text-white hover:bg-brand-orange/90 shadow-lg disabled:opacity-50"
-          >
-            {loading ? 'Analyzing with Gemini AI...' : 'Run ATS Audit →'}
-          </button>
+          {usingGenericJd && (
+            <div>
+              <span className="dock__lbl">Where the score comes from</span>
+              <div className="ats-split" style={{ marginTop: 8 }}>
+                <div className="ats-split__row">
+                  <span className="ats-split__name">Summary</span>
+                  <div className="ats-split__bar"><i style={{ width: `${atsCoverage.summary.pct}%` }} /></div>
+                  <span className="ats-split__val">{atsCoverage.summary.pct}%</span>
+                </div>
+                <div className="ats-split__row">
+                  <span className="ats-split__name">Experience</span>
+                  <div className="ats-split__bar"><i style={{ width: `${atsCoverage.experience.pct}%` }} /></div>
+                  <span className="ats-split__val">{atsCoverage.experience.pct}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="ats-panel__stats">
+            <div className="ats-stat">
+              <div className="ats-stat__num">{atsAnalysis.total}</div>
+              <div className="ats-stat__lbl">Keywords</div>
+            </div>
+            <div className="ats-stat">
+              <div className="ats-stat__num">{atsAnalysis.matched}</div>
+              <div className="ats-stat__lbl">Matched</div>
+            </div>
+            <div className="ats-stat">
+              <div className="ats-stat__num">{atsAnalysis.missing.length}</div>
+              <div className="ats-stat__lbl">Missing</div>
+            </div>
+          </div>
+
+          {atsAnalysis.missing.length > 0 ? (
+            <div className="jd-missing" style={{ margin: 0 }}>
+              <div className="jd-missing__lbl">
+                {usingGenericJd ? 'Not evidenced in summary or experience' : 'Missing from your résumé'}
+              </div>
+              <div className="jd-missing__chips">
+                {atsAnalysis.missing.filter((m) => m.prio === 'high').map((k) => (
+                  <span key={k.label} className="jd-kw jd-kw--high">{k.label}</span>
+                ))}
+                {atsAnalysis.missing.filter((m) => m.prio !== 'high').map((k) => (
+                  <span key={k.label} className="jd-kw">{k.label}</span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="dock__note">
+              {usingGenericJd
+                ? 'Every keyword is already evidenced in your summary or experience.'
+                : 'Every keyword from this description is already covered.'}
+            </p>
+          )}
         </div>
-
-        {/* Right Column (50%): Score Ring & Keyword Audit */}
-        <div className="space-y-6 rounded-xl border border-white/[0.08] bg-bg-surface p-6">
-          
-          {/* Score Ring */}
-          <div className="flex flex-col sm:flex-row items-center gap-6 border-b border-white/[0.08] pb-6">
-            <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-8 border-brand-orange border-t-white/10 shadow-xl">
-              <div className="text-center">
-                <span className="font-display text-3xl font-bold text-brand-orange">{atsResult.score}%</span>
-                <p className="text-[10px] uppercase text-text-muted">ATS Match</p>
-              </div>
-            </div>
-
-            <div className="space-y-2 flex-1 w-full text-xs">
-              <div className="flex justify-between font-semibold">
-                <span className="text-text-muted">Formatting & Parsing:</span>
-                <span className="text-green-400">{atsResult.formattingScore}%</span>
-              </div>
-              <div className="flex justify-between font-semibold">
-                <span className="text-text-muted">Keyword Density:</span>
-                <span className="text-brand-orange">{atsResult.keywordScore}%</span>
-              </div>
-              <div className="flex justify-between font-semibold">
-                <span className="text-text-muted">Section Structure:</span>
-                <span className="text-green-400">{atsResult.sectionScore}%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Missing Keywords Tag Cloud */}
-          <div>
-            <h4 className="text-xs font-semibold text-white uppercase tracking-wider mb-2">Missing High-Impact Keywords</h4>
-            <div className="flex flex-wrap gap-2">
-              {atsResult.missingKeywords.map((kw: string, idx: number) => (
-                <span key={idx} className="rounded-full bg-brand-orange/20 border border-brand-orange/40 px-3 py-1 text-xs font-bold text-brand-orange">
-                  + {kw}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Summary Feedback */}
-          <div className="rounded-lg bg-bg-card p-4 border border-white/[0.08] space-y-2">
-            <h4 className="text-xs font-semibold text-white flex items-center gap-2">
-              <Sparkles size={14} className="text-brand-orange" />
-              AI Audit Feedback
-            </h4>
-            <p className="text-xs text-text-muted leading-relaxed">{atsResult.summaryFeedback}</p>
-          </div>
-
-        </div>
-
-      </div>
+      )}
     </div>
   );
 };

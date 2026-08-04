@@ -17,11 +17,16 @@
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.9.0",
     "bcryptjs": "^3.0.2",
+    "bullmq": "^6.0.3",
     "cors": "^2.8.5",
+    "docx": "^9.7.1",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.12.0",
     "pdf-parse": "^2.4.5",
+    "puppeteer": "^25.4.0",
     "resend": "^4.5.2",
     "uuid": "^11.1.0",
     "ws": "^8.21.1",
@@ -39,5 +44,14 @@
     "prisma": "^6.9.0",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.1": true,
+    "fsevents@2.3.3": true,
+    "prisma@6.19.3": true,
+    "puppeteer@25.4.0": true,
+    "msgpackr-extract@3.0.4": true
   }
 }

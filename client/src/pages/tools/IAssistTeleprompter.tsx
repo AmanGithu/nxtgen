@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Sparkles, Copy, Download, Sliders, Volume2 } from 'lucide-react';
 
+// The real-time service is deployed separately from the REST API (Render/VPS),
+// so it gets its own env var rather than being derived from VITE_API_URL.
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws/i-assist';
+
 const IAssistTeleprompter = () => {
   const [isListening, setIsListening] = useState(false);
   const [fontSize, setFontSize] = useState(18);
@@ -22,7 +26,7 @@ const IAssistTeleprompter = () => {
 
   // Initialize WebSocket connection to /ws/i-assist
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:3001/ws/i-assist');
+    const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
     ws.onopen = () => console.log('Connected to I-Assist WebSocket');
@@ -74,15 +78,15 @@ const IAssistTeleprompter = () => {
   }, [isListening]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col bg-bg-canvas text-white">
+    <div className="flex h-[calc(100vh-4rem)] flex-col bg-bg-canvas text-strong">
       
       {/* Top Teleprompter Toolbar */}
-      <div className="flex h-16 items-center justify-between border-b border-white/[0.08] bg-bg-surface px-6">
+      <div className="flex h-16 items-center justify-between border-b border-line bg-bg-surface px-6">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsListening(!isListening)}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all shadow-md ${
-              isListening ? 'bg-red-500 animate-pulse text-white' : 'bg-brand-orange text-white hover:bg-brand-orange/90'
+              isListening ? 'bg-red-500 animate-pulse text-on-brand' : 'bg-brand-orange text-on-brand hover:bg-brand-orange/90'
             }`}
           >
             {isListening ? <MicOff size={16} /> : <Mic size={16} />}
@@ -121,13 +125,13 @@ const IAssistTeleprompter = () => {
       <div className="flex flex-1 overflow-hidden">
         
         {/* Left Pane (55%): Live Speech Transcript Teleprompter */}
-        <div className="flex-1 border-r border-white/[0.08] p-6 overflow-y-auto space-y-4">
+        <div className="flex-1 border-r border-line p-6 overflow-y-auto space-y-4">
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Live Interview Speech Stream</span>
 
           <div className="space-y-4">
             {transcripts.map((t, idx) => (
-              <div key={idx} className="rounded-lg border border-white/[0.05] bg-bg-surface p-4 shadow-sm">
-                <p className="font-sans leading-relaxed text-white" style={{ fontSize: `${fontSize}px` }}>
+              <div key={idx} className="rounded-lg border border-line-subtle bg-bg-surface p-4 shadow-sm">
+                <p className="font-sans leading-relaxed text-strong" style={{ fontSize: `${fontSize}px` }}>
                   {t}
                 </p>
               </div>
@@ -137,9 +141,9 @@ const IAssistTeleprompter = () => {
 
         {/* Right Pane (45%): Glowing AI STAR Answer Hint Co-Pilot */}
         <div className="w-[450px] bg-bg-surface p-6 overflow-y-auto space-y-6">
-          <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3">
+          <div className="flex items-center gap-2 border-b border-line pb-3">
             <Sparkles className="text-brand-orange animate-pulse" size={20} />
-            <h3 className="font-display text-base font-bold text-white">Live STAR Co-Pilot Hint</h3>
+            <h3 className="font-display text-base font-bold text-strong">Live STAR Co-Pilot Hint</h3>
           </div>
 
           {activeStarHint && (
@@ -147,7 +151,7 @@ const IAssistTeleprompter = () => {
               
               <div>
                 <span className="text-[10px] font-bold text-brand-orange uppercase">Detected Question</span>
-                <p className="text-xs font-semibold text-white mt-1">{activeStarHint.questionDetected}</p>
+                <p className="text-xs font-semibold text-strong mt-1">{activeStarHint.questionDetected}</p>
               </div>
 
               {/* STAR Cards */}
