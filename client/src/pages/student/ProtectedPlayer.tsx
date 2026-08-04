@@ -68,14 +68,24 @@ const ProtectedPlayer = () => {
       {/* Protected Player Viewport */}
       <div className="relative overflow-hidden rounded-xl border border-line bg-black aspect-video flex items-center justify-center">
         {fileId ? (
-          <iframe
+          <>
+            {/* Drive shows its own sign-in wall inside the frame when a file
+                isn't link-shared. Nothing in that wall mentions NxtGen, so
+                without this note a student just sees a Google login and
+                assumes the site is broken. */}
+            <p className="absolute inset-x-0 bottom-0 z-20 bg-bg-surface/95 px-4 py-2 text-center text-[11px] text-text-muted backdrop-blur-sm">
+              Seeing a Google sign-in instead of the material? It hasn&apos;t been shared yet —
+              let your instructor know.
+            </p>
+            <iframe
             key={fileId}
             src={drivePreviewUrl(fileId)}
             title={selectedMaterial?.title || 'Study material'}
             allow="autoplay; encrypted-media"
             allowFullScreen
             className="absolute inset-0 h-full w-full border-0"
-          />
+            />
+          </>
         ) : (
           <div className="text-center space-y-3 z-10 px-6">
             <Play className="mx-auto h-16 w-16 text-brand-orange" />

@@ -7,6 +7,7 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 const StudyMaterials = () => {
   const [materials, setMaterials] = useState<any[]>([]);
   const [pendingDelete, setPendingDelete] = useState<any | null>(null);
+  const [shareWarning, setShareWarning] = useState('');
   const [batches, setBatches] = useState<any[]>([]);
   const [selectedBatch, setSelectedBatch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -70,6 +71,10 @@ const StudyMaterials = () => {
          file ID. Accept either and derive the rest, so a pasted link doesn't
          silently save a material that can never be played. */
       const fileId = extractDriveFileId(form.driveFileId);
+      if (form.driveFileId.trim() && !fileId) {
+        setShareWarning('That doesn\u2019t look like a Drive link or file ID. Students won\u2019t see anything.');
+        return;
+      }
       const payload = {
         ...form,
         driveFileId: fileId || '',
@@ -238,6 +243,19 @@ const StudyMaterials = () => {
 
               <div>
                 <label className="text-xs font-semibold text-text-muted">Google Drive File ID</label>
+                {/* Sharing is the step people forget, and NxtGen has no Drive
+                    API access to detect it — an unshared file looks fine here
+                    and shows students a Google sign-in wall instead. */}
+                <p className="mt-1 rounded-lg border border-brand-orange/25 bg-brand-orange/5 px-3 py-2 text-[11px] leading-relaxed text-text-muted">
+                  <strong className="text-brand-orange">Set sharing first:</strong> in Drive, choose
+                  “Anyone with the link → Viewer”. Otherwise students see a Google sign-in instead of
+                  the material.
+                </p>
+                {shareWarning && (
+                  <p className="mt-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-[11px] text-red-400">
+                    {shareWarning}
+                  </p>
+                )}
                 <input
                   type="text" placeholder="Paste the Drive share link or file ID" value={form.driveFileId}
                   onChange={(e) => setForm({ ...form, driveFileId: e.target.value })}

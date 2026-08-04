@@ -22,6 +22,10 @@ export const PREMIUM_TEMPLATES = [
   'bold',
 ] as const;
 
+/** Every valid template id. Anything else is rejected at the edge rather than
+    stored and silently rendered as an unstyled document. */
+export const ALL_TEMPLATES = [...FREE_TEMPLATES, ...PREMIUM_TEMPLATES] as const;
+
 const PREMIUM = new Set<string>(PREMIUM_TEMPLATES);
 
 export function isPremiumTemplate(id?: string | null): boolean {

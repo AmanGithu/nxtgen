@@ -53,10 +53,59 @@ export class EntitlementService {
   }
 
   /** How many times a counted feature has been used this period. */
-  private async usedThisPeriod(userId: string, toolName: string): Promise<number> {
-    return prisma.toolUsageLog.count({
-      where: { userId, toolName, createdAt: { gte: currentPeriodStart() } },
+  private async usedThisPeriod(userId: string, feature: string): Promise<number> {
+    const row = await prisma.featureUsage.findUnique({
+      where: {
+        userId_feature_periodStart: { userId, feature, periodStart: currentPeriodStart() },
+      },
+      select: { used: true },
     });
+    return row?.used ?? 0;
+  }
+
+  /**
+   * Atomically claim one unit of `feature`, or return false if none is left.
+   *
+   * The check and the increment are a single statement. Doing it as
+   * count-then-insert is a race: parallel requests all read the same count,
+   * all decide they are under the limit, and the cap is bypassed by simply
+   * firing requests concurrently.
+   *
+   * MariaDB affected-rows semantics carry the answer: 1 = inserted (first use),
+   * 2 = the IF() actually incremented, 0 = it evaluated to the same value,
+   * meaning the limit was already reached.
+   */
+  private async claim(userId: string, feature: string, limit: number): Promise<boolean> {
+    const period = currentPeriodStart();
+
+    // Make sure the counter row exists. INSERT IGNORE is a no-op if it does.
+    await prisma.$executeRaw`
+      INSERT IGNORE INTO FeatureUsage (id, userId, feature, periodStart, used, updatedAt)
+      VALUES (UUID(), ${userId}, ${feature}, ${period}, 0, NOW(3))
+    `;
+
+    /* The WHERE clause IS the limit check, so the test and the increment are
+       one statement and concurrent callers serialise on the row lock. A
+       conditional UPDATE is used rather than upsert + affected-rows because
+       the driver reports matched rows, not changed rows — under upsert that
+       makes "declined to increment" indistinguishable from "incremented". */
+    const updated = await prisma.$executeRaw`
+      UPDATE FeatureUsage
+         SET used = used + 1, updatedAt = NOW(3)
+       WHERE userId = ${userId}
+         AND feature = ${feature}
+         AND periodStart = ${period}
+         AND used < ${limit}
+    `;
+    return updated > 0;
+  }
+
+  /** Give back a claimed unit when the action itself then failed. */
+  async release(userId: string, feature: string): Promise<void> {
+    await prisma.$executeRaw`
+      UPDATE FeatureUsage SET used = GREATEST(used - 1, 0)
+       WHERE userId = ${userId} AND feature = ${feature} AND periodStart = ${currentPeriodStart()}
+    `;
   }
 
   /** Everything the client needs to render locks and "2 of 3 left" copy. */
@@ -66,13 +115,7 @@ export class EntitlementService {
       prisma.resume.count({ where: { userId } }),
       this.usedThisPeriod(userId, FEATURE.EXPORT),
       this.usedThisPeriod(userId, FEATURE.TAILOR),
-      prisma.toolUsageLog.count({
-        where: {
-          userId,
-          toolName: { startsWith: 'resume_ai_' },
-          createdAt: { gte: currentPeriodStart() },
-        },
-      }),
+      this.usedThisPeriod(userId, FEATURE.AI),
     ]);
 
     const next = currentPeriodStart();
@@ -105,13 +148,12 @@ export class EntitlementService {
 
     if (limit === null) return; // unlimited
 
-    const used = await this.usedThisPeriod(userId, feature);
-    if (used >= limit) {
+    if (!(await this.claim(userId, feature, limit))) {
       throw new AppError(limitMessage(feature, limit, tier), 402, {
         code: 'LIMIT_REACHED',
         feature,
         limit,
-        used,
+        used: limit,
         tier,
       });
     }
@@ -129,40 +171,45 @@ export class EntitlementService {
     const limit = LIMITS[tier].maxAiPerMonth;
     if (limit === null) return;
 
-    const used = await prisma.toolUsageLog.count({
-      where: {
-        userId,
-        toolName: { startsWith: 'resume_ai_' },
-        createdAt: { gte: currentPeriodStart() },
-      },
-    });
-    if (used >= limit) {
+    if (!(await this.claim(userId, FEATURE.AI, limit))) {
       throw new AppError(limitMessage(FEATURE.AI, limit, tier), 402, {
         code: 'LIMIT_REACHED',
         feature: FEATURE.AI,
         limit,
-        used,
+        used: limit,
         tier,
       });
     }
   }
 
-  /** Throw unless the user may hold one more résumé. */
-  async assertCanCreateResume(userId: string): Promise<void> {
+  /**
+   * Run `create` only if the user may hold one more résumé.
+   *
+   * A period counter cannot be used here because résumés can be deleted, and a
+   * monotonic count would keep blocking after one was removed. Instead the
+   * count and the insert share a transaction, with the user row locked so
+   * concurrent creates queue rather than all reading the same count.
+   */
+  async createWithinLimit<T>(userId: string, create: (tx: any) => Promise<T>): Promise<T> {
     const tier = await this.tierFor(userId);
     const max = LIMITS[tier].maxResumes;
-    if (max === null) return;
 
-    const count = await prisma.resume.count({ where: { userId } });
-    if (count >= max) {
-      throw new AppError(
-        max === 1
-          ? 'The free plan keeps one résumé. Upgrade to store more, or delete the existing one.'
-          : `You've reached the ${max}-résumé limit on your plan.`,
-        402,
-        { code: 'LIMIT_REACHED', feature: 'resumes', limit: max, used: count, tier }
-      );
-    }
+    return prisma.$transaction(async (tx) => {
+      if (max !== null) {
+        await tx.$executeRaw`SELECT id FROM User WHERE id = ${userId} FOR UPDATE`;
+        const count = await tx.resume.count({ where: { userId } });
+        if (count >= max) {
+          throw new AppError(
+            max === 1
+              ? 'The free plan keeps one résumé. Upgrade to store more, or delete the existing one.'
+              : `You've reached the ${max}-résumé limit on your plan.`,
+            402,
+            { code: 'LIMIT_REACHED', feature: 'resumes', limit: max, used: count, tier }
+          );
+        }
+      }
+      return create(tx);
+    });
   }
 
   /**

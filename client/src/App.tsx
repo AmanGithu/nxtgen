@@ -5,6 +5,7 @@ import { AuthProvider } from "./context/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { UpgradeProvider } from "./context/UpgradeContext";
 import UpgradeDialog from "./components/UpgradeDialog";
+const StatusPage = lazy(() => import("./pages/StatusPage"));
 import { ThemeProvider } from "./context/ThemeContext";
 import PublicLayout from "./layouts/PublicLayout";
 import DashboardLayout from "./layouts/DashboardLayout";
@@ -313,11 +314,11 @@ function App() {
 
                     <Route
                       path="/unauthorized"
-                      element={<Placeholder title="Unauthorized Access" />}
+                      element={<StatusPage kind="unauthorized" />}
                     />
                     <Route
                       path="*"
-                      element={<Placeholder title="404 Not Found" />}
+                      element={<StatusPage kind="notFound" />}
                     />
                   </Routes>
                 </Suspense>

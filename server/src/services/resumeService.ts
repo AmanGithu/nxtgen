@@ -86,13 +86,14 @@ export class ResumeService {
    */
   async createResume(
     userId: string,
-    seed?: { title?: string; template?: string; data?: unknown }
+    seed?: { title?: string; template?: string; data?: unknown },
+    tx?: any
   ) {
     return resumeRepository.create(userId, {
       title: seed?.title?.trim() || 'Untitled resume',
       template: seed?.template || 'classic',
       data: JSON.stringify(seed?.data ? sanitizeResumeData(seed.data as any) : BLANK_RESUME),
-    });
+    }, tx);
   }
 
   async duplicateResume(id: string, userId: string) {
@@ -104,20 +105,23 @@ export class ResumeService {
     return resumeRepository.create(userId, { title, template: r.template, data: r.data });
   }
 
-  async deleteResume(id: string, userId: string) {
-    await resumeRepository.delete(id, userId);
+  /** Returns false when nothing matched — a wrong id, or someone else's. */
+  async deleteResume(id: string, userId: string): Promise<boolean> {
+    const { count } = await resumeRepository.delete(id, userId);
+    return count > 0;
   }
 
   async renameResume(id: string, userId: string, title: string) {
     await resumeRepository.update(id, userId, { title });
   }
 
-  async updateResume(id: string, userId: string, patch: { data?: ResumeData; template?: string; title?: string }) {
-    await resumeRepository.update(id, userId, {
+  async updateResume(id: string, userId: string, patch: { data?: ResumeData; template?: string; title?: string }): Promise<boolean> {
+    const { count } = await resumeRepository.update(id, userId, {
       ...(patch.data ? { data: JSON.stringify(patch.data) } : {}),
       ...(patch.template ? { template: patch.template } : {}),
       ...(patch.title ? { title: patch.title } : {}),
     });
+    return count > 0;
   }
 
   async updateVersion(id: string, userId: string, patch: { data?: ResumeData; template?: string }) {

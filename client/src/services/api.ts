@@ -45,6 +45,11 @@ api.interceptors.response.use(
           const res = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
           if (res.data?.accessToken) {
             localStorage.setItem('token', res.data.accessToken);
+            // The server rotates the refresh token on every use, so the old
+            // one is now dead — keeping it would break the next refresh.
+            if (res.data.refreshToken) {
+              localStorage.setItem('refreshToken', res.data.refreshToken);
+            }
             api.defaults.headers.common['Authorization'] = `Bearer ${res.data.accessToken}`;
             originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
             return api(originalRequest);

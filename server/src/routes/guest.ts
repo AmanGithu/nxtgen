@@ -7,6 +7,7 @@ import { extractPdfText, extractDocxText } from '../services/resume/textExtract'
 import { parseResumeText } from '../services/resume/parseResume';
 import { parseLinkedInText, looksLikeLinkedIn } from '../services/resume/parseLinkedIn';
 import { sanitizeResumeData } from '../services/resume/resumeData';
+import { aiLimiter } from '../middleware/rateLimit';
 
 /**
  * Stateless tool endpoints for signed-out visitors.
@@ -84,7 +85,7 @@ router.post('/import', async (req: Request, res: Response, next: NextFunction) =
 });
 
 /* ── AI actions — each spends one of the free allowance ─────────────────── */
-router.post('/ai/rewrite-bullet', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/ai/rewrite-bullet', aiLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { bullet, tone } = z
       .object({ bullet: z.string().min(3), tone: z.string().optional() })
@@ -97,7 +98,7 @@ router.post('/ai/rewrite-bullet', async (req: Request, res: Response, next: Next
   }
 });
 
-router.post('/ai/summary', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/ai/summary', aiLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { resume, jd } = z.object({ resume: z.any(), jd: z.string().optional() }).parse(req.body);
     const quota = spend(req);
@@ -108,7 +109,7 @@ router.post('/ai/summary', async (req: Request, res: Response, next: NextFunctio
   }
 });
 
-router.post('/ai/cover-letter', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/ai/cover-letter', aiLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { resume, company, role, manager, tone, jd } = z
       .object({
@@ -136,7 +137,7 @@ router.post('/ai/cover-letter', async (req: Request, res: Response, next: NextFu
   }
 });
 
-router.post('/ai/interview-prep', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/ai/interview-prep', aiLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { resume, jd, role } = z
       .object({ resume: z.any(), jd: z.string().optional(), role: z.string().optional() })

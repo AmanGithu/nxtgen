@@ -11,6 +11,7 @@ import {
 } from '../controllers/resumeController';
 import { authenticate } from '../middleware/auth';
 import { entitlementService } from '../services/entitlementService';
+import { exportLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -43,8 +44,8 @@ router.get('/:id/versions/:versionId', getVersion);
 router.patch('/:id/versions/:versionId', updateVersion);
 router.post('/:id/versions/:versionId/duplicate', duplicateVersion);
 router.delete('/:id/versions/:versionId', deleteVersion);
-router.get('/:id/versions/:versionId/export/docx', exportVersionDocx);
-router.get('/:id/versions/:versionId/export/pdf', exportVersionPdf);
+router.get('/:id/versions/:versionId/export/docx', exportLimiter, exportVersionDocx);
+router.get('/:id/versions/:versionId/export/pdf', exportLimiter, exportVersionPdf);
 
 router.post('/:id/ai/rewrite-bullet', rewriteBullet);
 router.post('/:id/ai/generate-summary', generateSummary);
@@ -52,13 +53,13 @@ router.post('/:id/ai/generate-summary', generateSummary);
 router.get('/:id/cover-letter', getCoverLetter);
 router.post('/:id/cover-letter/generate', generateCoverLetter);
 router.put('/:id/cover-letter', saveCoverLetter);
-router.get('/:id/cover-letter/export/docx', exportCoverLetterDocx);
-router.get('/:id/cover-letter/export/pdf', exportCoverLetterPdf);
+router.get('/:id/cover-letter/export/docx', exportLimiter, exportCoverLetterDocx);
+router.get('/:id/cover-letter/export/pdf', exportLimiter, exportCoverLetterPdf);
 
 router.get('/:id/interview-prep', getInterviewPrep);
 router.post('/:id/interview-prep/generate', generateInterviewPrep);
 
-router.get('/:id/export/docx', exportResumeDocx);
-router.get('/:id/export/pdf', exportResumePdf);
+router.get('/:id/export/docx', exportLimiter, exportResumeDocx);
+router.get('/:id/export/pdf', exportLimiter, exportResumePdf);
 
 export default router;

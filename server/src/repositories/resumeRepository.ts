@@ -17,9 +17,11 @@ export class ResumeRepository {
     return prisma.resume.findFirst({ where: { id, userId } });
   }
 
-  async create(userId: string, data: { title: string; template: string; data: string }): Promise<Resume> {
+  /** `tx` lets the caller run this inside a transaction that also enforces the
+      per-plan résumé cap, so the count and the insert cannot interleave. */
+  async create(userId: string, data: { title: string; template: string; data: string }, tx?: any): Promise<Resume> {
     logger.debug(`DB Query: create Resume. userId: ${userId}, title: ${data.title}`);
-    return prisma.resume.create({ data: { userId, ...data } });
+    return (tx ?? prisma).resume.create({ data: { userId, ...data } });
   }
 
   async update(id: string, userId: string, data: Prisma.ResumeUpdateInput): Promise<Prisma.BatchPayload> {
@@ -27,9 +29,9 @@ export class ResumeRepository {
     return prisma.resume.updateMany({ where: { id, userId }, data });
   }
 
-  async delete(id: string, userId: string): Promise<void> {
+  async delete(id: string, userId: string): Promise<Prisma.BatchPayload> {
     logger.debug(`DB Query: delete Resume. id: ${id}, userId: ${userId}`);
-    await prisma.resume.deleteMany({ where: { id, userId } });
+    return prisma.resume.deleteMany({ where: { id, userId } });
   }
 
   // ---------------- versions ----------------

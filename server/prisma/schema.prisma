@@ -130,6 +130,7 @@ model User {
   iAssistSessions  IAssistSession[]
   contextDocuments ContextDocument[]
   desktopAuthCodes DesktopAuthCode[]
+  featureUsage     FeatureUsage[]
 
   @@index([email])
   @@index([role])
@@ -611,6 +612,26 @@ model InternshipApplication {
 
   @@index([internshipId])
   @@index([createdAt(sort: Desc)])
+}
+
+/// Per-period usage counter for plan limits.
+///
+/// A counter row exists so the limit check and the increment can be ONE atomic
+/// statement. Counting ToolUsageLog rows first and inserting after is a
+/// check-then-act race: concurrent requests all read the same count, all pass,
+/// and every limit becomes bypassable by firing requests in parallel.
+model FeatureUsage {
+  id          String   @id @default(uuid())
+  userId      String
+  feature     String
+  periodStart DateTime
+  used        Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feature, periodStart])
+  @@index([userId])
 }
 
 // ─── I-Assist (Interview Assistant) ───

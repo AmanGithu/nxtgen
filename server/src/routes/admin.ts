@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import { UserRole, UserStatus, TemplateCategory, InternshipType, CourseCategory, MaterialType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { env } from '../config/env';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, invalidateUserCache } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import { sendPasswordSetEmail } from '../services/emailService';
 
@@ -208,12 +208,23 @@ router.post('/batches', async (req: Request, res: Response, next: NextFunction) 
       courseId: z.string().min(1),
       startDate: z.string(),
       endDate: z.string(), // Max student access duration
-      maxStudents: z.number().optional().default(30),
+      maxStudents: z.number().int().min(1).max(1000).optional().default(30),
       driveFolder: z.string().optional(),
       status: z.enum(['DRAFT', 'ACTIVE', 'COMPLETED', 'ARCHIVED']).optional().default('ACTIVE'),
       webinarDate: z.string().nullable().optional(),
       isPublished: z.boolean().optional().default(false),
-    }).parse(req.body);
+    })
+      .refine((d) => new Date(d.endDate) > new Date(d.startDate), {
+        message: 'End date must be after the start date.',
+        path: ['endDate'],
+      })
+      .parse(req.body);
+
+    /* A missing course otherwise surfaces as a foreign-key 500 rather than a
+       message naming the actual problem. */
+    if (!(await prisma.course.findUnique({ where: { id: data.courseId }, select: { id: true } }))) {
+      throw new AppError('That course no longer exists.', 400);
+    }
 
     const batch = await prisma.batch.create({
       data: {
@@ -355,6 +366,7 @@ router.post('/batches/:id/students', async (req: Request, res: Response, next: N
         : []),
     ]);
 
+    if (promoted) invalidateUserCache(user.id);
     await recordAudit(req, 'STUDENT_ENROLLED', 'Batch', batchId, {
       email: user.email,
       promotedToStudent: promoted,
@@ -1174,6 +1186,7 @@ router.patch('/users/:id/status', async (req: Request, res: Response, next: Next
       data: { status },
       select: { id: true, email: true, status: true },
     });
+    invalidateUserCache(id);
     await recordAudit(req, 'USER_STATUS_CHANGED', 'User', id, { status });
     res.json({ success: true, user });
   } catch (error) {

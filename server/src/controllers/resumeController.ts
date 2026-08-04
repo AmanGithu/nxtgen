@@ -4,12 +4,34 @@ import { AuthRequest } from '../middleware/auth';
 import { logger } from '../lib/logger';
 import { entitlementService } from '../services/entitlementService';
 import { FEATURE } from '../lib/entitlements';
+import { z, ZodError } from 'zod';
+import { ALL_TEMPLATES } from '../lib/resumeTemplates';
 
 const resumeService = new ResumeService();
 
 /** Ledger charges throw a plain Error when the user is out of credits —
     surface that as 402 rather than a generic 500. */
+/* Without a schema these fields reach Prisma untouched: a numeric or object
+   title, or one longer than the column, surfaces as a 500 server fault rather
+   than a 400 telling the caller what was wrong. */
+const resumeBodySchema = z.object({
+  title: z.string().trim().min(1).max(180).optional(),
+  template: z.enum(ALL_TEMPLATES).optional(),
+  data: z.record(z.any()).optional(),
+});
+
 function handleError(res: Response, action: string, error: any, userId?: string) {
+  /* These controllers catch locally rather than calling next(), so the global
+     error handler never sees a ZodError and a validation failure would be
+     reported as a 500 server fault instead of telling the caller what was
+     wrong with their input. */
+  if (error instanceof ZodError) {
+    return res.status(400).json({
+      message: error.errors[0]?.message || 'Validation Error',
+      errors: error.errors,
+    });
+  }
+
   logger.error(`${action} error for user ${userId}: ${error.message}`);
   /* Prefer the status the error carries. The message sniffing below is a
      fallback for plain Errors thrown deeper in the service layer — without
@@ -48,10 +70,14 @@ export const createResume = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
-    await entitlementService.assertCanCreateResume(userId);
-    const { title, template, data } = req.body ?? {};
+    const { title, template, data } = resumeBodySchema.parse(req.body ?? {});
     await entitlementService.assertCanUseTemplate(userId, template);
-    res.status(201).json(await resumeService.createResume(userId, { title, template, data }));
+    /* Count and insert share a transaction so parallel creates cannot each
+       see the same under-limit count and all succeed. */
+    const created = await entitlementService.createWithinLimit(userId, (tx) =>
+      resumeService.createResume(userId, { title, template, data }, tx)
+    );
+    res.status(201).json(created);
   } catch (error: any) { handleError(res, 'Create resume', error, userId); }
 };
 
@@ -59,9 +85,13 @@ export const updateResume = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
-    const { data, template, title } = req.body;
+    const { data, template, title } = resumeBodySchema.parse(req.body ?? {});
     await entitlementService.assertCanUseTemplate(userId, template);
-    await resumeService.updateResume(req.params.id as string, userId, { data, template, title });
+    /* updateMany/deleteMany are scoped by userId, so a wrong or someone
+       else's id simply matches nothing. Reporting 204 then tells the caller
+       the write succeeded when it did nothing at all. */
+    const ok = await resumeService.updateResume(req.params.id as string, userId, { data: data as any, template, title });
+    if (!ok) return res.status(404).json({ message: 'Resume not found' });
     res.status(204).send();
   } catch (error: any) { handleError(res, 'Update resume', error, userId); }
 };
@@ -81,7 +111,8 @@ export const deleteResume = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
-    await resumeService.deleteResume(req.params.id as string, userId);
+    const ok = await resumeService.deleteResume(req.params.id as string, userId);
+    if (!ok) return res.status(404).json({ message: 'Resume not found' });
     res.status(204).send();
   } catch (error: any) { handleError(res, 'Delete resume', error, userId); }
 };
@@ -177,9 +208,9 @@ export const updateVersion = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
-    const { data, template } = req.body;
+    const { data, template } = resumeBodySchema.parse(req.body ?? {});
     await entitlementService.assertCanUseTemplate(userId, template);
-    await resumeService.updateVersion(req.params.versionId as string, userId, { data, template });
+    await resumeService.updateVersion(req.params.versionId as string, userId, { data: data as any, template });
     res.status(204).send();
   } catch (error: any) { handleError(res, 'Update version', error, userId); }
 };

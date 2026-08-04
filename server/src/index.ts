@@ -11,6 +11,12 @@ import { sessionService } from './services/iassist/sessionService';
 
 const app = express();
 
+/* Behind a reverse proxy (Render, nginx) req.ip is the proxy's address unless
+   this is set, which would make every rate limit apply to all users at once.
+   'loopback, linklocal, uniquelocal' trusts only private hops, not arbitrary
+   X-Forwarded-For headers from the internet. */
+app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+
 app.use(cors({
   origin: env.CLIENT_URL,
   credentials: true,

@@ -16,7 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (token: string, refreshToken: string, userData: User) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   loginWithGoogle: () => void;
   loginWithGitHub: () => void;
 }
@@ -83,7 +83,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await migrateGuestWork(token);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    /* Tell the server first so the refresh token is revoked. Clearing storage
+       alone leaves it valid, so a captured token still works after the user
+       believes they have signed out. Failure is ignored — the local session
+       must end regardless. */
+    try {
+      if (refreshToken) {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch {
+      /* offline, or the server is down — sign out locally anyway */
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     setUser(null);
