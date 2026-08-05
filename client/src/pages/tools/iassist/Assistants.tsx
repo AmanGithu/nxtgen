@@ -582,7 +582,7 @@ const Assistants = () => {
           <AlertTriangle size={32} className="text-red-400 mb-3" />
           <p className="text-sm font-medium text-red-400">{error}</p>
           <button
-            onClick={loadAssistants}
+            onClick={() => loadAssistants()}
             className="mt-4 flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted hover:text-strong transition-colors"
           >
             <RefreshCw size={14} /> Retry

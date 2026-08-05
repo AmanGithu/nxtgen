@@ -32,14 +32,32 @@ const AIConfig = () => {
     IASSIST_VAD_MIN_SPEECH_MS: '500',
   });
 
+  const [liveAgentConfig, setLiveAgentConfig] = useState({
+    ACTIVE_AVATAR_PROVIDER: 'bithuman',
+    VOICE_LLM_MODEL: 'gemini-2.5-flash-native-audio-preview-12-2025',
+    VOICE_LLM_FALLBACK: 'gemini-2.0-flash-exp',
+    VOICE_STT_MODEL: 'google-stt-v2',
+    VOICE_STT_FALLBACK: 'deepgram',
+    VOICE_TTS_MODEL: 'google-tts',
+    VOICE_TTS_FALLBACK: 'elevenlabs',
+    AVATAR_LLM_MODEL: 'gemini-3.1-flash-live-preview',
+    AVATAR_LLM_FALLBACK: 'gemini-2.5-flash',
+    AVATAR_STT_MODEL: 'google-stt-v2',
+    AVATAR_STT_FALLBACK: 'deepgram',
+    AVATAR_TTS_MODEL: 'google-tts',
+    AVATAR_TTS_FALLBACK: 'elevenlabs',
+  });
+
   const [stats, setStats] = useState<IAssistStats | null>(null);
   const [geminiSaved, setGeminiSaved] = useState(false);
   const [iassistSaved, setIassistSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState<'career-tools' | 'i-assist'>('career-tools');
+  const [liveAgentSaved, setLiveAgentSaved] = useState(false);
+  const [activeTab, setActiveTab] = useState<'career-tools' | 'i-assist' | 'live-agent'>('career-tools');
 
   useEffect(() => {
     fetchGeminiConfig();
     fetchIAssistConfig();
+    fetchLiveAgentConfig();
     fetchStats();
   }, []);
 
@@ -58,6 +76,15 @@ const AIConfig = () => {
       if (res.data.success) setIassistConfig(res.data.config);
     } catch (err) {
       console.error('Failed to fetch I-Assist config:', err);
+    }
+  };
+
+  const fetchLiveAgentConfig = async () => {
+    try {
+      const res = await api.get('/admin/agent-config');
+      if (res.data.success) setLiveAgentConfig(res.data.config);
+    } catch (err) {
+      console.error('Failed to fetch Live Agent config:', err);
     }
   };
 
@@ -89,6 +116,17 @@ const AIConfig = () => {
       setTimeout(() => setIassistSaved(false), 2000);
     } catch (err) {
       console.error('Failed to save I-Assist config:', err);
+    }
+  };
+
+  const handleLiveAgentSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/admin/agent-config', liveAgentConfig);
+      setLiveAgentSaved(true);
+      setTimeout(() => setLiveAgentSaved(false), 2000);
+    } catch (err) {
+      console.error('Failed to save Live Agent config:', err);
     }
   };
 
@@ -136,6 +174,17 @@ const AIConfig = () => {
         >
           <Mic size={14} className="mr-2 inline-block" />
           I-Assist
+        </button>
+        <button
+          onClick={() => setActiveTab('live-agent')}
+          className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'live-agent'
+              ? 'bg-brand-orange/15 text-brand-orange'
+              : 'text-text-muted hover:text-strong'
+          }`}
+        >
+          <Zap size={14} className="mr-2 inline-block" />
+          Live AI Agent Config
         </button>
       </div>
 
@@ -344,6 +393,190 @@ const AIConfig = () => {
             </div>
           </form>
         </div>
+      )}
+
+      {/* Live AI Agent Config */}
+      {activeTab === 'live-agent' && (
+        <form onSubmit={handleLiveAgentSave} className="rounded-xl border border-line bg-bg-surface p-6 space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold">Live AI Interview Agent Configuration</h2>
+            <p className="text-xs text-text-muted">Configure active avatar providers, models, and fallback options for LiveKit voice and avatar agents.</p>
+          </div>
+
+          {/* Active Avatar Provider (Only one enabled at a time) */}
+          <div className="rounded-lg border border-brand-orange/40 bg-brand-orange/10 p-4 space-y-2">
+            <label className="text-xs font-bold text-brand-orange uppercase">Active Avatar Backend Provider</label>
+            <p className="text-xs text-text-muted">Select which 3D Digital Avatar engine is enabled for video mode interviews (Only one can be active at a time).</p>
+            <div className="flex gap-4 pt-2">
+              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                <input
+                  type="radio"
+                  name="avatarProvider"
+                  value="bithuman"
+                  checked={liveAgentConfig.ACTIVE_AVATAR_PROVIDER === 'bithuman'}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, ACTIVE_AVATAR_PROVIDER: e.target.value })}
+                  className="accent-brand-orange"
+                />
+                bitHuman Cloud Avatar (Default)
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                <input
+                  type="radio"
+                  name="avatarProvider"
+                  value="liveavatar"
+                  checked={liveAgentConfig.ACTIVE_AVATAR_PROVIDER === 'liveavatar'}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, ACTIVE_AVATAR_PROVIDER: e.target.value })}
+                  className="accent-brand-orange"
+                />
+                HeyGen LiveAvatar Engine
+              </label>
+            </div>
+          </div>
+
+          {/* Voice Agent Model Config */}
+          <div className="border-t border-line pt-4 space-y-4">
+            <h3 className="text-sm font-bold text-strong">Voice-Only Agent Model Settings</h3>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <label className={labelClass}>Voice LLM Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.VOICE_LLM_MODEL}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, VOICE_LLM_MODEL: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Voice LLM Fallback Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.VOICE_LLM_FALLBACK}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, VOICE_LLM_FALLBACK: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <label className={labelClass}>Voice STT Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.VOICE_STT_MODEL}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, VOICE_STT_MODEL: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Voice STT Fallback Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.VOICE_STT_FALLBACK}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, VOICE_STT_FALLBACK: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <label className={labelClass}>Voice TTS Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.VOICE_TTS_MODEL}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, VOICE_TTS_MODEL: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Voice TTS Fallback Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.VOICE_TTS_FALLBACK}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, VOICE_TTS_FALLBACK: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Avatar Agent Model Config */}
+          <div className="border-t border-line pt-4 space-y-4">
+            <h3 className="text-sm font-bold text-strong">3D Avatar Video Agent Model Settings</h3>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <label className={labelClass}>Avatar LLM Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.AVATAR_LLM_MODEL}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, AVATAR_LLM_MODEL: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Avatar LLM Fallback Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.AVATAR_LLM_FALLBACK}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, AVATAR_LLM_FALLBACK: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <label className={labelClass}>Avatar STT Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.AVATAR_STT_MODEL}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, AVATAR_STT_MODEL: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Avatar STT Fallback Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.AVATAR_STT_FALLBACK}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, AVATAR_STT_FALLBACK: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <label className={labelClass}>Avatar TTS Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.AVATAR_TTS_MODEL}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, AVATAR_TTS_MODEL: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Avatar TTS Fallback Model</label>
+                <input
+                  type="text"
+                  value={liveAgentConfig.AVATAR_TTS_FALLBACK}
+                  onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, AVATAR_TTS_FALLBACK: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-line pt-4">
+            {liveAgentSaved && <span className="text-xs font-bold text-green-400">&#10003; Live Agent configuration saved</span>}
+            <button type="submit" className="flex items-center gap-2 rounded-lg bg-brand-orange px-6 py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-orange/90 ml-auto">
+              <Save size={16} />
+              Save Live Agent Config
+            </button>
+          </div>
+        </form>
       )}
     </div>
   );

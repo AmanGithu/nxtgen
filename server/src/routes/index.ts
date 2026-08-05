@@ -15,6 +15,7 @@ import guestRouter from './guest';
 import billingRouter from './billing';
 import iassistRouter from './iassist';
 import iassistDesktopRouter from './iassistDesktop';
+import agentsRouter from './agents';
 
 const router = Router();
 
@@ -32,6 +33,7 @@ router.use('/resumes', resumeRouter);
 router.use('/linkedin', linkedinRouter);
 router.use('/guest', guestRouter);
 router.use('/billing', billingRouter);
+router.use('/agents', agentsRouter);
 router.use('/iassist/desktop', iassistDesktopRouter);
 router.use('/iassist', iassistRouter);
 
