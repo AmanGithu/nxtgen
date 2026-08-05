@@ -1,4 +1,5 @@
 import type { ResumeData, ExperienceItem, EducationItem, ProjectItem, SkillGroup, CustomSection } from "./resumeData";
+import { orderRoleCompany, extractDateRange, isDateOnlyLine, splitHeaderParts } from "./headerParse";
 
 /* ============================================================
    Deterministic resume parser — NO AI.
@@ -149,40 +150,117 @@ function parseExperienceFallback(lls: LL[]): ExperienceItem[] {
 
 function parseExperienceLike(rawLines: string[]): ExperienceItem[] {
   const lines = rawLines.map((l) => l.replace(/\t/g, " ").replace(/\s+$/, "")).filter((l) => l.trim());
-  // No dated headers to anchor on → keep the marker-based behaviour.
-  if (!lines.some(isDatedHeader)) return parseExperienceFallback(logicalLines(rawLines));
 
-  // Group lines into entries, each starting at a dated header line.
-  const groups: { header: string; body: string[] }[] = [];
-  let cur: { header: string; body: string[] } | null = null;
-  for (const line of lines) {
-    if (isDatedHeader(line)) { cur = { header: line, body: [] }; groups.push(cur); }
-    else if (cur) cur.body.push(line);
+  /* An entry starts either at a line carrying its own date range, or at a
+     title line whose date sits on a line below it — the "role / employer /
+     dates" stack that was previously unparseable and swallowed whole jobs. */
+  const startsEntry = (i: number): boolean => {
+    const line = lines[i];
+    if (!line || BULLET_RE.test(line.trim())) return false;
+    if (isDateOnlyLine(line)) return false;
+    if (extractDateRange(line).date) return true;
+    // look ahead: a date within the next two lines makes this a header
+    for (let k = i + 1; k <= i + 2 && k < lines.length; k++) {
+      const nxt = lines[k];
+      if (!nxt || BULLET_RE.test(nxt.trim())) break;
+      if (isDateOnlyLine(nxt)) return true;
+    }
+    return false;
+  };
+
+  const anyStart = lines.some((_, i) => startsEntry(i));
+  if (!anyStart) return parseExperienceFallback(logicalLines(rawLines));
+
+  const groups: { header: string; extra: string[]; body: string[] }[] = [];
+  let cur: { header: string; extra: string[]; body: string[] } | null = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (!startsEntry(i)) { if (cur) cur.body.push(lines[i]!); continue; }
+
+    const header = lines[i]!;
+    const extra: string[] = [];
+    /* When the title line carries no date, the employer and the dates are
+       stacked beneath it. Absorb those here — otherwise the employer line
+       looks like the start of another job and every entry is duplicated. */
+    if (!extractDateRange(header).date) {
+      let j = i + 1;
+      while (j < lines.length && extra.length < 2) {
+        const nxt = lines[j]!;
+        if (BULLET_RE.test(nxt.trim())) break;
+        if (isDateOnlyLine(nxt) || looksLikeCompany(nxt)) { extra.push(nxt); j++; }
+        else break;
+      }
+      i = j - 1;
+    }
+    cur = { header, extra, body: [] };
+    groups.push(cur);
   }
 
-  const cleanCompany = (s: string) => s.replace(/[\s–—|-]+$/, "").trim();
+  const cleanCompany = (s: string) => s.replace(/[\s–—|,-]+$/, "").trim();
+
   return groups.map((g) => {
-    const { head, date } = splitTrailingDate(g.header.replace(/\t/g, " "));
-    // "Role — Company" / "Role | Company" / "Role at Company" on the header line
-    const parts = head.split(/\s+[–—|]\s+|\s+-\s+|\s+\bat\b\s+/i);
-    const role = (parts[0] ?? head).trim();
-    let company = parts.length > 1 ? cleanCompany(parts.slice(1).join(" — ")) : "";
+    let { rest, date } = extractDateRange(g.header);
     let body = g.body;
-    // otherwise the employer is usually the line right after the header
-    if (!company && body.length && looksLikeCompany(body[0] ?? "")) { company = cleanCompany(body[0] ?? ""); body = body.slice(1); }
+
+    /* Continuation lines: whichever is the date becomes the date, the other
+       is the employer. */
+    let stackedCompany = "";
+    for (const line of g.extra) {
+      if (isDateOnlyLine(line)) { if (!date) date = extractDateRange(line).date; }
+      else if (!stackedCompany) {
+        const c = extractDateRange(line);
+        stackedCompany = c.rest;
+        if (!date && c.date) date = c.date;
+      }
+    }
+
+    const parts = splitHeaderParts(rest);
+    let role = rest;
+    let company = "";
+    if (parts.length > 1) {
+      const ordered = orderRoleCompany(parts[0]!, parts.slice(1).join(" — "));
+      role = ordered.role;
+      company = cleanCompany(ordered.company);
+    } else {
+      role = (parts[0] ?? rest).trim();
+      if (stackedCompany) {
+        /* "Swiggy, Bengaluru" — keep the employer, drop the trailing city. */
+        company = cleanCompany(stackedCompany.split(/\s*,\s*/)[0] ?? stackedCompany);
+      } else if (body.length && looksLikeCompany(body[0] ?? "")) {
+        const cand = extractDateRange(body[0]!);
+        company = cleanCompany(cand.rest);
+        if (!date && cand.date) date = cand.date;
+        body = body.slice(1);
+      }
+    }
+
     return { role, company, location: "", meta: date, bullets: reconstructBullets(body) };
   });
+}
+
+/** "…, 2019" — education lines usually end in one year, not a range, so
+    splitTrailingDate alone left the year glued to the school name. */
+function splitEducationYear(text: string): { head: string; date: string } {
+  const ranged = splitTrailingDate(text);
+  if (ranged.date) return ranged;
+  const m = text.match(/^(.*?)[\s,;–—-]+((?:19|20)\d{2})\s*$/);
+  return m ? { head: m[1]!.trim(), date: m[2]! } : { head: text.trim(), date: "" };
 }
 
 function parseEducation(lls: LL[]): EducationItem[] {
   const eds: EducationItem[] = [];
   let cur: EducationItem | null = null;
   for (const ll of lls) {
-    const { head, date } = splitTrailingDate(ll.text);
+    const { head, date } = splitEducationYear(ll.text);
     if (date || !cur) {
-      cur = { degree: date ? "" : head, school: date ? head : "", meta: date };
+      /* "B.Tech Computer Science, IIT Delhi" — the qualification comes first
+         and the institution second, so split rather than dumping the lot into
+         one field. */
+      const bits = head.split(/\s*,\s*/).map((b) => b.trim()).filter(Boolean);
+      const degree = bits.length > 1 ? bits.slice(0, -1).join(", ") : head;
+      const school = bits.length > 1 ? bits[bits.length - 1]! : "";
+      cur = { degree, school, meta: date };
       eds.push(cur);
-      if (date) continue;
+      if (date || school) continue;
     } else if (!cur.degree) {
       cur.degree = ll.text;
     } else {
@@ -284,7 +362,7 @@ function parseSkills(rawLines: string[]): SkillGroup[] {
     const t = s.trim();
     if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); skills.push(t); }
   }
-  return skills.length ? [["", skills.join(", ")]] : [];
+  return skills.length ? [["Skills", skills.join(", ")]] : [];
 }
 
 export function parseResumeText(raw: string): ResumeData {
