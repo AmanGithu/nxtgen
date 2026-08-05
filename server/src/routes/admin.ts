@@ -460,6 +460,60 @@ router.post('/iassist-config', async (req: Request, res: Response, next: NextFun
   }
 });
 
+// ─── 15.5. Live AI Agent Configuration ───
+router.get('/agent-config', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const configs = await prisma.siteConfig.findMany({
+      where: { key: { startsWith: 'AGENT_' } }
+    });
+
+    const configMap: Record<string, string> = {
+      ACTIVE_AVATAR_PROVIDER: 'bithuman',
+      VOICE_LLM_MODEL: 'gemini-2.5-flash-native-audio-preview-12-2025',
+      VOICE_LLM_FALLBACK: 'gemini-2.0-flash-exp',
+      VOICE_STT_MODEL: 'google-stt-v2',
+      VOICE_STT_FALLBACK: 'deepgram',
+      VOICE_TTS_MODEL: 'google-tts',
+      VOICE_TTS_FALLBACK: 'elevenlabs',
+      AVATAR_LLM_MODEL: 'gemini-3.1-flash-live-preview',
+      AVATAR_LLM_FALLBACK: 'gemini-2.5-flash',
+      AVATAR_STT_MODEL: 'google-stt-v2',
+      AVATAR_STT_FALLBACK: 'deepgram',
+      AVATAR_TTS_MODEL: 'google-tts',
+      AVATAR_TTS_FALLBACK: 'elevenlabs',
+    };
+
+    configs.forEach(c => {
+      // Strip AGENT_ prefix for frontend state matching
+      const cleanKey = c.key.replace(/^AGENT_/, '');
+      configMap[cleanKey] = c.value;
+    });
+
+    res.json({ success: true, config: configMap });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/agent-config', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = req.body;
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === 'string') {
+        const fullKey = key.startsWith('AGENT_') ? key : `AGENT_${key}`;
+        await prisma.siteConfig.upsert({
+          where: { key: fullKey },
+          update: { value },
+          create: { key: fullKey, value }
+        });
+      }
+    }
+    res.json({ success: true, message: 'Live Agent configuration updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ─── 16. I-Assist Usage Stats ───
 router.get('/iassist-stats', async (req: Request, res: Response, next: NextFunction) => {
   try {

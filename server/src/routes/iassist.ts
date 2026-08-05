@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
 import { authenticate } from '../middleware/auth';
+import { prisma } from '../lib/prisma';
 import { assistantService } from '../services/iassist/assistantService';
 import { contextDocService } from '../services/iassist/contextDocService';
 import { sessionService } from '../services/iassist/sessionService';
@@ -15,6 +16,33 @@ function param(val: string | string[]): string {
 }
 
 router.use(authenticate);
+
+// ─── Live AI Interview Courses ───
+router.get('/courses', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const dbCourses = await prisma.course.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        modules: true,
+      },
+      orderBy: { sortOrder: 'asc' }
+    });
+
+    const courses = dbCourses.map((c: any) => ({
+      id: c.id,
+      title: c.title,
+      slug: c.slug,
+      modules: (c.modules as any[]) || []
+    }));
+
+    res.json({ success: true, courses });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // ─── Assistants ───
 

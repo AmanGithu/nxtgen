@@ -10,6 +10,7 @@ import studentRouter from './student';
 import toolsRouter from './tools';
 import iassistRouter from './iassist';
 import iassistDesktopRouter from './iassistDesktop';
+import agentsRouter from './agents';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.use('/corporate', corporateRouter);
 router.use('/admin', adminRouter);
 router.use('/student', studentRouter);
 router.use('/tools', toolsRouter);
+router.use('/agents', agentsRouter);
 router.use('/iassist/desktop', iassistDesktopRouter);
 router.use('/iassist', iassistRouter);
 
