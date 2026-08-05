@@ -20,11 +20,13 @@ const Login = () => {
   const location = useLocation();
 
   /* Where to go after signing in.
-     A visitor sent here mid-task (saving a résumé, exporting) returns to
-     exactly what they were doing — dropping them on a dashboard would lose
-     their place and imply work they haven't done. Only fall back to the
-     role's dashboard when they came to /login directly. */
+     Site users return to exactly what they were doing: they sign in mid-task
+     to save or export, and dropping them on a dashboard would lose their
+     place. Admins and students sign in to *work* — they expect their console,
+     so returning them to whatever marketing page they happened to be reading
+     is the wrong answer even though they were technically "sent here" from it. */
   const returnTo = (role: string) => {
+    if (role === 'admin' || role === 'student') return dashboardPathForRole(role as any);
     const from = (location.state as { from?: string } | null)?.from;
     return from && from !== '/login' ? from : dashboardPathForRole(role as any);
   };
