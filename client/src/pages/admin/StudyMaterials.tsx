@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Video, FileText, Plus, FolderSymlink, X, Trash2, Pencil } from 'lucide-react';
 import api from '../../services/api';
-import { extractDriveFileId } from '../../lib/drive';
+import { extractDriveFileId, isDriveFolderUrl } from '../../lib/drive';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
 const StudyMaterials = () => {
@@ -70,6 +70,13 @@ const StudyMaterials = () => {
       /* Admins copy the "Share → Copy link" URL out of Drive; the API wants a
          file ID. Accept either and derive the rest, so a pasted link doesn't
          silently save a material that can never be played. */
+      if (isDriveFolderUrl(form.driveFileId)) {
+        setShareWarning(
+          'That link points to a folder, not a file. Open the folder, click the individual ' +
+          'document or video, and copy the link from there.'
+        );
+        return;
+      }
       const fileId = extractDriveFileId(form.driveFileId);
       if (form.driveFileId.trim() && !fileId) {
         setShareWarning('That doesn\u2019t look like a Drive link or file ID. Students won\u2019t see anything.');

@@ -34,6 +34,18 @@ export function extractDriveFileId(input: string): string | null {
 }
 
 /**
+ * True for a link to a Drive FOLDER rather than a file.
+ *
+ * Worth catching by name: a folder ID and a file ID are the same shape, so a
+ * pasted folder ID cannot be told apart and ends up as /file/d/<folder>/preview,
+ * which Drive answers with "the file you have requested does not exist" — an
+ * error that looks like a broken site rather than the wrong kind of link.
+ */
+export function isDriveFolderUrl(input: string): boolean {
+  return /drive\.google\.com\/drive\/(u\/\d+\/)?folders\//i.test(input.trim());
+}
+
+/**
  * Drive's embedded viewer. Works for video, PDF, Docs and Slides alike, and
  * omits the download control — which is the whole basis of the "DRM-lite"
  * claim on the player.

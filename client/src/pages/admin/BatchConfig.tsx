@@ -319,7 +319,20 @@ const BatchConfig = () => {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-text-muted">Google Drive Folder Link</label>
+                <label className="text-xs font-semibold text-text-muted">
+                  Google Drive Folder Link <span className="font-normal opacity-70">· staff shortcut</span>
+                </label>
+                {/* This folder is a bookmark on the batch card for staff. It does
+                    NOT publish anything: students only ever see items added under
+                    Study Materials, one file at a time. Saying so here because a
+                    folder link pasted into a material renders as "file does not
+                    exist", which reads as a broken site. */}
+                <p className="mt-1 rounded-lg border border-line bg-bg-card px-3 py-2 text-[11px] leading-relaxed text-text-muted">
+                  Just a shortcut to the cohort&apos;s folder, shown on the batch card for staff.
+                  <strong className="text-strong"> Students never see this.</strong> To give them a
+                  document or recording, add it under <strong className="text-strong">Study
+                  Materials</strong> as an individual file link.
+                </p>
                 <input
                   type="url" placeholder="https://drive.google.com/drive/folders/..." value={form.driveFolder}
                   onChange={(e) => setForm({ ...form, driveFolder: e.target.value })}
