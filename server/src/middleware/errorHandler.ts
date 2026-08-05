@@ -36,6 +36,16 @@ export const errorHandler = (
     });
   }
 
+  /* express.json() rejects an oversized body with this before any handler
+     runs. Left unmapped it surfaces as a 500, so a user uploading a large CV
+     is told the server broke rather than that their file is too big. */
+  if (err?.type === 'entity.too.large' || err?.status === 413) {
+    return res.status(413).json({
+      success: false,
+      message: 'That file is too large. Please upload a document under 7 MB.',
+    });
+  }
+
   if (err instanceof ZodError) {
     return res.status(400).json({
       success: false,

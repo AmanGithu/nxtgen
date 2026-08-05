@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { AppError } from '../middleware/errorHandler';
 import { consumeGuestAction, peekGuestQuota, resetGuestQuota } from '../lib/guestQuota';
 import { withFallback } from '../services/resume/resumeAiService';
-import { extractPdfText, extractDocxText } from '../services/resume/textExtract';
+import { looksLikePdf, looksLikeDocx, extractPdfText, extractDocxText } from '../services/resume/textExtract';
 import { parseResumeText } from '../services/resume/parseResume';
 import { parseLinkedInText, looksLikeLinkedIn } from '../services/resume/parseLinkedIn';
 import { sanitizeResumeData } from '../services/resume/resumeData';
@@ -70,7 +70,23 @@ router.post('/import', async (req: Request, res: Response, next: NextFunction) =
     const isDocx =
       fileName.toLowerCase().endsWith('.docx') ||
       mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    const text = isDocx ? await extractDocxText(buffer) : await extractPdfText(buffer);
+
+    /* Check the bytes before parsing: the extractor throws on anything that
+       isn't really a document, which surfaced as a 500 rather than telling
+       the visitor their file was the problem. */
+    if (!(isDocx ? looksLikeDocx(buffer) : looksLikePdf(buffer))) {
+      throw new AppError(
+        "That file isn't a readable PDF or Word document. Please upload the original CV file.",
+        400
+      );
+    }
+
+    let text = '';
+    try {
+      text = isDocx ? await extractDocxText(buffer) : await extractPdfText(buffer);
+    } catch {
+      throw new AppError('We could not read that file. Please try a different PDF or Word document.', 400);
+    }
 
     if (text.trim().length < 40) {
       throw new AppError('Could not read enough text from that file. Try a text-based PDF or DOCX.', 400);

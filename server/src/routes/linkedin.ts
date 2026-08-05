@@ -4,7 +4,7 @@ import { optionalAuthenticate } from '../middleware/auth';
 import { consumeGuestAction, peekGuestQuota } from '../lib/guestQuota';
 import { AppError } from '../middleware/errorHandler';
 import { analyseLinkedIn } from '../services/linkedinAnalyser';
-import { extractPdfText, extractDocxText } from '../services/resume/textExtract';
+import { looksLikePdf, looksLikeDocx, extractPdfText, extractDocxText } from '../services/resume/textExtract';
 import { entitlementService } from '../services/entitlementService';
 import { FEATURE } from '../lib/entitlements';
 
@@ -38,7 +38,21 @@ const readUpload = async (base64: string, fileName = '', mimeType = '') => {
   const isDocx =
     fileName.toLowerCase().endsWith('.docx') ||
     mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  return isDocx ? extractDocxText(buffer) : extractPdfText(buffer);
+  /* Check the bytes before parsing. The extractor throws on anything that
+     only claims to be a document, and that reached the client as a 500 rather
+     than telling them their file was the problem. */
+  if (!(isDocx ? looksLikeDocx(buffer) : looksLikePdf(buffer))) {
+    throw new AppError(
+      "That file isn't a readable PDF or Word document. Upload the PDF that LinkedIn's \"Save to PDF\" produces.",
+      400
+    );
+  }
+
+  try {
+    return isDocx ? await extractDocxText(buffer) : await extractPdfText(buffer);
+  } catch {
+    throw new AppError('We could not read that file. Please try a different PDF.', 400);
+  }
 };
 
 router.post('/analyse', async (req: Request, res: Response, next: NextFunction) => {

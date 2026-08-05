@@ -4,6 +4,7 @@ import { BillingService } from './billingService';
 import { entitlementService } from './entitlementService';
 import { FEATURE } from '../lib/entitlements';
 import { logger } from '../lib/logger';
+import { AppError } from '../middleware/errorHandler';
 import {
   ResumeData,
   ResumeVariant,
@@ -11,7 +12,7 @@ import {
   sanitizeResumeData,
 } from './resume/resumeData';
 import { lockIdentity } from './resume/identityLock';
-import { extractPdfText, extractDocxText } from './resume/textExtract';
+import { extractPdfText, extractDocxText, looksLikePdf, looksLikeDocx } from './resume/textExtract';
 import { parseResumeText } from './resume/parseResume';
 import { parseLinkedInText, looksLikeLinkedIn } from './resume/parseLinkedIn';
 import { extractKeywords, scoreResume, scoreReadiness, type Prio } from './resume/ats';
@@ -173,13 +174,32 @@ export class ResumeService {
       parsing. Imports the resume exactly as written. */
   async importResume(userId: string, file: Buffer, fileName: string, mimeType: string, isLinkedIn: boolean) {
     const lower = fileName.toLowerCase();
+    const claimsPdf = lower.endsWith('.pdf') || mimeType === 'application/pdf';
+
+    /* Trust the bytes, not the name: a renamed file arrives looking like a
+       valid PDF and would otherwise import as a blank résumé — which on the
+       free plan also uses up the single slot. */
+    if (!(claimsPdf ? looksLikePdf(file) : looksLikeDocx(file))) {
+      throw new AppError(
+        'That file isn\'t a readable PDF or Word document. Please upload the original CV file.',
+        400
+      );
+    }
+
     let text = '';
     try {
-      text = lower.endsWith('.pdf') || mimeType === 'application/pdf'
-        ? await extractPdfText(file)
-        : await extractDocxText(file);
+      text = claimsPdf ? await extractPdfText(file) : await extractDocxText(file);
     } catch (e: any) {
       logger.warn(`Resume import: text extraction failed for ${fileName}: ${e.message}`);
+    }
+
+    /* A scanned or image-only PDF extracts nothing. Saying so beats handing
+       back an empty résumé and letting the user work out why. */
+    if (text.trim().length < 40) {
+      throw new AppError(
+        'We couldn\'t read any text from that file. If it is a scan or an image, please upload a text-based PDF or Word file instead.',
+        400
+      );
     }
 
     const useLinkedIn = isLinkedIn || (text.trim() ? looksLikeLinkedIn(text) : false);
