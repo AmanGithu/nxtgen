@@ -128,20 +128,20 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
     onClose();
   };
 
-  const inputClass = 'w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none';
+  const inputClass = 'w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="relative flex w-full max-w-3xl max-h-[85vh] flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-bg-surface shadow-2xl"
+        className="relative flex w-full max-w-3xl max-h-[85vh] flex-col overflow-hidden rounded-xl border border-line bg-bg-surface shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-white/[0.06] px-6 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-line-subtle px-6 py-4">
           <div className="flex min-w-0 items-start gap-2.5">
             <FileText size={16} className="mt-0.5 shrink-0 text-text-muted" />
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold text-white">
+              <h3 className="truncate text-sm font-semibold text-strong">
                 {loading ? 'Loading...' : doc?.title || 'Document'}
               </h3>
               {!editing && doc?.description && (
@@ -164,7 +164,7 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
                 <button
                   onClick={handleCopy}
                   title="Copy text"
-                  className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-white"
+                  className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-strong"
                 >
                   {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
                   {copied ? 'Copied' : 'Copy'}
@@ -172,20 +172,20 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
                 <button
                   onClick={startEditing}
                   title="Edit document"
-                  className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-white"
+                  className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-strong"
                 >
                   <Pencil size={13} /> Edit
                 </button>
                 <button
                   onClick={() => setConfirmDelete(true)}
                   title="Delete document"
-                  className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:border-red-500/30 hover:text-red-400"
+                  className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-text-muted transition-colors hover:border-red-500/30 hover:text-red-400"
                 >
                   <Trash2 size={13} /> Delete
                 </button>
               </>
             )}
-            <button onClick={onClose} className="p-1.5 text-text-muted transition-colors hover:text-white">
+            <button onClick={onClose} className="p-1.5 text-text-muted transition-colors hover:text-strong">
               <X size={18} />
             </button>
           </div>
@@ -196,7 +196,7 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
           {loading ? (
             <div className="animate-pulse space-y-2.5">
               {['w-full', 'w-11/12', 'w-full', 'w-4/5', 'w-full', 'w-3/4', 'w-full', 'w-2/3'].map((w, i) => (
-                <div key={i} className={`h-3 ${w} rounded bg-white/[0.06]`} />
+                <div key={i} className={`h-3 ${w} rounded bg-elevate`} />
               ))}
             </div>
           ) : error ? (
@@ -205,7 +205,7 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
               <p className="text-sm font-medium text-red-400">{error}</p>
               <button
                 onClick={load}
-                className="mt-4 flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-white"
+                className="mt-4 flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-strong"
               >
                 <RefreshCw size={14} /> Retry
               </button>
@@ -244,8 +244,8 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
                     className={`mt-1 resize-none font-mono text-xs leading-relaxed ${inputClass}`}
                   />
                 ) : (
-                  <p className="mt-1 rounded-lg border border-white/[0.06] bg-bg-card px-3 py-2.5 text-xs text-text-muted">
-                    This text was extracted from <span className="text-white">{doc?.fileName}</span> and can't be edited
+                  <p className="mt-1 rounded-lg border border-line-subtle bg-bg-card px-3 py-2.5 text-xs text-text-muted">
+                    This text was extracted from <span className="text-strong">{doc?.fileName}</span> and can't be edited
                     directly. To change it, delete this document and upload a new version.
                   </p>
                 )}
@@ -269,17 +269,17 @@ const DocumentViewerModal = ({ documentId, onClose, onChanged }: DocumentViewerM
 
         {/* Edit footer */}
         {editing && (
-          <div className="flex justify-end gap-3 border-t border-white/[0.06] px-6 py-4">
+          <div className="flex justify-end gap-3 border-t border-line-subtle px-6 py-4">
             <button
               onClick={() => setEditing(false)}
-              className="rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-white"
+              className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-strong"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !draftTitle.trim() || (isPasted && !draftContent.trim())}
-              className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-brand-orange/90 disabled:opacity-50"
+              className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand shadow-md transition-colors hover:bg-brand-orange/90 disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save changes'}
             </button>

@@ -35,7 +35,7 @@ const UnlockModal = () => {
   ];
 
   return (
-    <div className="space-y-8 p-6 text-white max-w-5xl mx-auto">
+    <div className="space-y-8 p-6 text-strong max-w-5xl mx-auto">
       <div className="text-center space-y-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-orange/10 px-4 py-1 text-xs font-semibold text-brand-orange">
           <Sparkles size={14} /> Unlock All Career Tools
@@ -52,24 +52,24 @@ const UnlockModal = () => {
             className={`flex flex-col justify-between rounded-xl border p-6 transition-all ${
               tier.highlighted
                 ? 'border-brand-orange bg-bg-surface shadow-xl ring-2 ring-brand-orange/50 scale-[1.02]'
-                : 'border-white/[0.08] bg-bg-surface hover:border-white/20'
+                : 'border-line bg-bg-surface hover:border-line-strong'
             }`}
           >
             <div className="space-y-4">
               {tier.highlighted && (
-                <span className="inline-block rounded bg-brand-orange px-2.5 py-0.5 text-[10px] font-bold uppercase text-white">
+                <span className="inline-block rounded bg-brand-orange px-2.5 py-0.5 text-[10px] font-bold uppercase text-on-brand">
                   Most Popular
                 </span>
               )}
-              <h3 className="font-display text-xl font-bold text-white">{tier.name}</h3>
+              <h3 className="font-display text-xl font-bold text-strong">{tier.name}</h3>
               <p className="text-xs text-text-muted">{tier.desc}</p>
               
               <div className="flex items-baseline">
-                <span className="font-display text-3xl font-bold text-white">{tier.price}</span>
+                <span className="font-display text-3xl font-bold text-strong">{tier.price}</span>
                 <span className="text-xs text-text-muted">{tier.period}</span>
               </div>
 
-              <ul className="space-y-2 border-t border-white/[0.08] pt-4 text-xs text-text-muted">
+              <ul className="space-y-2 border-t border-line pt-4 text-xs text-text-muted">
                 {tier.features.map((f, fidx) => (
                   <li key={fidx} className="flex items-center gap-2">
                     <Check size={14} className="text-brand-orange shrink-0" />
@@ -83,8 +83,8 @@ const UnlockModal = () => {
               onClick={() => alert(`Selected ${tier.name} plan!`)}
               className={`mt-6 w-full rounded-lg py-2.5 text-xs font-semibold shadow-md transition-colors ${
                 tier.highlighted
-                  ? 'bg-brand-orange text-white hover:bg-brand-orange/90'
-                  : 'border border-white/20 bg-bg-card text-white hover:bg-white/[0.08]'
+                  ? 'bg-brand-orange text-on-brand hover:bg-brand-orange/90'
+                  : 'border border-line-strong bg-bg-card text-strong hover:bg-elevate'
               }`}
             >
               {tier.buttonText}
@@ -98,7 +98,7 @@ const UnlockModal = () => {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Shield className="text-brand-orange" size={20} />
-            <h3 className="font-display text-xl font-bold text-white">Job Support Subscription — Exclusive Standalone</h3>
+            <h3 className="font-display text-xl font-bold text-strong">Job Support Subscription — Exclusive Standalone</h3>
           </div>
           <p className="text-xs text-text-muted max-w-xl">
             1-on-1 dedicated senior mentor support for technical interviews, code reviews, architectural guidance, and daily on-the-job task assist. (Not included in any tool package).
@@ -110,7 +110,7 @@ const UnlockModal = () => {
           <span className="text-xs text-text-muted"> / month</span>
           <button
             onClick={() => alert('Selected Standalone Job Support Subscription!')}
-            className="mt-2 block w-full rounded-lg bg-brand-orange px-6 py-2 text-xs font-semibold text-white shadow-lg hover:bg-brand-orange/90"
+            className="mt-2 block w-full rounded-lg bg-brand-orange px-6 py-2 text-xs font-semibold text-on-brand shadow-lg hover:bg-brand-orange/90"
           >
             Subscribe to Job Support →
           </button>

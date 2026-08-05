@@ -4,7 +4,27 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>client</title>
+    <title>NxtGen Academy</title>
+    <script>
+      /* Resolve the theme before first paint. Without this the page renders in
+         the :root default (dark) and then snaps to light once React mounts,
+         which is a visible white/black flash on every load for light users.
+         Kept inline and dependency-free so it runs ahead of the bundle. */
+      (function () {
+        try {
+          /* Keep this in sync with FOLLOW_SYSTEM in ThemeContext.tsx: set
+             followSystem to true to honour the OS for first-time visitors. */
+          var followSystem = false;
+          var stored = localStorage.getItem('theme');
+          var theme = stored === 'light' || stored === 'dark'
+            ? stored
+            : (followSystem && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

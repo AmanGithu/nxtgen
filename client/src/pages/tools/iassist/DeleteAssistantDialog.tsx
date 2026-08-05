@@ -39,19 +39,19 @@ const DeleteAssistantDialog = ({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-overlay backdrop-blur-sm p-4"
       onClick={e => { e.stopPropagation(); onCancel(); }}
     >
       <div
-        className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-bg-surface p-6 shadow-2xl"
+        className="w-full max-w-sm rounded-xl border border-line bg-bg-surface p-6 shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">
           <AlertTriangle size={20} className="mt-0.5 shrink-0 text-red-400" />
           <div className="min-w-0">
-            <h4 className="text-sm font-semibold text-white">Delete this assistant?</h4>
+            <h4 className="text-sm font-semibold text-strong">Delete this assistant?</h4>
             <p className="mt-1 text-xs text-text-muted">
-              <span className="text-white">{name}</span> and its attached context will be permanently removed. This
+              <span className="text-strong">{name}</span> and its attached context will be permanently removed. This
               can't be undone.
             </p>
           </div>
@@ -83,14 +83,14 @@ const DeleteAssistantDialog = ({
         <div className="mt-5 flex justify-end gap-3">
           <button
             onClick={onCancel}
-            className="rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-white"
+            className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-strong"
           >
             Cancel
           </button>
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-500/90 disabled:opacity-50"
+            className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-on-brand shadow-md transition-colors hover:bg-red-500/90 disabled:opacity-50"
           >
             {deleting ? 'Deleting...' : isLive ? 'Delete anyway' : 'Delete'}
           </button>

@@ -31,7 +31,10 @@ const InternshipPage = () => {
     phone: '',
     resumeFileName: '',
   });
+  const [resumeFile, setResumeFile] = useState<{ base64: string; name: string; type: string } | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [applyError, setApplyError] = useState('');
+  const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     fetchInternships();
@@ -55,27 +58,43 @@ const InternshipPage = () => {
     e.preventDefault();
     if (!selectedInternship) return;
 
+    setApplyError('');
+    setApplying(true);
     try {
       await internshipsAPI.apply({
         internshipId: selectedInternship.id,
         programTitle: selectedInternship.title,
-        fullName: applyForm.fullName,
-        email: applyForm.email,
-        phone: applyForm.phone,
+        fullName: applyForm.fullName.trim(),
+        email: applyForm.email.trim(),
+        phone: applyForm.phone.trim(),
+        ...(resumeFile
+          ? {
+              resumeBase64: resumeFile.base64,
+              resumeFileName: resumeFile.name,
+              resumeMimeType: resumeFile.type,
+            }
+          : {}),
       });
       setSubmitted(true);
       setTimeout(() => {
         setSubmitted(false);
         setSelectedInternship(null);
         setApplyForm({ fullName: '', email: '', phone: '', resumeFileName: '' });
+        setResumeFile(null);
       }, 2500);
-    } catch (err) {
+    } catch (err: any) {
+      // Surface the server's validation message — a silent console error just
+      // looks like a dead button to the applicant.
+      const details = err.response?.data?.errors?.[0]?.message;
+      setApplyError(details || err.response?.data?.message || 'Could not submit your application. Please try again.');
       console.error('Failed to submit application:', err);
+    } finally {
+      setApplying(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-bg-canvas py-12 text-white">
+    <div className="min-h-screen bg-bg-canvas py-12 text-strong">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
@@ -96,7 +115,7 @@ const InternshipPage = () => {
         {loading ? (
           <div className="space-y-8">
             {[1, 2].map((i) => (
-              <div key={i} className="h-64 animate-pulse rounded-xl bg-bg-surface border border-white/[0.08]" />
+              <div key={i} className="h-64 animate-pulse rounded-xl bg-bg-surface border border-line" />
             ))}
           </div>
         ) : (
@@ -104,7 +123,7 @@ const InternshipPage = () => {
             {internships.map((program) => (
               <div
                 key={program.id}
-                className="rounded-xl border border-white/[0.08] bg-bg-surface p-8 transition-all hover:border-brand-orange/40"
+                className="rounded-xl border border-line bg-bg-surface p-8 transition-all hover:border-brand-orange/40"
               >
                 <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                   <div className="space-y-4 max-w-3xl">
@@ -114,8 +133,8 @@ const InternshipPage = () => {
                       ) : (
                         <Cpu className="h-6 w-6 text-brand-orange" />
                       )}
-                      <h2 className="font-display text-2xl font-bold text-white">{program.title}</h2>
-                      <span className="rounded-full bg-white/[0.08] px-3 py-1 text-xs font-medium text-text-muted">
+                      <h2 className="font-display text-2xl font-bold text-strong">{program.title}</h2>
+                      <span className="rounded-full bg-elevate px-3 py-1 text-xs font-medium text-text-muted">
                         {program.duration}
                       </span>
                     </div>
@@ -130,8 +149,8 @@ const InternshipPage = () => {
                         </h4>
                         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                           {program.projectHighlights.map((proj, pidx) => (
-                            <div key={pidx} className="rounded-lg border border-white/[0.08] bg-bg-card p-4">
-                              <h5 className="font-bold text-white text-sm">🚀 {proj.title}</h5>
+                            <div key={pidx} className="rounded-lg border border-line bg-bg-card p-4">
+                              <h5 className="font-bold text-strong text-sm">🚀 {proj.title}</h5>
                               <p className="mt-1 text-xs text-text-muted">{proj.description}</p>
                             </div>
                           ))}
@@ -142,7 +161,7 @@ const InternshipPage = () => {
                     {/* Learning Outcomes */}
                     {program.learningOutcomes && (
                       <div className="mt-4">
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-white">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-strong">
                           Learning Outcomes:
                         </h4>
                         <ul className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -158,15 +177,15 @@ const InternshipPage = () => {
                   </div>
 
                   {/* Apply Sidebar */}
-                  <div className="flex flex-col items-center md:items-end justify-between border-t md:border-t-0 md:border-l border-white/[0.08] pt-6 md:pt-0 md:pl-8 min-w-[220px]">
+                  <div className="flex flex-col items-center md:items-end justify-between border-t md:border-t-0 md:border-l border-line pt-6 md:pt-0 md:pl-8 min-w-[220px]">
                     <div className="text-center md:text-right">
                       <span className="text-xs text-text-muted">Eligibility</span>
-                      <p className="text-xs font-semibold text-white mt-1 max-w-[200px]">{program.eligibility}</p>
+                      <p className="text-xs font-semibold text-strong mt-1 max-w-[200px]">{program.eligibility}</p>
                     </div>
 
                     <button
                       onClick={() => setSelectedInternship(program)}
-                      className="mt-6 w-full rounded-lg bg-brand-orange py-3 text-center text-sm font-semibold text-white shadow-lg transition-colors hover:bg-brand-orange/90"
+                      className="mt-6 w-full rounded-lg bg-brand-orange py-3 text-center text-sm font-semibold text-on-brand shadow-lg transition-colors hover:bg-brand-orange/90"
                     >
                       Apply Now →
                     </button>
@@ -181,17 +200,17 @@ const InternshipPage = () => {
 
       {/* ─── APPLY NOW POPUP MODAL WITH RESUME DROPZONE ─── */}
       {selectedInternship && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-xl border border-white/[0.08] bg-bg-surface p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-xl border border-line bg-bg-surface p-6 shadow-2xl">
             
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+            <div className="flex items-center justify-between border-b border-line pb-4">
               <div>
                 <span className="text-xs font-semibold text-brand-orange uppercase">Internship Application</span>
-                <h3 className="font-display text-lg font-bold text-white">{selectedInternship.title}</h3>
+                <h3 className="font-display text-lg font-bold text-strong">{selectedInternship.title}</h3>
               </div>
               <button
                 onClick={() => setSelectedInternship(null)}
-                className="text-text-muted hover:text-white"
+                className="text-text-muted hover:text-strong"
               >
                 <X size={20} />
               </button>
@@ -200,9 +219,9 @@ const InternshipPage = () => {
             {submitted ? (
               <div className="py-8 text-center">
                 <CheckCircle2 className="mx-auto h-12 w-12 text-brand-orange" />
-                <h4 className="mt-4 text-lg font-bold text-white">Application Submitted!</h4>
+                <h4 className="mt-4 text-lg font-bold text-strong">Application Submitted!</h4>
                 <p className="mt-2 text-sm text-text-muted">
-                  Thank you for applying for <strong className="text-white">{selectedInternship.title}</strong>. Our admissions panel will contact you within 24 hours.
+                  Thank you for applying for <strong className="text-strong">{selectedInternship.title}</strong>. Our admissions panel will contact you within 24 hours.
                 </p>
               </div>
             ) : (
@@ -215,7 +234,7 @@ const InternshipPage = () => {
                     placeholder="Jane Smith"
                     value={applyForm.fullName}
                     onChange={(e) => setApplyForm({ ...applyForm, fullName: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2.5 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2.5 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
                   />
                 </div>
 
@@ -227,7 +246,7 @@ const InternshipPage = () => {
                     placeholder="jane@example.com"
                     value={applyForm.email}
                     onChange={(e) => setApplyForm({ ...applyForm, email: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2.5 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2.5 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
                   />
                 </div>
 
@@ -236,17 +255,18 @@ const InternshipPage = () => {
                   <input
                     type="tel"
                     required
+                    minLength={5}
                     placeholder="+91 98765 43211"
                     value={applyForm.phone}
                     onChange={(e) => setApplyForm({ ...applyForm, phone: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2.5 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2.5 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
                   />
                 </div>
 
                 {/* Resume Dropzone */}
                 <div>
                   <label className="text-xs font-semibold text-text-muted">Upload Resume (PDF / DOCX)</label>
-                  <div className="mt-1 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-white/20 bg-bg-card p-6 text-center cursor-pointer hover:border-brand-orange transition-colors">
+                  <div className="mt-1 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-line-strong bg-bg-card p-6 text-center cursor-pointer hover:border-brand-orange transition-colors">
                     <Upload className="h-8 w-8 text-brand-orange" />
                     <p className="mt-2 text-xs text-text-muted">
                       {applyForm.resumeFileName || 'Drag and drop your resume PDF here, or click to browse'}
@@ -255,24 +275,40 @@ const InternshipPage = () => {
                       type="file"
                       accept=".pdf,.docx"
                       onChange={(e) => {
-                        if (e.target.files?.[0]) {
-                          setApplyForm({ ...applyForm, resumeFileName: e.target.files[0].name });
-                        }
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setApplyForm({ ...applyForm, resumeFileName: f.name });
+                        // Read now so submit doesn't have to wait on the reader.
+                        const reader = new FileReader();
+                        reader.onload = () =>
+                          setResumeFile({
+                            base64: (reader.result as string).split(',')[1],
+                            name: f.name,
+                            type: f.type,
+                          });
+                        reader.readAsDataURL(f);
                       }}
                       className="hidden"
                       id="resume-upload"
                     />
-                    <label htmlFor="resume-upload" className="mt-3 rounded-md bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 cursor-pointer">
+                    <label htmlFor="resume-upload" className="mt-3 rounded-md bg-elevate px-3 py-1.5 text-xs font-semibold text-strong hover:bg-elevate cursor-pointer">
                       Select File
                     </label>
                   </div>
                 </div>
 
+                {applyError && (
+                  <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
+                    {applyError}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  className="w-full rounded-lg bg-brand-orange py-3 text-sm font-semibold text-white hover:bg-brand-orange/90 shadow-lg"
+                  disabled={applying}
+                  className="w-full rounded-lg bg-brand-orange py-3 text-sm font-semibold text-on-brand hover:bg-brand-orange/90 shadow-lg disabled:opacity-60"
                 >
-                  Submit Application →
+                  {applying ? 'Submitting…' : 'Submit Application →'}
                 </button>
               </form>
             )}

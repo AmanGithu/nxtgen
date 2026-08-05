@@ -113,4 +113,39 @@ router.get('/schedule', async (req: Request, res: Response, next: NextFunction) 
   }
 });
 
+// Certifications applicable to the courses this student is enrolled in.
+router.get('/certifications', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const studentId = req.user!.id;
+
+    const enrollments = await prisma.batchStudent.findMany({
+      where: { studentId },
+      select: { batch: { select: { courseId: true, course: { select: { title: true } } } } },
+    });
+    const courseIds = [...new Set(enrollments.map((e) => e.batch.courseId))];
+
+    if (!courseIds.length) {
+      return res.json({ success: true, courses: [], certifications: [] });
+    }
+
+    const links = await prisma.courseCertification.findMany({
+      where: { courseId: { in: courseIds } },
+      include: {
+        certification: true,
+        course: { select: { id: true, title: true } },
+      },
+    });
+
+    res.json({
+      success: true,
+      courses: enrollments.map((e) => ({ id: e.batch.courseId, title: e.batch.course.title })),
+      certifications: links
+        .filter((l) => l.certification.isActive)
+        .map((l) => ({ ...l.certification, courseId: l.course.id, courseTitle: l.course.title })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

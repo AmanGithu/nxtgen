@@ -4,10 +4,10 @@ import { ArrowLeft, Clock, MessageSquare, Coins, Monitor, Mic, Bot, AlertTriangl
 import { iAssistAPI } from '../../../services/api';
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
-  BEHAVIORAL: 'bg-[#26215C] text-[#7F77DD]',
-  TECHNICAL: 'bg-[#04342C] text-[#1D9E75]',
-  SYSTEM_DESIGN: 'bg-[#4A1B0C] text-[#D85A30]',
-  GENERAL: 'bg-white/[0.06] text-[#888780] border border-white/[0.08]',
+  BEHAVIORAL: 'bg-cat-behavioral-bg text-cat-behavioral',
+  TECHNICAL: 'bg-cat-technical-bg text-cat-technical',
+  SYSTEM_DESIGN: 'bg-cat-design-bg text-cat-design',
+  GENERAL: 'bg-elevate text-cat-general border border-line',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -63,39 +63,39 @@ function renderMarkdownBold(text: string) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="text-white font-semibold">{part.slice(2, -2)}</strong>;
+      return <strong key={i} className="text-strong font-semibold">{part.slice(2, -2)}</strong>;
     }
     return <span key={i}>{part}</span>;
   });
 }
 
 const SessionDetailSkeleton = () => (
-  <div className="p-6 text-white max-w-5xl mx-auto space-y-6 animate-pulse">
-    <div className="h-4 w-32 rounded bg-white/[0.08]" />
+  <div className="p-6 text-strong max-w-5xl mx-auto space-y-6 animate-pulse">
+    <div className="h-4 w-32 rounded bg-elevate" />
     <div className="space-y-2">
       <div className="flex items-center gap-3">
-        <div className="h-7 w-48 rounded bg-white/[0.08]" />
-        <div className="h-5 w-20 rounded-md bg-white/[0.06]" />
+        <div className="h-7 w-48 rounded bg-elevate" />
+        <div className="h-5 w-20 rounded-md bg-elevate" />
       </div>
-      <div className="h-3 w-64 rounded bg-white/[0.06]" />
+      <div className="h-3 w-64 rounded bg-elevate" />
     </div>
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {[...Array(4)].map((_, i) => (
-        <div key={i} className="rounded-xl border border-white/[0.08] bg-bg-surface p-4 space-y-2">
-          <div className="h-4 w-4 mx-auto rounded bg-white/[0.06]" />
-          <div className="h-6 w-12 mx-auto rounded bg-white/[0.08]" />
-          <div className="h-3 w-16 mx-auto rounded bg-white/[0.06]" />
+        <div key={i} className="rounded-xl border border-line bg-bg-surface p-4 space-y-2">
+          <div className="h-4 w-4 mx-auto rounded bg-elevate" />
+          <div className="h-6 w-12 mx-auto rounded bg-elevate" />
+          <div className="h-3 w-16 mx-auto rounded bg-elevate" />
         </div>
       ))}
     </div>
-    <div className="h-4 w-24 rounded bg-white/[0.08]" />
+    <div className="h-4 w-24 rounded bg-elevate" />
     <div className="space-y-4">
       {[...Array(3)].map((_, i) => (
         <div key={i} className="flex gap-3">
-          <div className="h-7 w-7 rounded-full bg-white/[0.06]" />
+          <div className="h-7 w-7 rounded-full bg-elevate" />
           <div className="flex-1 space-y-2">
-            <div className="h-4 w-full max-w-md rounded bg-white/[0.08]" />
-            <div className="h-3 w-12 rounded bg-white/[0.06]" />
+            <div className="h-4 w-full max-w-md rounded bg-elevate" />
+            <div className="h-3 w-12 rounded bg-elevate" />
           </div>
         </div>
       ))}
@@ -126,8 +126,8 @@ const SessionDetail = () => {
 
   if (error) {
     return (
-      <div className="p-6 text-white max-w-5xl mx-auto">
-        <Link to="/dashboard/student/tools/i-assist" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-white transition-colors mb-6">
+      <div className="p-6 text-strong max-w-5xl mx-auto">
+        <Link to="/dashboard/student/tools/i-assist" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-strong transition-colors mb-6">
           <ArrowLeft size={16} /> Back to sessions
         </Link>
         <div className="flex flex-col items-center justify-center rounded-xl border border-red-500/20 bg-red-500/5 py-12 text-center">
@@ -135,7 +135,7 @@ const SessionDetail = () => {
           <p className="text-sm font-medium text-red-400">{error}</p>
           <button
             onClick={loadSession}
-            className="mt-4 flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted hover:text-white transition-colors"
+            className="mt-4 flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted hover:text-strong transition-colors"
           >
             <RefreshCw size={14} /> Retry
           </button>
@@ -146,11 +146,11 @@ const SessionDetail = () => {
 
   if (!session) {
     return (
-      <div className="p-6 text-white max-w-5xl mx-auto">
-        <Link to="/dashboard/student/tools/i-assist" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-white transition-colors mb-6">
+      <div className="p-6 text-strong max-w-5xl mx-auto">
+        <Link to="/dashboard/student/tools/i-assist" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-strong transition-colors mb-6">
           <ArrowLeft size={16} /> Back to sessions
         </Link>
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.12] py-12 text-center">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-line-strong py-12 text-center">
           <MessageSquare size={32} className="text-text-muted mb-3" />
           <p className="text-sm font-medium text-text-muted">Session not found</p>
           <p className="text-xs text-text-muted mt-1">This session may have been deleted or doesn't exist.</p>
@@ -171,9 +171,9 @@ const SessionDetail = () => {
   ];
 
   return (
-    <div className="p-6 text-white max-w-5xl mx-auto space-y-6">
+    <div className="p-6 text-strong max-w-5xl mx-auto space-y-6">
       {/* Back link */}
-      <Link to="/dashboard/student/tools/i-assist" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-white transition-colors">
+      <Link to="/dashboard/student/tools/i-assist" className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-strong transition-colors">
         <ArrowLeft size={16} /> Back to sessions
       </Link>
 
@@ -200,7 +200,7 @@ const SessionDetail = () => {
         {stats.map(stat => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className="rounded-xl border border-white/[0.08] bg-bg-surface p-4 text-center">
+            <div key={stat.label} className="rounded-xl border border-line bg-bg-surface p-4 text-center">
               <Icon size={16} className="mx-auto text-text-muted mb-2" />
               <p className="text-lg font-bold tabular-nums">{stat.value}</p>
               <p className="text-[10px] text-text-muted uppercase tracking-wider mt-0.5">{stat.label}</p>
@@ -214,11 +214,11 @@ const SessionDetail = () => {
         <h2 className="text-sm font-semibold mb-4">Transcript</h2>
 
         {qaPairs.length === 0 && session.transcripts.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/[0.12] py-12 text-center">
+          <div className="rounded-xl border border-dashed border-line-strong py-12 text-center">
             <p className="text-sm text-text-muted">No transcript entries recorded.</p>
           </div>
         ) : (
-          <div className="space-y-0 divide-y divide-white/[0.06]">
+          <div className="space-y-0 divide-y divide-line">
             {qaPairs.length > 0 ? (
               qaPairs.map(entry => (
                 <div key={entry.id} className="py-5 first:pt-0">
@@ -228,7 +228,7 @@ const SessionDetail = () => {
                       <Mic size={14} className="text-amber-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white">{entry.text}</p>
+                      <p className="text-sm text-strong">{entry.text}</p>
                       <p className="text-[10px] text-text-muted tabular-nums mt-1">{formatTimestamp(entry.timestamp)}</p>
                     </div>
                   </div>
@@ -239,7 +239,7 @@ const SessionDetail = () => {
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 mt-0.5">
                         <Bot size={14} className="text-emerald-400" />
                       </div>
-                      <div className="flex-1 min-w-0 rounded-lg border border-white/[0.06] bg-bg-card p-3">
+                      <div className="flex-1 min-w-0 rounded-lg border border-line-subtle bg-bg-card p-3">
                         <div className="text-sm text-text-muted leading-relaxed whitespace-pre-line">
                           {entry.response.split('\n').map((line, i) => (
                             <span key={i}>
@@ -266,7 +266,7 @@ const SessionDetail = () => {
                       }
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white">{entry.text}</p>
+                      <p className="text-sm text-strong">{entry.text}</p>
                       <p className="text-[10px] text-text-muted tabular-nums mt-1">{formatTimestamp(entry.timestamp)}</p>
                     </div>
                   </div>

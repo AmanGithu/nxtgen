@@ -16,10 +16,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
-  BEHAVIORAL: 'bg-[#26215C] text-[#7F77DD]',
-  TECHNICAL: 'bg-[#04342C] text-[#1D9E75]',
-  SYSTEM_DESIGN: 'bg-[#4A1B0C] text-[#D85A30]',
-  GENERAL: 'bg-white/[0.06] text-[#888780] border border-white/[0.08]',
+  BEHAVIORAL: 'bg-cat-behavioral-bg text-cat-behavioral',
+  TECHNICAL: 'bg-cat-technical-bg text-cat-technical',
+  SYSTEM_DESIGN: 'bg-cat-design-bg text-cat-design',
+  GENERAL: 'bg-elevate text-cat-general border border-line',
 };
 
 const CATEGORY_DOT_COLORS: Record<string, string> = {
@@ -124,7 +124,7 @@ const AssistantForm = ({ initial, onSave, onCancel, saving }: FormProps) => {
       </div>
 
       {/* Basics */}
-      <div className="rounded-xl border border-white/[0.08] bg-bg-surface p-5 space-y-4">
+      <div className="rounded-xl border border-line bg-bg-surface p-5 space-y-4">
         <p className="text-[10px] font-bold text-brand-orange uppercase tracking-wider">Basics</p>
 
         <div>
@@ -136,7 +136,7 @@ const AssistantForm = ({ initial, onSave, onCancel, saving }: FormProps) => {
             placeholder="e.g. Google SDE — Behavioral"
             required
             maxLength={100}
-            className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
+            className="mt-1 w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
           />
         </div>
 
@@ -152,7 +152,7 @@ const AssistantForm = ({ initial, onSave, onCancel, saving }: FormProps) => {
                 className={
                   category === cat
                     ? `rounded-lg px-3 py-1.5 text-xs font-semibold ${CATEGORY_BADGE_STYLES[cat]}`
-                    : 'rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted border border-white/[0.08] hover:border-white/[0.16] transition-colors'
+                    : 'rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted border border-line hover:border-line-strong transition-colors'
                 }
               >
                 {CATEGORY_LABELS[cat]}
@@ -163,7 +163,7 @@ const AssistantForm = ({ initial, onSave, onCancel, saving }: FormProps) => {
       </div>
 
       {/* Configuration */}
-      <div className="rounded-xl border border-white/[0.08] bg-bg-surface p-5 space-y-4">
+      <div className="rounded-xl border border-line bg-bg-surface p-5 space-y-4">
         <p className="text-[10px] font-bold text-brand-orange uppercase tracking-wider">Configuration</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -175,7 +175,7 @@ const AssistantForm = ({ initial, onSave, onCancel, saving }: FormProps) => {
               onChange={e => setTargetRole(e.target.value)}
               placeholder="e.g. Senior Backend Engineer"
               maxLength={100}
-              className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
             />
           </div>
           <div>
@@ -187,7 +187,7 @@ const AssistantForm = ({ initial, onSave, onCancel, saving }: FormProps) => {
               placeholder="e.g. 5"
               min={0}
               max={50}
-              className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
             />
           </div>
         </div>
@@ -200,20 +200,20 @@ const AssistantForm = ({ initial, onSave, onCancel, saving }: FormProps) => {
             placeholder="e.g. Focus on leadership examples from my time at Company X. Avoid generic answers."
             rows={3}
             maxLength={2000}
-            className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none resize-none"
+            className="mt-1 w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none resize-none"
           />
         </div>
       </div>
 
       {/* Footer */}
       <div className="flex justify-end gap-3">
-        <button type="button" onClick={onCancel} className="rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted hover:text-white transition-colors">
+        <button type="button" onClick={onCancel} className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted hover:text-strong transition-colors">
           Cancel
         </button>
         <button
           type="submit"
           disabled={!name.trim() || saving}
-          className="rounded-lg bg-brand-orange px-5 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-orange/90 transition-colors disabled:opacity-50"
+          className="rounded-lg bg-brand-orange px-5 py-2 text-sm font-semibold text-on-brand shadow-md hover:bg-brand-orange/90 transition-colors disabled:opacity-50"
         >
           {saving ? 'Saving...' : initial ? 'Save changes' : 'Create'}
         </button>
@@ -259,14 +259,14 @@ const AddMaterialModal = ({ role, onAdd, onClose, saving }: AddMaterialModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-bg-surface p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl border border-line bg-bg-surface p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Upload size={18} className="text-brand-orange" />
             <h3 className="text-sm font-semibold">Add {ROLE_LABELS[role]?.toLowerCase() || 'content'}</h3>
           </div>
-          <button onClick={onClose} className="text-text-muted hover:text-white transition-colors">
+          <button onClick={onClose} className="text-text-muted hover:text-strong transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -280,20 +280,20 @@ const AddMaterialModal = ({ role, onAdd, onClose, saving }: AddMaterialModalProp
               onChange={e => setTitle(e.target.value)}
               placeholder={role === 'RESUME' ? 'e.g. My Resume 2026' : role === 'JOB_DESCRIPTION' ? 'e.g. Google L5 Backend JD' : 'e.g. Company research notes'}
               maxLength={200}
-              className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
             />
           </div>
 
           <div>
             <label className="text-xs font-semibold text-text-muted">Content source *</label>
-            <div className="mt-1 flex gap-1 rounded-lg bg-bg-card p-1 border border-white/[0.08]">
+            <div className="mt-1 flex gap-1 rounded-lg bg-bg-card p-1 border border-line">
               <button
                 type="button"
                 onClick={() => setSource('document')}
                 className={
                   source === 'document'
                     ? 'flex-1 rounded-md bg-brand-orange/10 px-3 py-1.5 text-xs font-medium text-brand-orange'
-                    : 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium text-text-muted hover:text-white transition-colors'
+                    : 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium text-text-muted hover:text-strong transition-colors'
                 }
               >
                 From documents
@@ -304,7 +304,7 @@ const AddMaterialModal = ({ role, onAdd, onClose, saving }: AddMaterialModalProp
                 className={
                   source === 'direct'
                     ? 'flex-1 rounded-md bg-brand-orange/10 px-3 py-1.5 text-xs font-medium text-brand-orange'
-                    : 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium text-text-muted hover:text-white transition-colors'
+                    : 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium text-text-muted hover:text-strong transition-colors'
                 }
               >
                 Direct input
@@ -329,7 +329,7 @@ const AddMaterialModal = ({ role, onAdd, onClose, saving }: AddMaterialModalProp
                   <select
                     value={selectedDocId}
                     onChange={e => setSelectedDocId(e.target.value)}
-                    className="w-full appearance-none rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white focus:border-brand-orange focus:outline-none"
+                    className="w-full appearance-none rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong focus:border-brand-orange focus:outline-none"
                   >
                     <option value="">Choose a document...</option>
                     {documents.map(doc => (
@@ -349,19 +349,19 @@ const AddMaterialModal = ({ role, onAdd, onClose, saving }: AddMaterialModalProp
                 placeholder="Paste your content here..."
                 rows={6}
                 maxLength={50000}
-                className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none resize-none"
+                className="mt-1 w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none resize-none"
               />
             </div>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted hover:text-white transition-colors">
+            <button type="button" onClick={onClose} className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted hover:text-strong transition-colors">
               Cancel
             </button>
             <button
               type="submit"
               disabled={!canSubmit || saving}
-              className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-orange/90 transition-colors disabled:opacity-50"
+              className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand shadow-md hover:bg-brand-orange/90 transition-colors disabled:opacity-50"
             >
               {saving ? 'Adding...' : 'Add content'}
             </button>
@@ -496,7 +496,7 @@ const Assistants = () => {
   // ── Form view ──
   if (showForm) {
     return (
-      <div className="p-6 text-white max-w-5xl mx-auto space-y-6">
+      <div className="p-6 text-strong max-w-5xl mx-auto space-y-6">
         <AssistantForm
           initial={editingAssistant}
           onSave={editingAssistant ? handleUpdate : handleCreate}
@@ -509,7 +509,7 @@ const Assistants = () => {
 
   // ── List view ──
   return (
-    <div className="p-6 text-white max-w-5xl mx-auto space-y-6">
+    <div className="p-6 text-strong max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -519,7 +519,7 @@ const Assistants = () => {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-white/[0.08]">
+      <div className="flex gap-1 border-b border-line">
         {tabs.map(tab => {
           const isActive = tab.label === 'Assistants';
           return (
@@ -529,7 +529,7 @@ const Assistants = () => {
               className={
                 isActive
                   ? 'px-4 py-2.5 text-sm font-medium text-brand-orange border-b-2 border-brand-orange -mb-px'
-                  : 'px-4 py-2.5 text-sm font-medium text-text-muted hover:text-white transition-colors'
+                  : 'px-4 py-2.5 text-sm font-medium text-text-muted hover:text-strong transition-colors'
               }
             >
               {tab.label}
@@ -546,7 +546,7 @@ const Assistants = () => {
         </div>
         <button
           onClick={() => { setEditingAssistant(null); setShowForm(true); }}
-          className="flex items-center gap-1.5 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-orange/90 transition-colors"
+          className="flex items-center gap-1.5 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand shadow-md hover:bg-brand-orange/90 transition-colors"
         >
           <Plus size={16} /> New
         </button>
@@ -556,23 +556,23 @@ const Assistants = () => {
       {loading ? (
         <div className="space-y-4 animate-pulse">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="rounded-xl border border-white/[0.08] bg-bg-surface overflow-hidden">
+            <div key={i} className="rounded-xl border border-line bg-bg-surface overflow-hidden">
               <div className="p-5">
                 <div className="flex items-center gap-3">
-                  <div className="h-2.5 w-2.5 rounded-full bg-white/[0.08]" />
-                  <div className="h-4 w-44 rounded bg-white/[0.08]" />
-                  <div className="h-5 w-20 rounded-md bg-white/[0.06]" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-elevate" />
+                  <div className="h-4 w-44 rounded bg-elevate" />
+                  <div className="h-5 w-20 rounded-md bg-elevate" />
                 </div>
-                <div className="h-3 w-64 rounded bg-white/[0.06] mt-2 ml-[22px]" />
+                <div className="h-3 w-64 rounded bg-elevate mt-2 ml-[22px]" />
               </div>
-              <div className="border-t border-white/[0.06] bg-white/[0.02] px-5 py-4 space-y-2">
-                <div className="h-3 w-24 rounded bg-white/[0.06]" />
-                <div className="h-9 w-full rounded-lg bg-white/[0.04]" />
-                <div className="h-9 w-full rounded-lg bg-white/[0.04]" />
+              <div className="border-t border-line-subtle bg-elevate px-5 py-4 space-y-2">
+                <div className="h-3 w-24 rounded bg-elevate" />
+                <div className="h-9 w-full rounded-lg bg-elevate" />
+                <div className="h-9 w-full rounded-lg bg-elevate" />
               </div>
-              <div className="border-t border-white/[0.06] px-5 py-3 flex gap-4">
-                <div className="h-3 w-24 rounded bg-white/[0.06]" />
-                <div className="h-3 w-20 rounded bg-white/[0.06]" />
+              <div className="border-t border-line-subtle px-5 py-3 flex gap-4">
+                <div className="h-3 w-24 rounded bg-elevate" />
+                <div className="h-3 w-20 rounded bg-elevate" />
               </div>
             </div>
           ))}
@@ -582,20 +582,20 @@ const Assistants = () => {
           <AlertTriangle size={32} className="text-red-400 mb-3" />
           <p className="text-sm font-medium text-red-400">{error}</p>
           <button
-            onClick={loadAssistants}
-            className="mt-4 flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted hover:text-white transition-colors"
+            onClick={() => loadAssistants()}
+            className="mt-4 flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted hover:text-strong transition-colors"
           >
             <RefreshCw size={14} /> Retry
           </button>
         </div>
       ) : assistants.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.12] py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-line-strong py-16 text-center">
           <Briefcase size={40} className="text-text-muted mb-3" />
           <p className="text-sm font-medium text-text-muted">No assistants yet</p>
           <p className="text-xs text-text-muted mt-1 mb-4">Create your first assistant to get started with interview prep.</p>
           <button
             onClick={() => { setEditingAssistant(null); setShowForm(true); }}
-            className="flex items-center gap-1.5 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-orange/90 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand shadow-md hover:bg-brand-orange/90 transition-colors"
           >
             <Plus size={16} /> New assistant
           </button>
@@ -609,7 +609,7 @@ const Assistants = () => {
             const extraMaterials = ast.materials.filter(m => m.role === 'MATERIAL');
 
             return (
-              <div key={ast.id} className="rounded-xl border border-white/[0.08] bg-bg-surface overflow-hidden">
+              <div key={ast.id} className="rounded-xl border border-line bg-bg-surface overflow-hidden">
                 {/* Card header */}
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -642,7 +642,7 @@ const Assistants = () => {
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => { setEditingAssistant(ast); setShowForm(true); }}
-                        className="p-1.5 rounded text-text-muted hover:text-white transition-colors"
+                        className="p-1.5 rounded text-text-muted hover:text-strong transition-colors"
                       >
                         <Pencil size={14} />
                       </button>
@@ -658,7 +658,7 @@ const Assistants = () => {
                 </div>
 
                 {/* Attached context */}
-                <div className="border-t border-white/[0.06] bg-white/[0.02] px-5 py-4 space-y-2">
+                <div className="border-t border-line-subtle bg-elevate px-5 py-4 space-y-2">
                   <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Attached context</p>
 
                   {/* Resume slot */}
@@ -672,7 +672,7 @@ const Assistants = () => {
                   ) : (
                     <button
                       onClick={() => setMaterialModal({ assistantId: ast.id, role: 'RESUME' })}
-                      className="w-full flex items-center gap-2 rounded-lg border border-dashed border-[#7F77DD]/30 px-3 py-2 text-xs text-[#7F77DD] hover:border-[#7F77DD]/60 transition-colors"
+                      className="w-full flex items-center gap-2 rounded-lg border border-dashed border-cat-behavioral/30 px-3 py-2 text-xs text-cat-behavioral hover:border-cat-behavioral/60 transition-colors"
                     >
                       <Plus size={14} /> Attach resume
                     </button>
@@ -689,7 +689,7 @@ const Assistants = () => {
                   ) : (
                     <button
                       onClick={() => setMaterialModal({ assistantId: ast.id, role: 'JOB_DESCRIPTION' })}
-                      className="w-full flex items-center gap-2 rounded-lg border border-dashed border-white/[0.12] px-3 py-2 text-xs text-text-muted hover:border-white/[0.24] transition-colors"
+                      className="w-full flex items-center gap-2 rounded-lg border border-dashed border-line-strong px-3 py-2 text-xs text-text-muted hover:border-line-strong transition-colors"
                     >
                       <Plus size={14} /> Attach job description
                     </button>
@@ -709,14 +709,14 @@ const Assistants = () => {
                   {/* Add material button */}
                   <button
                     onClick={() => setMaterialModal({ assistantId: ast.id, role: 'MATERIAL' })}
-                    className="w-full flex items-center gap-2 rounded-lg border border-dashed border-white/[0.12] px-3 py-2 text-xs text-text-muted hover:border-white/[0.24] transition-colors"
+                    className="w-full flex items-center gap-2 rounded-lg border border-dashed border-line-strong px-3 py-2 text-xs text-text-muted hover:border-line-strong transition-colors"
                   >
                     <Plus size={14} /> Add material
                   </button>
                 </div>
 
                 {/* Card footer */}
-                <div className="border-t border-white/[0.06] px-5 py-3 flex items-center gap-4 text-[11px] text-text-muted">
+                <div className="border-t border-line-subtle px-5 py-3 flex items-center gap-4 text-[11px] text-text-muted">
                   {ast.lastUsedAt && (
                     <span className="flex items-center gap-1">
                       <Clock size={12} /> Last used {timeAgo(ast.lastUsedAt)}
@@ -802,7 +802,7 @@ const MaterialRow = ({ material, onRemove, onView, onReplace }: {
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg bg-bg-card border border-white/[0.06] px-3 py-2">
+    <div className="flex items-center gap-3 rounded-lg bg-bg-card border border-line-subtle px-3 py-2">
       <Icon size={14} className="shrink-0 text-text-muted" />
       {material.documentId ? (
         <button
@@ -814,7 +814,7 @@ const MaterialRow = ({ material, onRemove, onView, onReplace }: {
           {material.title}
         </button>
       ) : (
-        <span className="flex-1 text-xs text-white truncate">{material.title}</span>
+        <span className="flex-1 text-xs text-strong truncate">{material.title}</span>
       )}
       <span className="shrink-0 text-[10px] text-text-muted">
         {material.documentId ? 'From documents' : 'Direct input'}

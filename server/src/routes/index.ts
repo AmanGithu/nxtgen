@@ -8,8 +8,14 @@ import corporateRouter from './corporate';
 import adminRouter from './admin';
 import studentRouter from './student';
 import toolsRouter from './tools';
+import siteRouter from './site';
+import resumeRouter from './resume';
+import linkedinRouter from './linkedin';
+import guestRouter from './guest';
+import billingRouter from './billing';
 import iassistRouter from './iassist';
 import iassistDesktopRouter from './iassistDesktop';
+import agentsRouter from './agents';
 
 const router = Router();
 
@@ -22,6 +28,12 @@ router.use('/corporate', corporateRouter);
 router.use('/admin', adminRouter);
 router.use('/student', studentRouter);
 router.use('/tools', toolsRouter);
+router.use('/site', siteRouter);
+router.use('/resumes', resumeRouter);
+router.use('/linkedin', linkedinRouter);
+router.use('/guest', guestRouter);
+router.use('/billing', billingRouter);
+router.use('/agents', agentsRouter);
 router.use('/iassist/desktop', iassistDesktopRouter);
 router.use('/iassist', iassistRouter);
 

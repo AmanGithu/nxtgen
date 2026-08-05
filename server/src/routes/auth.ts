@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma';
 import { env } from '../config/env';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate } from '../middleware/auth';
+import { loginLimiter, registerLimiter } from '../middleware/rateLimit';
 import { sendPasswordResetEmail } from '../services/emailService';
 import crypto from 'crypto';
 
@@ -33,7 +34,7 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
 
@@ -45,6 +46,12 @@ router.post('/login', async (req, res, next) => {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       throw new AppError('Invalid credentials', 401);
+    }
+
+    /* Without this a suspended account can simply log in again and carry on —
+       the admin's suspend action would change a column and nothing else. */
+    if (user.status !== 'ACTIVE') {
+      throw new AppError('This account has been suspended. Please contact support.', 403);
     }
 
     const tokens = generateTokens(user);
@@ -73,14 +80,27 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+/* Length alone let "password" through, and z.string() accepts "" — which
+   created accounts with no name at all, showing as a blank avatar and an
+   empty greeting throughout the app. */
+const COMMON_PASSWORDS = new Set([
+  'password', 'password1', 'password123', '12345678', '123456789', 'qwerty123',
+  'iloveyou', 'admin123', 'welcome1', 'letmein1', 'abc12345', 'football',
+]);
+
 const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  firstName: z.string(),
-  lastName: z.string(),
+  email: z.string().trim().toLowerCase().email().max(180),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters.')
+    .max(200)
+    .refine((v) => !COMMON_PASSWORDS.has(v.toLowerCase()), 'That password is too common.')
+    .refine((v) => /[a-zA-Z]/.test(v) && /[0-9]/.test(v), 'Password needs at least one letter and one number.'),
+  firstName: z.string().trim().min(1, 'First name is required.').max(80),
+  lastName: z.string().trim().min(1, 'Last name is required.').max(80),
 });
 
-router.post('/register', async (req, res, next) => {
+router.post('/register', registerLimiter, async (req, res, next) => {
   try {
     const data = registerSchema.parse(req.body);
 
@@ -329,7 +349,7 @@ router.post('/forgot-password', async (req, res, next) => {
   }
 });
 
-router.post('/refresh', async (req, res, next) => {
+router.post('/refresh', loginLimiter, async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) throw new AppError('Refresh token required', 400);
@@ -342,14 +362,26 @@ router.post('/refresh', async (req, res, next) => {
     const decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { id: string };
     const user = await prisma.user.findUnique({ where: { id: decoded.id } });
     if (!user) throw new AppError('User not found', 404);
+    if (user.status !== 'ACTIVE') {
+      throw new AppError('This account has been suspended.', 403);
+    }
 
-    const accessToken = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_IN as any }
-    );
+    /* Rotate: the presented token is consumed and replaced. Without this a
+       refresh token is a permanent credential — anyone who captures one keeps
+       minting access tokens forever, and signing out cannot revoke it. */
+    const tokens = generateTokens(user);
+    await prisma.$transaction([
+      prisma.session.delete({ where: { id: session.id } }),
+      prisma.session.create({
+        data: {
+          userId: user.id,
+          refreshToken: tokens.refreshToken,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      }),
+    ]);
 
-    res.json({ success: true, accessToken });
+    res.json({ success: true, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   } catch (error) {
     next(error);
   }
@@ -371,6 +403,34 @@ router.get('/me', authenticate, async (req, res, next) => {
     });
     if (!user) throw new AppError('User not found', 404);
     res.json({ success: true, user });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Sign out — revokes the refresh token server-side.
+ *
+ * Clearing localStorage alone leaves the refresh token valid, so a captured
+ * one still works after the user believes they have signed out.
+ */
+router.post('/logout', async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body ?? {};
+    if (refreshToken) {
+      await prisma.session.deleteMany({ where: { refreshToken } });
+    }
+    res.json({ success: true, message: 'Signed out.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** Revoke every session for the current user — "sign out everywhere". */
+router.post('/logout-all', authenticate, async (req, res, next) => {
+  try {
+    await prisma.session.deleteMany({ where: { userId: (req as any).user.id } });
+    res.json({ success: true, message: 'Signed out on all devices.' });
   } catch (error) {
     next(error);
   }

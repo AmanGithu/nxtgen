@@ -10,11 +10,19 @@ import { sessionService } from './services/iassist/sessionService';
 
 const app = express();
 
+/* Behind a reverse proxy (Render, nginx) req.ip is the proxy's address unless
+   this is set, which would make every rate limit apply to all users at once.
+   'loopback, linklocal, uniquelocal' trusts only private hops, not arbitrary
+   X-Forwarded-For headers from the internet. */
+app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+
 app.use(cors({
   origin: env.CLIENT_URL,
   credentials: true,
 }));
-// Audio chunks are posted as base64 JSON to /iassist/transcribe (up to ~7MB of base64)
+// Base64 JSON bodies blow past the 100kb default: audio chunks posted to
+// /iassist/transcribe (up to ~7MB of base64), and resume/LinkedIn imports
+// (a 200kb PDF arrives as ~290kb of body).
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

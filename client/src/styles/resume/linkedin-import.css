@@ -1,0 +1,30 @@
+/* ============================================================
+   Shared "Import from LinkedIn" dialog styles.
+   Used by both the onboarding chooser and the dashboard import
+   flow. The dialog shell (.dialog / .dialog-overlay / .dialog__*)
+   lives in design-system.css — these are the LinkedIn-specific bits.
+   ============================================================ */
+
+/* one-click jump to the user's own LinkedIn profile */
+.li-open { display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: var(--space-4); padding: 11px 14px; border-radius: var(--radius-lg); text-decoration: none; font-size: var(--text-sm); font-weight: 600; color: #fff; background: #0a66c2; border: 1px solid #0a66c2; transition: background .12s ease; }
+.li-open:hover { background: #004182; }
+.li-open__logo { width: 20px; height: 20px; flex: none; }
+.li-open__ext { width: 15px; height: 15px; flex: none; margin-left: auto; opacity: .85; }
+.li-steps { margin: 0 0 var(--space-4); padding-left: 20px; display: flex; flex-direction: column; gap: 7px; counter-reset: li; }
+.li-steps li { font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.5; }
+.li-steps li b { color: var(--text); font-weight: 600; }
+.li-note { display: flex; align-items: flex-start; gap: 8px; margin-top: var(--space-3); font-size: var(--text-xs); color: var(--text-muted); line-height: 1.5; }
+.li-note svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--text-muted); }
+.li-note b { color: var(--text-secondary); font-weight: 600; }
+
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  text-align: center; padding: var(--space-6); cursor: pointer;
+  border: 1.5px dashed var(--border-strong); border-radius: var(--radius-lg);
+  background: var(--surface-subtle); transition: border-color .15s, background .15s;
+}
+.dropzone:hover, .dropzone.is-over { border-color: var(--primary); background: var(--primary-50); }
+.dropzone svg { width: 26px; height: 26px; color: var(--primary); }
+.dropzone__txt { font-size: var(--text-sm); color: var(--text-secondary); }
+.dropzone__txt b { color: var(--primary-700); font-weight: 600; }
+.dropzone__hint { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); }

@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../config/env';
+import { enqueueAiTask } from '../lib/aiQueue';
 
 const apiKey = env.GEMINI_API_KEY || 'demo';
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -17,18 +18,26 @@ export const aiService = {
       return this.getFallbackTextResponse(prompt);
     }
 
+    // Every Gemini call in the app reaches this method, so the queue is
+    // applied here once rather than at each of the ~15 call sites. It caps
+    // concurrency and retries 429/503s with backoff before we give up and
+    // try the fallback model.
     try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return response.text();
+      return await enqueueAiTask(`generateText:${modelName}`, async () => {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text();
+      });
     } catch (primaryError) {
       console.warn(`Primary Gemini model (${modelName}) failed, attempting fallback (${FALLBACK_MODEL}):`, primaryError);
       try {
-        const fallbackModel = genAI.getGenerativeModel({ model: FALLBACK_MODEL });
-        const result = await fallbackModel.generateContent(prompt);
-        const response = await result.response;
-        return response.text();
+        return await enqueueAiTask(`generateText:${FALLBACK_MODEL}`, async () => {
+          const fallbackModel = genAI.getGenerativeModel({ model: FALLBACK_MODEL });
+          const result = await fallbackModel.generateContent(prompt);
+          const response = await result.response;
+          return response.text();
+        });
       } catch (fallbackError) {
         console.error('All Gemini AI model attempts failed, falling back to mock generator:', fallbackError);
         return this.getFallbackTextResponse(prompt);
@@ -111,7 +120,15 @@ export const aiService = {
         ]
       });
     }
-    return '{"status": "ok"}';
+    /* Last resort. The old catch-all returned '{"status":"ok"}', which got
+       written straight into a user's résumé when the model was unavailable.
+       Never emit JSON here: callers that want structured data go through
+       generateJSON, and everything else renders this as prose. */
+    if (/summary|profile|about/i.test(prompt)) {
+      return 'Experienced professional with a track record of delivering measurable results. ' +
+        'Add two or three sentences describing what you do, who you do it for, and your strongest outcome.';
+    }
+    return 'The AI service is unavailable right now — please try again in a moment.';
   },
 
   async enhanceBulletPoint(bullet: string, mode: 'stronger' | 'shorten' | 'metrics' = 'stronger'): Promise<string> {

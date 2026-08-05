@@ -81,7 +81,7 @@ const Certifications = () => {
   const providers = ['Amazon Web Services', 'Microsoft', 'Google Cloud', 'Databricks', 'DeepLearning.AI', 'Oracle', 'EnterpriseDB'];
 
   return (
-    <div className="min-h-screen bg-bg-canvas py-12 text-white">
+    <div className="min-h-screen bg-bg-canvas py-12 text-strong">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
@@ -95,7 +95,7 @@ const Certifications = () => {
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-white/[0.08] bg-bg-surface p-4">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-line bg-bg-surface p-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
             <input
@@ -103,7 +103,7 @@ const Certifications = () => {
               placeholder="Search certifications by name or skill..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="w-full rounded-lg border border-white/[0.08] bg-bg-card pl-10 pr-4 py-2.5 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+              className="w-full rounded-lg border border-line bg-bg-card pl-10 pr-4 py-2.5 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
             />
           </div>
 
@@ -111,7 +111,7 @@ const Certifications = () => {
             <select
               value={providerFilter}
               onChange={(e) => { setProviderFilter(e.target.value); setPage(1); }}
-              className="rounded-lg border border-white/[0.08] bg-bg-card px-4 py-2.5 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+              className="rounded-lg border border-line bg-bg-card px-4 py-2.5 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
             >
               <option value="">All Providers</option>
               {providers.map((p) => (
@@ -125,7 +125,7 @@ const Certifications = () => {
         {loading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-56 animate-pulse rounded-xl bg-bg-surface border border-white/[0.08]" />
+              <div key={i} className="h-56 animate-pulse rounded-xl bg-bg-surface border border-line" />
             ))}
           </div>
         ) : (
@@ -134,7 +134,7 @@ const Certifications = () => {
               {certifications.map((cert) => (
                 <div
                   key={cert.id}
-                  className="flex flex-col justify-between rounded-xl border border-white/[0.08] bg-bg-surface p-6 transition-all hover:border-brand-orange/40 hover:scale-[1.01]"
+                  className="flex flex-col justify-between rounded-xl border border-line bg-bg-surface p-6 transition-all hover:border-brand-orange/40 hover:scale-[1.01]"
                 >
                   <div>
                     <div className="flex items-center justify-between">
@@ -147,28 +147,28 @@ const Certifications = () => {
                           href={cert.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-text-muted hover:text-white"
+                          className="text-text-muted hover:text-strong"
                         >
                           <ExternalLink size={16} />
                         </a>
                       )}
                     </div>
 
-                    <h3 className="mt-3 font-display text-lg font-bold text-white">
+                    <h3 className="mt-3 font-display text-lg font-bold text-strong">
                       {cert.name}
                     </h3>
                     
                     {cert.prerequisite && (
                       <p className="mt-2 text-xs text-text-muted">
-                        <strong className="text-white font-medium">Prerequisite:</strong> {cert.prerequisite}
+                        <strong className="text-strong font-medium">Prerequisite:</strong> {cert.prerequisite}
                       </p>
                     )}
                   </div>
 
-                  <div className="mt-6 border-t border-white/[0.08] pt-4">
+                  <div className="mt-6 border-t border-line pt-4">
                     <button
                       onClick={() => setSelectedCertForModal(cert)}
-                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-orange/10 px-4 py-2 text-sm font-semibold text-brand-orange hover:bg-brand-orange hover:text-white transition-colors"
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-orange/10 px-4 py-2 text-sm font-semibold text-brand-orange hover:bg-brand-orange hover:text-on-brand transition-colors"
                     >
                       <MessageSquare size={16} />
                       Contact Us for Prep Guidance
@@ -180,7 +180,7 @@ const Certifications = () => {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="mt-8 flex items-center justify-between border-t border-white/[0.08] pt-6">
+              <div className="mt-8 flex items-center justify-between border-t border-line pt-6">
                 <p className="text-xs text-text-muted">
                   Showing page {page} of {totalPages} ({totalCount} total certifications)
                 </p>
@@ -188,14 +188,14 @@ const Certifications = () => {
                   <button
                     disabled={page === 1}
                     onClick={() => setPage(page - 1)}
-                    className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40 hover:bg-white/[0.08]"
+                    className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-strong disabled:opacity-40 hover:bg-elevate"
                   >
                     Previous
                   </button>
                   <button
                     disabled={page === totalPages}
                     onClick={() => setPage(page + 1)}
-                    className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40 hover:bg-white/[0.08]"
+                    className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-strong disabled:opacity-40 hover:bg-elevate"
                   >
                     Next
                   </button>
@@ -209,17 +209,17 @@ const Certifications = () => {
 
       {/* ─── CONTACT US INQUIRY POPUP MODAL ─── */}
       {selectedCertForModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-bg-surface p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-xl border border-line bg-bg-surface p-6 shadow-2xl">
             
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+            <div className="flex items-center justify-between border-b border-line pb-4">
               <div>
                 <span className="text-xs font-semibold text-brand-orange uppercase">Certification Prep Inquiry</span>
-                <h3 className="font-display text-lg font-bold text-white">{selectedCertForModal.name}</h3>
+                <h3 className="font-display text-lg font-bold text-strong">{selectedCertForModal.name}</h3>
               </div>
               <button
                 onClick={() => setSelectedCertForModal(null)}
-                className="text-text-muted hover:text-white"
+                className="text-text-muted hover:text-strong"
               >
                 <X size={20} />
               </button>
@@ -228,7 +228,7 @@ const Certifications = () => {
             {submitted ? (
               <div className="py-8 text-center">
                 <CheckCircle2 className="mx-auto h-12 w-12 text-brand-orange" />
-                <h4 className="mt-4 text-lg font-bold text-white">Inquiry Received!</h4>
+                <h4 className="mt-4 text-lg font-bold text-strong">Inquiry Received!</h4>
                 <p className="mt-2 text-sm text-text-muted">
                   Our certification experts will send you exam prep notes and voucher details shortly.
                 </p>
@@ -243,7 +243,7 @@ const Certifications = () => {
                     placeholder="Jane Smith"
                     value={inquiryForm.userName}
                     onChange={(e) => setInquiryForm({ ...inquiryForm, userName: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2.5 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2.5 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
                   />
                 </div>
 
@@ -255,7 +255,7 @@ const Certifications = () => {
                     placeholder="jane@example.com"
                     value={inquiryForm.userEmail}
                     onChange={(e) => setInquiryForm({ ...inquiryForm, userEmail: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2.5 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2.5 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
                   />
                 </div>
 
@@ -266,7 +266,7 @@ const Certifications = () => {
                     placeholder="+91 98765 43211"
                     value={inquiryForm.userPhone}
                     onChange={(e) => setInquiryForm({ ...inquiryForm, userPhone: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2.5 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2.5 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
                   />
                 </div>
 
@@ -277,13 +277,13 @@ const Certifications = () => {
                     placeholder="Ask about exam voucher discounts or practice test access..."
                     value={inquiryForm.message}
                     onChange={(e) => setInquiryForm({ ...inquiryForm, message: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2.5 text-sm text-white focus:border-brand-orange focus:outline-hidden"
+                    className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2.5 text-sm text-strong focus:border-brand-orange focus:outline-hidden"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full rounded-lg bg-brand-orange py-2.5 text-sm font-semibold text-white hover:bg-brand-orange/90"
+                  className="w-full rounded-lg bg-brand-orange py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-orange/90"
                 >
                   Submit Certification Inquiry
                 </button>

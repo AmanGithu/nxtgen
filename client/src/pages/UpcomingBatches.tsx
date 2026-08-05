@@ -50,7 +50,7 @@ const UpcomingBatches = () => {
   };
 
   return (
-    <div className="min-h-screen bg-bg-canvas py-12 text-white">
+    <div className="min-h-screen bg-bg-canvas py-12 text-strong">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
         <div className="mb-12 text-center">
@@ -69,7 +69,7 @@ const UpcomingBatches = () => {
         {loading ? (
           <div className="space-y-6">
             {[1, 2].map((i) => (
-              <div key={i} className="h-44 animate-pulse rounded-xl bg-bg-surface border border-white/[0.08]" />
+              <div key={i} className="h-44 animate-pulse rounded-xl bg-bg-surface border border-line" />
             ))}
           </div>
         ) : (
@@ -77,7 +77,7 @@ const UpcomingBatches = () => {
             {batches.map((batch) => (
               <div
                 key={batch.id}
-                className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between rounded-xl border border-white/[0.08] bg-bg-surface p-6 transition-all hover:border-brand-orange/40"
+                className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between rounded-xl border border-line bg-bg-surface p-6 transition-all hover:border-brand-orange/40"
               >
                 <div className="space-y-2 max-w-3xl">
                   <div className="flex items-center gap-3">
@@ -90,13 +90,13 @@ const UpcomingBatches = () => {
                     </span>
                   </div>
 
-                  <h3 className="font-display text-2xl font-bold text-white">{batch.courseName}</h3>
+                  <h3 className="font-display text-2xl font-bold text-strong">{batch.courseName}</h3>
                   <p className="text-sm text-text-muted">{batch.description}</p>
 
                   {batch.webinarDate && (
                     <div className="mt-3 flex items-center gap-2 rounded-lg bg-bg-card p-2.5 text-xs text-text-muted inline-flex">
                       <Video size={16} className="text-brand-orange" />
-                      <span>Pre-Launch Orientation Webinar: <strong className="text-white">{new Date(batch.webinarDate).toLocaleDateString()} at 6:00 PM IST</strong></span>
+                      <span>Pre-Launch Orientation Webinar: <strong className="text-strong">{new Date(batch.webinarDate).toLocaleDateString()} at 6:00 PM IST</strong></span>
                     </div>
                   )}
                 </div>
@@ -104,7 +104,7 @@ const UpcomingBatches = () => {
                 <div className="flex flex-col sm:flex-row gap-3 min-w-[200px]">
                   <a
                     href="/courses"
-                    className="flex items-center justify-center gap-2 rounded-lg bg-brand-orange px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-orange/90"
+                    className="flex items-center justify-center gap-2 rounded-lg bg-brand-orange px-6 py-3 text-sm font-semibold text-on-brand transition-colors hover:bg-brand-orange/90"
                   >
                     Reserve Seat
                     <ArrowRight size={16} />
