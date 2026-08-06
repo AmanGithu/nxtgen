@@ -136,6 +136,8 @@ export const corporateAPI = {
 };
 
 export const iAssistAPI = {
+  /** Public — the signed-out marketing page needs this too. */
+  getDesktopDownload: () => api.get('/iassist/desktop/download'),
   getAssistants: () => api.get('/iassist/assistants'),
   createAssistant: (data: any) => api.post('/iassist/assistants', data),
   updateAssistant: (id: string, data: any) => api.put(`/iassist/assistants/${id}`, data),
