@@ -142,6 +142,7 @@
       min-height: 0;
     }
 
+
     .pane {
       display: flex;
       flex-direction: column;
@@ -250,10 +251,96 @@
       font-size: var(--answer-font-size, 13px);
       line-height: 1.7;
       color: var(--text);
-      white-space: pre-wrap;
       word-wrap: break-word;
       user-select: text;
     }
+
+    /* pre-wrap lives on the prose spans, not on .answer-body: on the container it
+       would also render the newlines and indentation of the code block's own markup
+       as blank lines around every snippet. */
+    .answer-prose {
+      display: block;
+      white-space: pre-wrap;
+    }
+
+    .answer-prose + .answer-prose { margin-top: 8px; }
+
+    /* --- Code blocks, inline in the answer --- */
+
+    .code-block {
+      margin: 12px 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.22);
+    }
+
+    body.theme-light .code-block { background: rgba(0, 0, 0, 0.04); }
+
+    .code-block:first-child { margin-top: 0; }
+    .code-block:last-child { margin-bottom: 0; }
+
+    .code-block-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--surface);
+    }
+
+    .code-lang {
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+    }
+
+    .copy-btn {
+      background: var(--surface-2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-family: inherit;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .copy-btn:hover { color: var(--text); border-color: var(--text-muted); }
+    .copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+    .code-body {
+      margin: 0;
+      padding: 12px;
+      font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+      /* Tracks the answer font size (Ctrl+Shift+Alt+= / -) one step down, so the
+         snippet stays proportionate to the prose it sits inside. */
+      font-size: calc(var(--answer-font-size, 13px) - 1px);
+      line-height: 1.55;
+      color: var(--text);
+      white-space: pre;
+      overflow-x: auto;
+      user-select: text;
+      tab-size: 2;
+    }
+
+    .code-body::-webkit-scrollbar { height: 4px; }
+    .code-body::-webkit-scrollbar-track { background: transparent; }
+    .code-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .tok-key { color: #c084fc; }
+    .tok-str { color: #86efac; }
+    .tok-com { color: var(--text-muted); font-style: italic; }
+    .tok-num { color: #fbbf24; }
+    .tok-fn  { color: #60a5fa; }
+
+    body.theme-light .tok-key { color: #7c3aed; }
+    body.theme-light .tok-str { color: #15803d; }
+    body.theme-light .tok-num { color: #b45309; }
+    body.theme-light .tok-fn  { color: #1d4ed8; }
 
     .answer-question {
       padding: 12px 18px;
@@ -400,9 +487,6 @@
       </div>
       <div class="session-controls">
         <span class="timer" id="timer">00:00</span>
-        <button class="icon-btn" id="btn-minimize" title="Minimize (Ctrl+Shift+Alt+M)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
         <button class="icon-btn" id="btn-hide" title="Hide window (Ctrl+Shift+Alt+T)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
         </button>
@@ -440,6 +524,7 @@
           <div class="answer-body hidden" id="answer-body"></div>
         </div>
       </div>
+
     </div>
 
     <div class="live-bar">
@@ -470,7 +555,6 @@
     const liveText = $('#live-text');
     const timerEl = $('#timer');
     const btnStop = $('#btn-stop');
-    const btnMinimize = $('#btn-minimize');
     const btnHide = $('#btn-hide');
     const btnSend = $('#btn-send');
     const queryInput = $('#query-input');
@@ -751,6 +835,173 @@
       return div.innerHTML;
     }
 
+    // --- Code extraction ---
+
+    // Splits a streamed answer into an ordered list of prose and code segments, so the
+    // answer can be rebuilt in reading order with the snippet sitting where the model
+    // put it. A trailing fence with no closing ``` is treated as an open code segment
+    // rather than discarded, so code renders as it streams instead of only once the
+    // answer completes. `blocks` indexes the code segments for the copy buttons.
+    function splitCodeBlocks(text) {
+      const segments = [];
+      const blocks = [];
+      let i = 0;
+
+      const pushProse = (raw) => {
+        const prose = raw.replace(/\n{3,}/g, '\n\n');
+        if (prose.trim()) segments.push({ type: 'prose', text: prose.trim() });
+      };
+
+      const pushCode = (lang, code) => {
+        const block = { lang, code };
+        blocks.push(block);
+        segments.push({ type: 'code', block, index: blocks.length - 1 });
+      };
+
+      while (i < text.length) {
+        const start = text.indexOf('```', i);
+        if (start === -1) {
+          pushProse(text.slice(i));
+          break;
+        }
+        pushProse(text.slice(i, start));
+
+        const nl = text.indexOf('\n', start + 3);
+        const lang = (nl === -1 ? text.slice(start + 3) : text.slice(start + 3, nl)).trim();
+        const bodyStart = nl === -1 ? text.length : nl + 1;
+        const end = text.indexOf('```', bodyStart);
+
+        if (end === -1) {
+          pushCode(lang, text.slice(bodyStart));
+          break;
+        }
+        pushCode(lang, text.slice(bodyStart, end).replace(/\n$/, ''));
+        i = end + 3;
+      }
+
+      return { segments, blocks };
+    }
+
+    const KEYWORDS = {
+      javascript: 'await async break case catch class const continue default delete do else export extends finally for from function if import in instanceof let new of return static super switch this throw try typeof var void while yield true false null undefined',
+      typescript: 'any as await async boolean break case catch class const continue default delete do else enum export extends finally for from function if implements import in instanceof interface let new number of private protected public readonly return static string super switch this throw try type typeof var void while yield true false null undefined',
+      python: 'and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield True False None self',
+      java: 'abstract boolean break byte case catch char class const continue default do double else enum extends final finally float for if implements import instanceof int interface long native new package private protected public return short static super switch synchronized this throw throws try void volatile while true false null var',
+      csharp: 'abstract as base bool break byte case catch char class const continue decimal default do double else enum event explicit extern finally float for foreach if implicit int interface internal is lock long namespace new null object out override params private protected public readonly ref return sealed short sizeof static string struct switch this throw try typeof uint ulong using var virtual void while true false',
+      cpp: 'auto bool break case catch char class const constexpr continue default delete do double else enum explicit extern false float for friend goto if inline int long namespace new nullptr operator private protected public return short signed sizeof static struct switch template this throw true try typedef typename union unsigned using virtual void volatile while',
+      go: 'break case chan const continue default defer else fallthrough for func go goto if import interface map package range return select struct switch type var nil true false',
+      sql: 'select from where insert update delete into values set join left right inner outer on group by order having limit offset as and or not null distinct count sum avg min max create table alter drop primary key foreign references index union all case when then else end',
+      rust: 'as async await break const continue crate dyn else enum extern false fn for if impl in let loop match mod move mut pub ref return self static struct super trait true type unsafe use where while',
+    };
+
+    KEYWORDS.js = KEYWORDS.javascript;
+    KEYWORDS.ts = KEYWORDS.typescript;
+    KEYWORDS.jsx = KEYWORDS.javascript;
+    KEYWORDS.tsx = KEYWORDS.typescript;
+    KEYWORDS.py = KEYWORDS.python;
+    KEYWORDS['c++'] = KEYWORDS.cpp;
+    KEYWORDS.c = KEYWORDS.cpp;
+    KEYWORDS.cs = KEYWORDS.csharp;
+    KEYWORDS.rs = KEYWORDS.rust;
+    KEYWORDS.kotlin = KEYWORDS.java;
+    KEYWORDS.kt = KEYWORDS.java;
+
+    // The model does not always tag the fence, and an unlabelled block still has to
+    // say what it is. Cheap shape checks beat leaving every snippet as "code".
+    function guessLanguage(code) {
+      if (/^\s*(def|class)\s+\w+.*:/m.test(code) || /^\s*(import|from)\s+\w+/m.test(code)) return 'python';
+      if (/\b(public|private|protected)\s+(static\s+)?(class|void|int|String)\b/.test(code)) return 'java';
+      if (/\bfunc\s+\w+\s*\(/.test(code) || /\bpackage\s+main\b/.test(code)) return 'go';
+      if (/\bfn\s+\w+\s*\(/.test(code) || /\blet\s+mut\b/.test(code)) return 'rust';
+      if (/^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE)\b/im.test(code)) return 'sql';
+      if (/#include\b/.test(code) || /\bstd::/.test(code)) return 'cpp';
+      if (/\b(const|let|var|function|=>)\b/.test(code)) return 'javascript';
+      return '';
+    }
+
+    // Comment syntax is language-specific and guessing wrong is worse than not
+    // highlighting: a shared `--` rule greys out `i--;` in C, and a shared `#` rule
+    // greys out `#include`. Languages not listed get the C-style set.
+    function commentPatterns(lang) {
+      if (lang === 'python') return ['#[^\\n]*'];
+      if (lang === 'sql') return ['--[^\\n]*', '\\/\\*[\\s\\S]*?(?:\\*\\/|$)'];
+      return ['\\/\\/[^\\n]*', '\\/\\*[\\s\\S]*?(?:\\*\\/|$)'];
+    }
+
+    // Single-pass tokenizer: comments and strings come first in the alternation, so a
+    // keyword inside either is never re-coloured. Deliberately small — the alternative
+    // is vendoring a highlighter into a page that has no bundler.
+    // Fences the model uses for ASCII diagrams and plain output. Tokenising these
+    // colours the numbers and quotes inside a drawing for no reason.
+    const PLAIN_FENCES = new Set(['text', 'txt', 'plain', 'plaintext', 'ascii', 'diagram', 'output', 'console']);
+
+    function highlight(code, lang) {
+      const key = (lang || '').toLowerCase();
+      if (PLAIN_FENCES.has(key)) return escapeHtml(code);
+      const keywords = new Set((KEYWORDS[key] || '').split(' ').filter(Boolean));
+      const re = new RegExp([
+        `(${commentPatterns(key).join('|')})`,
+        '("(?:\\\\.|[^"\\\\\\n])*"|\'(?:\\\\.|[^\'\\\\\\n])*\'|`(?:\\\\.|[^`\\\\])*`)',
+        '(\\b\\d[\\w.]*\\b)',
+        '([A-Za-z_]\\w*)',
+      ].join('|'), 'g');
+
+      // Escaped first, so the tokenizer sees &lt; / &amp; rather than < / &. That only
+      // touches the identifier branch, and those entities are not identifiers.
+      return escapeHtml(code).replace(re, (match, comment, str, num, word, offset, full) => {
+        if (comment) return `<span class="tok-com">${comment}</span>`;
+        if (str) return `<span class="tok-str">${str}</span>`;
+        if (num) return `<span class="tok-num">${num}</span>`;
+        if (word) {
+          if (keywords.has(word)) return `<span class="tok-key">${word}</span>`;
+          // Call sites are detected here rather than in a second pass over the
+          // marked-up HTML, which would also match identifiers inside string spans.
+          if (/^\s*\(/.test(full.slice(offset + word.length))) {
+            return `<span class="tok-fn">${word}</span>`;
+          }
+          return word;
+        }
+        return match;
+      });
+    }
+
+    let codeBlocks = [];
+
+    // Built as one HTML string rather than appended nodes: this reruns on every
+    // streamed fragment, and the segments are regenerated from scratch each time.
+    function renderAnswerBody(answer) {
+      const { segments, blocks } = splitCodeBlocks(answer || '');
+      codeBlocks = blocks;
+
+      return segments.map(seg => {
+        if (seg.type === 'prose') {
+          return `<span class="answer-prose">${escapeHtml(seg.text)}</span>`;
+        }
+        const lang = seg.block.lang || guessLanguage(seg.block.code);
+        return `<div class="code-block">` +
+          `<div class="code-block-head">` +
+            `<span class="code-lang">${escapeHtml(lang || 'code')}</span>` +
+            `<button class="copy-btn" data-index="${seg.index}">Copy</button>` +
+          `</div>` +
+          `<pre class="code-body">${highlight(seg.block.code, lang)}</pre>` +
+        `</div>`;
+      }).join('');
+    }
+
+    answerBody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.copy-btn');
+      if (!btn) return;
+      const block = codeBlocks[Number(btn.dataset.index)];
+      if (!block) return;
+      window.iAssist.copyToClipboard(block.code);
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 1500);
+    });
+
     // --- Q/A model ---
 
     function addQuestion(text) {
@@ -812,6 +1063,7 @@
         answerBody.classList.add('hidden');
         thinkingIndicator.classList.add('hidden');
         answerPlaceholder.classList.remove('hidden');
+        codeBlocks = [];
         return;
       }
 
@@ -826,7 +1078,7 @@
         answerBody.classList.add('hidden');
       } else {
         thinkingIndicator.classList.add('hidden');
-        answerBody.textContent = entry.answer || '';
+        answerBody.innerHTML = renderAnswerBody(entry.answer);
         answerBody.classList.remove('hidden');
       }
 
@@ -862,8 +1114,7 @@
     });
 
     btnStop.addEventListener('click', () => window.iAssist.stopSession());
-    btnMinimize.addEventListener('click', () => window.iAssist.minimizeSessionWindow());
-    btnHide.addEventListener('click', () => window.iAssist.toggleSessionWindow());
+    btnHide.addEventListener('click', () => window.iAssist.hideSessionWindow());
 
     // --- IPC listeners ---
 

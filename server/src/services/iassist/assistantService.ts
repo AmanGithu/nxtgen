@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import { STALE_SESSION_HOURS } from './sessionService';
+import { contextDocService } from './contextDocService';
 import type { AssistantCategory, MaterialRole } from '@prisma/client';
 
 interface CreateAssistantInput {
@@ -130,11 +131,24 @@ export const assistantService = {
       }
     }
 
-    if (data.documentId) {
+    let documentId = data.documentId ?? null;
+
+    if (documentId) {
       const doc = await prisma.contextDocument.findFirst({
-        where: { id: data.documentId, userId },
+        where: { id: documentId, userId },
       });
       if (!doc) throw new AppError('Document not found', 404);
+    } else if (data.content) {
+      /* Pasted content becomes a real document rather than living inline on the
+         material. Inline content was invisible everywhere else in the product: it
+         never appeared in the documents library, could not be opened, and could not
+         be edited after the fact — so a paste looked like it had not saved at all.
+         Existing inline materials are left untouched and still resolve for context. */
+      const doc = await contextDocService.create(userId, {
+        title: data.title,
+        content: data.content,
+      });
+      documentId = doc.id;
     }
 
     const material = await prisma.assistantMaterial.create({
@@ -142,8 +156,10 @@ export const assistantService = {
         assistantId,
         role: data.role,
         title: data.title,
-        documentId: data.documentId ?? null,
-        content: data.content ?? null,
+        documentId,
+        // Content now lives on the document; the column is kept for the materials
+        // written before this change.
+        content: null,
       },
     });
 

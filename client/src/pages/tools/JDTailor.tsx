@@ -259,13 +259,22 @@ const JDTailor = () => {
         ))
       ) : (
         <div className="tailor-empty">
+          {/* Three states, not two. A pasted description that yields no
+              recognisable skills used to show the "paste one above" prompt,
+              which reads as though the tool ignored what you just pasted. */}
           <div className="tailor-empty__title">
-            {atsKeywords.length ? '✦ Résumé is ATS-optimised ✦' : 'Paste a job description above'}
+            {!jd.trim()
+              ? 'Paste a job description above'
+              : atsKeywords.length
+                ? '✦ Résumé is ATS-optimised ✦'
+                : 'No skills found in that description'}
           </div>
           <p className="dock__note" style={{ marginTop: 6 }}>
-            {atsKeywords.length
-              ? 'No coverage gaps detected for this description.'
-              : "You'll get a live match score and one-click keyword fixes."}
+            {!jd.trim()
+              ? "You'll get a live match score and one-click keyword fixes."
+              : atsKeywords.length
+                ? 'No coverage gaps detected for this description.'
+                : 'That looks like only the header of the posting. Include the requirements or responsibilities section — the part naming tools and skills — and the match will appear here.'}
           </p>
         </div>
       )}

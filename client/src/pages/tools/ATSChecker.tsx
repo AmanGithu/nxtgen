@@ -161,10 +161,15 @@ const ATSChecker = () => {
                 <span className="badge__dot" /> {atsAnalysis.matched}/{atsAnalysis.total} keywords matched
               </span>
               <p className="dock__note" style={{ margin: 0 }}>
-                {usingGenericJd ? (
-                  <>Measured on your <b>summary and experience</b> against a generic role profile.</>
-                ) : (
+                {/* Distinguish "no description given" from "a description was
+                    given but named no skills" — silently falling back to the
+                    generic profile made a pasted JD look ignored. */}
+                {!usingGenericJd ? (
                   <>Measured on your <b>whole résumé</b> against the job description below.</>
+                ) : jd.trim() ? (
+                  <>No skills found in that description — showing a <b>generic role profile</b> instead. Include the requirements section for a real match.</>
+                ) : (
+                  <>Measured on your <b>summary and experience</b> against a generic role profile.</>
                 )}
               </p>
             </div>
