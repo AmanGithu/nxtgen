@@ -9,6 +9,9 @@ import { sessionService } from '../services/iassist/sessionService';
 import { aiQueryService, getVadConfig } from '../services/iassist/aiQueryService';
 
 const router = Router();
+
+// Matches the desktop client's idle timeout so both ends give up together.
+const STREAM_IDLE_TIMEOUT_MS = 30000;
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
 
 function param(val: string | string[]): string {
@@ -398,15 +401,37 @@ router.post('/query/stream', async (req: Request, res: Response, next: NextFunct
       res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
     };
 
-    const result = await aiQueryService.queryStream({
-      assistantId: data.assistantId,
-      message: data.message,
-      conversationHistory: data.conversationHistory,
-      responseType: data.responseType,
-    }, (text) => send('delta', { text }));
+    // Close the stream if the model stops producing. The generation itself keeps
+    // running upstream — this frees the client, it does not cancel the request.
+    let watchdog: NodeJS.Timeout | undefined;
+    const armWatchdog = () => {
+      clearTimeout(watchdog);
+      watchdog = setTimeout(() => {
+        send('error', { message: 'AI response timed out' });
+        aborted = true;
+        res.end();
+      }, STREAM_IDLE_TIMEOUT_MS);
+    };
 
-    send('done', result);
-    res.end();
+    try {
+      armWatchdog();
+
+      const result = await aiQueryService.queryStream({
+        assistantId: data.assistantId,
+        message: data.message,
+        conversationHistory: data.conversationHistory,
+        responseType: data.responseType,
+      }, (text) => {
+        armWatchdog();
+        send('delta', { text });
+      });
+
+      send('done', result);
+    } finally {
+      clearTimeout(watchdog);
+    }
+
+    if (!aborted) res.end();
   } catch (error) {
     // Once headers are flushed the error handler can no longer set a status, so
     // report the failure in-band and close the stream.

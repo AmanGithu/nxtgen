@@ -121,6 +121,12 @@ function isAssistantGone(err) {
   return /assistant not found/i.test(err?.message || '');
 }
 
+// Streaming answers have no natural end-of-request, so these bound it: the idle
+// timer covers a stalled model mid-generation, the hard cap a stream that keeps
+// trickling forever.
+const STREAM_IDLE_TIMEOUT_MS = 30000;
+const STREAM_MAX_MS = 120000;
+
 const BackendService = {
   async _fetch(endpoint, options = {}) {
     const url = `${getApiBaseUrl()}${endpoint}`;
@@ -230,47 +236,80 @@ const BackendService = {
 
   // Streams the answer via SSE, invoking onDelta for each fragment as it arrives.
   // Resolves with the same shape as query() once the `done` event lands.
+  //
+  // Both timeouts exist to guarantee this promise always settles. processAiQueue
+  // only clears isAiProcessing in a `finally`, which never runs on a promise
+  // that hangs forever — a single stalled response would otherwise silently
+  // drop every remaining question in the session.
   async queryStream(sessionId, assistantId, message, conversationHistory, responseType, onDelta) {
-    const res = await this._fetch('/iassist/query/stream', {
-      method: 'POST',
-      headers: { Accept: 'text/event-stream' },
-      body: JSON.stringify({ sessionId, assistantId, message, conversationHistory, responseType }),
-    });
-    if (!res.ok) throw new Error(await readErrorMessage(res, 'AI query failed'));
+    const controller = new AbortController();
+    let timedOut = false;
+    let idleTimer = null;
 
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let result = null;
-    let streamError = null;
+    const abortNow = () => { timedOut = true; controller.abort(); };
+    const armIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(abortNow, STREAM_IDLE_TIMEOUT_MS);
+    };
+    const hardTimer = setTimeout(abortNow, STREAM_MAX_MS);
 
-    const reader = res.body.getReader();
+    try {
+      armIdleTimer();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      const res = await this._fetch('/iassist/query/stream', {
+        method: 'POST',
+        headers: { Accept: 'text/event-stream' },
+        body: JSON.stringify({ sessionId, assistantId, message, conversationHistory, responseType }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(await readErrorMessage(res, 'AI query failed'));
 
-      // SSE frames are separated by a blank line; keep any partial tail buffered.
-      const frames = buffer.split('\n\n');
-      buffer = frames.pop();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let result = null;
+      let streamError = null;
 
-      for (const frame of frames) {
-        const eventLine = frame.split('\n').find(l => l.startsWith('event: '));
-        const dataLine = frame.split('\n').find(l => l.startsWith('data: '));
-        if (!eventLine || !dataLine) continue;
+      const reader = res.body.getReader();
 
-        const event = eventLine.slice(7).trim();
-        const payload = JSON.parse(dataLine.slice(6));
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-        if (event === 'delta') onDelta(payload.text);
-        else if (event === 'done') result = payload;
-        else if (event === 'error') streamError = new Error(payload.message);
+        // Progress resets the idle clock; the hard cap still applies.
+        armIdleTimer();
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE frames are separated by a blank line. Tolerate CRLF — a proxy in
+        // front of the server may normalise line endings, and splitting on LF
+        // alone would then never find a frame boundary.
+        const frames = buffer.split(/\r?\n\r?\n/);
+        buffer = frames.pop();
+
+        for (const frame of frames) {
+          const lines = frame.split(/\r?\n/);
+          const eventLine = lines.find(l => l.startsWith('event: '));
+          const dataLine = lines.find(l => l.startsWith('data: '));
+          if (!eventLine || !dataLine) continue;
+
+          const event = eventLine.slice(7).trim();
+          const payload = JSON.parse(dataLine.slice(6));
+
+          if (event === 'delta') onDelta(payload.text);
+          else if (event === 'done') result = payload;
+          else if (event === 'error') streamError = new Error(payload.message);
+        }
       }
-    }
 
-    if (streamError) throw streamError;
-    if (!result) throw new Error('AI stream ended before completing');
-    return result;
+      if (streamError) throw streamError;
+      if (!result) throw new Error('AI stream ended before completing');
+      return result;
+    } catch (err) {
+      if (timedOut) throw new Error('AI response timed out');
+      throw err;
+    } finally {
+      clearTimeout(idleTimer);
+      clearTimeout(hardTimer);
+    }
   },
 };
 
