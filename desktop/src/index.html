@@ -294,8 +294,10 @@
       <span class="user-pill hidden" id="user-pill"></span>
       <span class="visibility-badge hidden" id="visibility-badge"></span>
 
-      <button class="btn-action hidden" id="btn-toggle-window" title="Show / hide session window">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      <!-- Only rendered while the session window is hidden — see onSessionWindowVisibility. -->
+      <button class="btn-action hidden" id="btn-restore-window" title="Show session window (Ctrl+Shift+Alt+T)">
+        <!-- Eye, the counterpart to the session window's eye-off hide button. -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
 
       <button class="btn-action start" id="btn-start-stop" title="Start session">
@@ -320,7 +322,7 @@
     const btnStartStop = $('#btn-start-stop');
     const playIcon = $('#play-icon');
     const stopIcon = $('#stop-icon');
-    const btnToggleWindow = $('#btn-toggle-window');
+    const btnRestoreWindow = $('#btn-restore-window');
     const btnSettings = $('#btn-settings');
     const btnSettingsGuest = $('#btn-settings-guest');
     const btnHide = $('#btn-hide');
@@ -394,7 +396,7 @@
         btnStartStop.classList.remove('start');
         btnStartStop.classList.add('active-record');
         btnStartStop.title = 'Stop session';
-        btnToggleWindow.classList.remove('hidden');
+        // Stays hidden until the session window actually goes off screen.
         statusDot.className = 'status-dot active';
         statusText.textContent = 'Session active';
         timerInterval = setInterval(updateTimer, 1000);
@@ -405,7 +407,7 @@
         btnStartStop.classList.add('start');
         btnStartStop.classList.remove('active-record');
         btnStartStop.title = 'Start session';
-        btnToggleWindow.classList.add('hidden');
+        btnRestoreWindow.classList.add('hidden');
         statusDot.className = 'status-dot connected';
         statusText.textContent = 'Ready';
         clearInterval(timerInterval);
@@ -426,13 +428,17 @@
       }
     });
 
-    btnToggleWindow.addEventListener('click', () => window.iAssist.toggleSessionWindow());
+    btnRestoreWindow.addEventListener('click', () => window.iAssist.showSessionWindow());
     btnSettings.addEventListener('click', () => window.iAssist.openSettings());
     btnSettingsGuest.addEventListener('click', () => window.iAssist.openSettings());
     btnHide.addEventListener('click', () => window.iAssist.hideBar());
     btnSignIn.addEventListener('click', () => window.iAssist.openSignIn());
 
     // --- IPC listeners ---
+
+    window.iAssist.onSessionWindowVisibility((data) => {
+      btnRestoreWindow.classList.toggle('hidden', !sessionActive || data.visible);
+    });
 
     window.iAssist.onAuthStateChanged((data) => {
       showAuthView(!data.isAuthenticated);

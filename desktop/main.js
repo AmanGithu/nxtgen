@@ -9,6 +9,7 @@ const {
   screen,
   nativeImage,
   desktopCapturer,
+  clipboard,
   session: electronSession,
 } = require('electron');
 const path = require('path');
@@ -127,6 +128,15 @@ function isAssistantGone(err) {
 const STREAM_IDLE_TIMEOUT_MS = 30000;
 const STREAM_MAX_MS = 120000;
 
+// A transcript row is the only durable record of an exchange — the overlay's copy
+// dies with the session window. Losing one to a transient network blip is silent and
+// unrecoverable, so writes retry before giving up, and in-flight writes are tracked
+// so session teardown can wait for them.
+const TRANSCRIPT_WRITE_ATTEMPTS = 3;
+const TRANSCRIPT_RETRY_DELAY_MS = 500;
+const TRANSCRIPT_FLUSH_TIMEOUT_MS = 5000;
+const pendingTranscriptWrites = new Set();
+
 const BackendService = {
   async _fetch(endpoint, options = {}) {
     const url = `${getApiBaseUrl()}${endpoint}`;
@@ -202,11 +212,38 @@ const BackendService = {
     if (!res.ok) logger.error('Failed to end session');
   },
 
-  async addTranscript(sessionId, entry) {
-    this._fetch(`/iassist/sessions/${sessionId}/transcript`, {
-      method: 'POST',
-      body: JSON.stringify(entry),
-    }).catch(err => logger.error('Transcript persist failed', err.message));
+  // Deliberately not awaited by callers — a slow write must never delay an answer
+  // reaching the overlay. The promise is registered in pendingTranscriptWrites so
+  // stopSession can wait for it; without that, ending a session raced its own last
+  // rows and the transcript came back short (or empty on a short session).
+  addTranscript(sessionId, entry) {
+    const write = (async () => {
+      for (let attempt = 1; attempt <= TRANSCRIPT_WRITE_ATTEMPTS; attempt++) {
+        try {
+          const res = await this._fetch(`/iassist/sessions/${sessionId}/transcript`, {
+            method: 'POST',
+            body: JSON.stringify(entry),
+          });
+          if (res.ok) return;
+          // 4xx is a bad payload — retrying sends the same bytes to the same rejection.
+          if (res.status < 500) {
+            logger.error('Transcript rejected', res.status, entry.text?.slice(0, 60));
+            return;
+          }
+          logger.error('Transcript persist failed', res.status, `attempt ${attempt}`);
+        } catch (err) {
+          logger.error('Transcript persist failed', err.message, `attempt ${attempt}`);
+        }
+        if (attempt < TRANSCRIPT_WRITE_ATTEMPTS) {
+          await new Promise(r => setTimeout(r, TRANSCRIPT_RETRY_DELAY_MS * attempt));
+        }
+      }
+      logger.error('Transcript lost after retries', entry.text?.slice(0, 60));
+    })();
+
+    pendingTranscriptWrites.add(write);
+    write.finally(() => pendingTranscriptWrites.delete(write));
+    return write;
   },
 
   async getConfig() {
@@ -368,6 +405,11 @@ function broadcastToLiveWindows(channel, data) {
 // 'undetectable' additionally makes it click-through (keyboard shortcuts only).
 function applyVisibilityMode(win, mode) {
   if (!win || win.isDestroyed()) return;
+  // Settings is the one window that keeps its mouse in undetectable mode. Content
+  // protection still hides it from screen shares and recordings, so nothing leaks —
+  // but a click-through settings panel cannot be scrolled, changed, or closed, which
+  // leaves no way back out of the mode except a shortcut the user has to already know.
+  const clickThroughExempt = win === settingsWindow;
   switch (mode) {
     case 'invisible':
       win.setContentProtection(true);
@@ -375,13 +417,25 @@ function applyVisibilityMode(win, mode) {
       break;
     case 'undetectable':
       win.setContentProtection(true);
-      win.setIgnoreMouseEvents(true);
+      win.setIgnoreMouseEvents(!clickThroughExempt);
       break;
     default: // 'visible'
       win.setContentProtection(false);
       win.setIgnoreMouseEvents(false);
       break;
   }
+}
+
+// Every BrowserWindow must go through this instead of calling applyVisibilityMode
+// directly at creation. A window that opts out — or one added later that simply
+// forgets the call — stays capturable while the rest of the app is hidden, which is
+// worse than no stealth at all: the user believes they are covered and they are not.
+// The re-assert on 'show' is because content protection does not reliably survive a
+// hide/show cycle on Windows, and the bar, session and settings windows all get hidden.
+function trackVisibilityMode(win) {
+  if (!win || win.isDestroyed()) return;
+  applyVisibilityMode(win, currentVisibilityMode);
+  win.on('show', () => applyVisibilityMode(win, currentVisibilityMode));
 }
 
 function setVisibilityMode(mode) {
@@ -431,7 +485,7 @@ function createMainWindow() {
   mainWindow.setAlwaysOnTop(true, 'screen-saver');
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.setOpacity(currentOpacity);
-  applyVisibilityMode(mainWindow, currentVisibilityMode);
+  trackVisibilityMode(mainWindow);
 
   mainWindow.on('move', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -496,7 +550,7 @@ function createSessionWindow() {
     sessionWindow.show();
     sessionWindow.setOpacity(currentOpacity);
   });
-  applyVisibilityMode(sessionWindow, currentVisibilityMode);
+  trackVisibilityMode(sessionWindow);
 
   sessionWindow.on('resize', () => {
     if (mainWindow && !mainWindow.isDestroyed() && sessionWindow && !sessionWindow.isDestroyed()) {
@@ -510,7 +564,22 @@ function createSessionWindow() {
     }
   });
 
-  sessionWindow.on('closed', () => { sessionWindow = null; });
+  // The bar's restore button only exists while the session window is off screen,
+  // so every path that shows or hides it has to report back — button clicks,
+  // global shortcuts and visibility-mode changes alike.
+  sessionWindow.on('show', notifySessionWindowVisibility);
+  sessionWindow.on('hide', notifySessionWindowVisibility);
+
+  sessionWindow.on('closed', () => {
+    sessionWindow = null;
+    notifySessionWindowVisibility();
+  });
+}
+
+function notifySessionWindowVisibility() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const visible = !!(sessionWindow && !sessionWindow.isDestroyed() && sessionWindow.isVisible());
+  mainWindow.webContents.send('session-window-visibility', { visible });
 }
 
 function createSettingsWindow() {
@@ -543,7 +612,7 @@ function createSettingsWindow() {
   settingsWindow.loadFile(path.join(__dirname, 'src', 'settings.html'));
   settingsWindow.setAlwaysOnTop(true, 'screen-saver');
   settingsWindow.once('ready-to-show', () => settingsWindow.show());
-  applyVisibilityMode(settingsWindow, currentVisibilityMode);
+  trackVisibilityMode(settingsWindow);
 
   settingsWindow.on('resize', () => {
     if (mainWindow && !mainWindow.isDestroyed() && settingsWindow && !settingsWindow.isDestroyed()) {
@@ -558,6 +627,14 @@ function createSettingsWindow() {
   });
 
   settingsWindow.on('closed', () => { settingsWindow = null; });
+}
+
+function toggleSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.close();
+    return;
+  }
+  createSettingsWindow();
 }
 
 function createShortcutsWindow() {
@@ -592,7 +669,7 @@ function createShortcutsWindow() {
   shortcutsWindow.loadFile(path.join(__dirname, 'src', 'shortcuts.html'));
   shortcutsWindow.setAlwaysOnTop(true, 'screen-saver');
   shortcutsWindow.once('ready-to-show', () => shortcutsWindow.show());
-  applyVisibilityMode(shortcutsWindow, currentVisibilityMode);
+  trackVisibilityMode(shortcutsWindow);
 
   shortcutsWindow.on('closed', () => { shortcutsWindow = null; });
 }
@@ -907,6 +984,16 @@ async function stopSession() {
     sessionWindow.close();
   }
 
+  // A question left queued when the drain timed out still gets a row: it was heard
+  // and displayed, so silently discarding it is the same lost-history bug.
+  for (const queued of aiRequestQueue) persistExchange(queued);
+  aiRequestQueue = [];
+
+  // Before the counts are reported, so questionsAnswered can't describe rows that
+  // are still in flight — and before sessionStartTime is cleared, which persistExchange
+  // needs to stamp timestamps.
+  await flushTranscriptWrites();
+
   if (sessionId) {
     try {
       await BackendService.endSession(sessionId, {
@@ -926,11 +1013,49 @@ async function stopSession() {
   isAiProcessing = false;
 }
 
+// Bounded: a write wedged behind an unreachable server must not hold the session
+// open. Anything still pending past the timeout is left to finish or fail on its own.
+async function flushTranscriptWrites() {
+  if (pendingTranscriptWrites.size === 0) return;
+  await Promise.race([
+    Promise.allSettled([...pendingTranscriptWrites]),
+    new Promise(r => setTimeout(r, TRANSCRIPT_FLUSH_TIMEOUT_MS)),
+  ]);
+}
+
 // ---------------------------------------------------------------------------
 // AI request queue — serial, max 1 pending, stale dropping
 // ---------------------------------------------------------------------------
 
+// The question was heard, transcribed and shown in the overlay, so it belongs in the
+// history whether or not an answer came back. `response: null` renders as a question
+// with no answer on the session detail page, which is the truth — better than the
+// exchange vanishing and leaving a gap the user cannot account for.
+function persistExchange(request, { response = null, tokens = 0, isQuestion = false } = {}) {
+  if (!request || !request.sessionId || !sessionStartTime) return;
+
+  // Counted here rather than at the call sites so the dashboard's number is by
+  // construction the number of rows written, whatever the outcome of the query.
+  currentSessionQuestionsCount++;
+
+  BackendService.addTranscript(request.sessionId, {
+    speaker: 'user',
+    text: request.message,
+    isQuestion,
+    response,
+    tokens,
+    timestamp: Math.floor((Date.now() - sessionStartTime) / 1000),
+  });
+}
+
 function enqueueAiRequest(request) {
+  // Max 1 pending: a newer question replaces one that never started. The dropped
+  // question is already on screen in the Questions pane, so record it too — otherwise
+  // the pane and the saved transcript disagree by however many questions arrived
+  // faster than the model could answer them.
+  const dropped = aiRequestQueue[0];
+  if (dropped) persistExchange(dropped);
+
   aiRequestQueue = [request];
   processAiQueue();
 }
@@ -954,7 +1079,6 @@ async function processAiQueue() {
       (text) => broadcastToLiveWindows('llm-answer-delta', { text })
     );
 
-    if (result.isQuestion) currentSessionQuestionsCount++;
     currentSessionTokensUsed += result.tokens || 0;
 
     broadcastToLiveWindows('llm-answer', {
@@ -963,17 +1087,15 @@ async function processAiQueue() {
       isQuestion: result.isQuestion,
     });
 
-    BackendService.addTranscript(request.sessionId, {
-      speaker: 'user',
-      text: request.message,
-      isQuestion: result.isQuestion,
+    persistExchange(request, {
       response: result.response,
       tokens: result.tokens,
-      timestamp: Math.floor((Date.now() - sessionStartTime) / 1000),
+      isQuestion: result.isQuestion,
     });
   } catch (err) {
     logger.error('AI query error', err.message);
     assistantGone = isAssistantGone(err);
+    persistExchange(request);
     broadcastToLiveWindows('llm-answer', {
       response: assistantGone
         ? 'This assistant was deleted on the web. Ending the session.'
@@ -986,8 +1108,8 @@ async function processAiQueue() {
 
     if (assistantGone) {
       // Every further question would fail the same way, so end the session
-      // rather than filling the transcript with identical errors.
-      aiRequestQueue = [];
+      // rather than filling the transcript with identical errors. Anything queued
+      // still gets a row — stopSession persists the queue before clearing it.
       loadAssistants();
       stopSession();
     } else {
@@ -1007,15 +1129,19 @@ function registerPersistentShortcuts() {
     }
   });
 
+  // Toggle, not open: in undetectable mode the window is click-through, so this
+  // shortcut is the only way to dismiss it.
   globalShortcut.register('CommandOrControl+Shift+Alt+S', () => {
-    createSettingsWindow();
+    toggleSettingsWindow();
   });
 
   // Escape hatch out of undetectable, whose click-through makes every window
-  // unusable by mouse. It drops to 'invisible' rather than 'visible' so it still
-  // restores the pointer without suddenly exposing the overlay on a live screen share.
+  // unusable by mouse. It always lands on 'invisible', never 'visible': this is the
+  // panic key, pressed mid-interview without looking, and a branch that could turn
+  // content protection off would expose the overlay on a live screen share.
+  // Going fully visible stays a deliberate choice in the settings panel.
   globalShortcut.register('CommandOrControl+Shift+Alt+Escape', () => {
-    setVisibilityMode(currentVisibilityMode === 'undetectable' ? 'invisible' : 'visible');
+    setVisibilityMode('invisible');
   });
 
   globalShortcut.register('CommandOrControl+Shift+Alt+J', () => {
@@ -1026,13 +1152,11 @@ function registerPersistentShortcuts() {
     if (currentAssistant) startSession(currentAssistant.id);
   });
 
+  // Bar only. The session window runs with skipTaskbar, so minimizing it leaves
+  // nothing to restore it from — it hides instead, via Ctrl+Shift+Alt+T.
   globalShortcut.register('CommandOrControl+Shift+Alt+M', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    const shouldRestore = mainWindow.isMinimized();
-    if (shouldRestore) mainWindow.restore(); else mainWindow.minimize();
-    if (sessionWindow && !sessionWindow.isDestroyed()) {
-      if (shouldRestore) sessionWindow.restore(); else sessionWindow.minimize();
-    }
+    if (mainWindow.isMinimized()) mainWindow.restore(); else mainWindow.minimize();
   });
 
   globalShortcut.register('CommandOrControl+Shift+Alt+Up', () => {
@@ -1093,12 +1217,6 @@ function registerSessionShortcuts() {
   });
 
   globalShortcut.register('CommandOrControl+Shift+Alt+T', () => {
-    if (sessionWindow && !sessionWindow.isDestroyed()) {
-      sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
-    }
-  });
-
-  globalShortcut.register('CommandOrControl+Shift+Alt+O', () => {
     if (sessionWindow && !sessionWindow.isDestroyed()) {
       sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
     }
@@ -1260,18 +1378,21 @@ function setupIPC() {
     }
   });
 
-  ipcMain.on('toggle-session-window', () => {
-    if (sessionWindow && !sessionWindow.isDestroyed()) {
-      sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
-    }
+  ipcMain.on('show-session-window', () => {
+    if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.show();
+  });
+
+  ipcMain.on('hide-session-window', () => {
+    if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.hide();
+  });
+
+  // Renderer pages load from file://, where navigator.clipboard is unavailable.
+  ipcMain.on('copy-to-clipboard', (_event, text) => {
+    if (typeof text === 'string' && text) clipboard.writeText(text);
   });
 
   ipcMain.on('hide-bar', () => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
-  });
-
-  ipcMain.on('minimize-session-window', () => {
-    if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.minimize();
   });
 
   ipcMain.on('quit-app', () => {

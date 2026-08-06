@@ -92,9 +92,10 @@ interface FormProps {
   onSave: (data: any) => Promise<void>;
   onCancel: () => void;
   saving: boolean;
+  error?: string | null;
 }
 
-const AssistantForm = ({ initial, onSave, onCancel, saving }: FormProps) => {
+const AssistantForm = ({ initial, onSave, onCancel, saving, error }: FormProps) => {
   const [name, setName] = useState(initial?.name || '');
   const [category, setCategory] = useState(initial?.category || 'GENERAL');
   const [targetRole, setTargetRole] = useState(initial?.targetRole || '');
@@ -205,6 +206,12 @@ const AssistantForm = ({ initial, onSave, onCancel, saving }: FormProps) => {
         </div>
       </div>
 
+      {error && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+          {error}
+        </div>
+      )}
+
       {/* Footer */}
       <div className="flex justify-end gap-3">
         <button type="button" onClick={onCancel} className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted hover:text-strong transition-colors">
@@ -229,9 +236,10 @@ interface AddMaterialModalProps {
   onAdd: (data: { role: string; title: string; documentId?: string; content?: string }) => Promise<void>;
   onClose: () => void;
   saving: boolean;
+  error?: string | null;
 }
 
-const AddMaterialModal = ({ role, onAdd, onClose, saving }: AddMaterialModalProps) => {
+const AddMaterialModal = ({ role, onAdd, onClose, saving, error }: AddMaterialModalProps) => {
   const [title, setTitle] = useState('');
   const [source, setSource] = useState<'document' | 'direct'>('document');
   const [documents, setDocuments] = useState<DocOption[]>([]);
@@ -351,6 +359,15 @@ const AddMaterialModal = ({ role, onAdd, onClose, saving }: AddMaterialModalProp
                 maxLength={50000}
                 className="mt-1 w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none resize-none"
               />
+              <p className="mt-1 text-[11px] text-text-muted">
+                Saved to your documents, so you can open and edit it later.
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              {error}
             </div>
           )}
 
@@ -374,10 +391,19 @@ const AddMaterialModal = ({ role, onAdd, onClose, saving }: AddMaterialModalProp
 
 // ─── Main Page ────────────────────────────────────────────────
 
+/* Server messages carry the detail that matters here — "already has a resume
+   attached", "document not found" — so prefer them over the generic fallback. */
+const messageFor = (err: any, fallback: string): string =>
+  err?.response?.data?.message || fallback;
+
 const Assistants = () => {
   const [assistants, setAssistants] = useState<Assistant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /* Kept separate from `error`, which replaces the whole list with a retry screen.
+     A failed save or delete must not blow away the assistants the user can still
+     see — it needs to report itself next to the thing that failed. */
+  const [actionError, setActionError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingAssistant, setEditingAssistant] = useState<Assistant | null>(null);
   const [saving, setSaving] = useState(false);
@@ -428,19 +454,23 @@ const Assistants = () => {
 
   const handleCreate = async (data: any) => {
     setSaving(true);
+    setActionError(null);
     try {
       const res = await iAssistAPI.createAssistant(data);
       if (res.data.success) {
         setShowForm(false);
         loadAssistants();
       }
-    } catch {}
+    } catch (err) {
+      setActionError(messageFor(err, 'Failed to create assistant.'));
+    }
     setSaving(false);
   };
 
   const handleUpdate = async (data: any) => {
     if (!editingAssistant) return;
     setSaving(true);
+    setActionError(null);
     try {
       const res = await iAssistAPI.updateAssistant(editingAssistant.id, data);
       if (res.data.success) {
@@ -448,7 +478,9 @@ const Assistants = () => {
         setShowForm(false);
         loadAssistants();
       }
-    } catch {}
+    } catch (err) {
+      setActionError(messageFor(err, 'Failed to save changes.'));
+    }
     setSaving(false);
   };
 
@@ -460,31 +492,43 @@ const Assistants = () => {
   const handleAddMaterial = async (data: { role: string; title: string; documentId?: string; content?: string }) => {
     if (!materialModal) return;
     setSaving(true);
+    setActionError(null);
     try {
       const res = await iAssistAPI.addMaterial(materialModal.assistantId, data);
       if (res.data.success) {
         setMaterialModal(null);
         loadAssistants();
       }
-    } catch {}
+    } catch (err) {
+      // The modal stays open so the typed content is not lost to a failed save.
+      setActionError(messageFor(err, 'Failed to add content.'));
+    }
     setSaving(false);
   };
 
   const handleRemoveMaterial = async (assistantId: string, materialId: string) => {
+    setActionError(null);
     try {
       await iAssistAPI.removeMaterial(assistantId, materialId);
       loadAssistants();
-    } catch {}
+    } catch (err) {
+      setActionError(messageFor(err, 'Failed to remove content.'));
+    }
   };
 
   // Replacing an orphaned material has to drop it first — the server rejects a
   // second RESUME or JOB_DESCRIPTION on the same assistant with a 409.
   const handleReplaceMaterial = async (assistantId: string, materialId: string, role: string) => {
+    setActionError(null);
     try {
       await iAssistAPI.removeMaterial(assistantId, materialId);
       loadAssistants();
       setMaterialModal({ assistantId, role });
-    } catch {}
+    } catch (err) {
+      // Deliberately does not open the modal: the old material is still attached, and
+      // adding a second RESUME or JOB_DESCRIPTION would be rejected with a 409.
+      setActionError(messageFor(err, 'Failed to replace content.'));
+    }
   };
 
   const tabs = [
@@ -500,8 +544,9 @@ const Assistants = () => {
         <AssistantForm
           initial={editingAssistant}
           onSave={editingAssistant ? handleUpdate : handleCreate}
-          onCancel={() => { setShowForm(false); setEditingAssistant(null); }}
+          onCancel={() => { setShowForm(false); setEditingAssistant(null); setActionError(null); }}
           saving={saving}
+          error={actionError}
         />
       </div>
     );
@@ -551,6 +596,20 @@ const Assistants = () => {
           <Plus size={16} /> New
         </button>
       </div>
+
+      {/* Failed remove/replace: reported here because no modal is open to hold it. */}
+      {actionError && !materialModal && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0 text-red-400" />
+          <p className="flex-1 text-sm text-red-400">{actionError}</p>
+          <button
+            onClick={() => setActionError(null)}
+            className="shrink-0 text-red-400/70 transition-colors hover:text-red-400"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Assistant list */}
       {loading ? (
@@ -758,8 +817,9 @@ const Assistants = () => {
         <AddMaterialModal
           role={materialModal.role}
           onAdd={handleAddMaterial}
-          onClose={() => setMaterialModal(null)}
+          onClose={() => { setMaterialModal(null); setActionError(null); }}
           saving={saving}
+          error={actionError}
         />
       )}
     </div>

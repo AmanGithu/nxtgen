@@ -330,6 +330,14 @@ const JDTailor = () => {
         })
       ) : (
         <div className="tailor-empty">
+          {/* Three states, not two. A pasted description that yields no
+              recognisable skills used to show the "paste one above" prompt,
+              which reads as though the tool ignored what you just pasted. */}
+          {/* Keyed on the *submitted* description, not the live textarea.
+              Scoring now sits behind the Tailor button, so a JD that has been
+              pasted but not yet run has no keywords yet — testing `jd` here
+              would announce "no skills found" for a posting we simply haven't
+              looked at. */}
           <div className="tailor-empty__title">
             {!tailoredJd.trim()
               ? 'Paste a job description above'
@@ -342,7 +350,7 @@ const JDTailor = () => {
               ? 'Then press Tailor to see your match score and one-click keyword fixes.'
               : atsKeywords.length
                 ? 'No coverage gaps detected for this description.'
-                : 'That looks like only the header of the posting — include the requirements section and run it again.'}
+                : 'That looks like only the header of the posting. Include the requirements or responsibilities section — the part naming tools and skills — and run it again.'}
           </p>
         </div>
       )}

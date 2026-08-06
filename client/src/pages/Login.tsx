@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { normalizeRole, dashboardPathForRole } from '../lib/roles';
 import { authAPI } from '../services/api';
@@ -15,9 +15,22 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login, loginWithGoogle, loginWithGitHub } = useAuth();
+  const { login, loginWithGoogle, loginWithGitHub, isAuthenticated, isLoading: authLoading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  /* An explicit ?redirect= is a deliberate hand-off — the desktop app's authorize
+     flow sends the user here and needs them back on /desktop-authorize with its port
+     and state intact. Without this the desktop sign-in could never complete on a
+     browser that was not already logged in: the student rule below sent them to the
+     dashboard and the authorize screen was never shown.
+
+     Only same-site absolute paths are accepted. This value comes from the query
+     string and goes straight into navigate(), so anything protocol-relative or
+     absolute would be an open redirect. */
+  const redirectParam = searchParams.get('redirect');
+  const safeRedirect = redirectParam && /^\/(?![/\\])/.test(redirectParam) ? redirectParam : null;
 
   /* Where to go after signing in.
      Site users return to exactly what they were doing: they sign in mid-task
@@ -26,10 +39,23 @@ const Login = () => {
      so returning them to whatever marketing page they happened to be reading
      is the wrong answer even though they were technically "sent here" from it. */
   const returnTo = (role: string) => {
+    if (safeRedirect) return safeRedirect;
     if (role === 'admin' || role === 'student') return dashboardPathForRole(role as any);
     const from = (location.state as { from?: string } | null)?.from;
     return from && from !== '/login' ? from : dashboardPathForRole(role as any);
   };
+
+  /* Tokens live in localStorage, which every tab on this origin shares. A tab left
+     sitting on /login after signing out therefore holds a live session as soon as any
+     other tab signs in — but rendering the form regardless made it look signed out,
+     and signing in again from here is a no-op that just replaces the same session.
+     Send an already-authenticated visitor where they were headed instead. */
+  useEffect(() => {
+    if (authLoading || !isAuthenticated) return;
+    navigate(returnTo(normalizeRole(user?.role)), { replace: true });
+    // returnTo is recreated each render; the auth state and target are what matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, isAuthenticated, user?.role, safeRedirect]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
