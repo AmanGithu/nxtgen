@@ -127,6 +127,15 @@ function isAssistantGone(err) {
 const STREAM_IDLE_TIMEOUT_MS = 30000;
 const STREAM_MAX_MS = 120000;
 
+// A transcript row is the only durable record of an exchange — the overlay's copy
+// dies with the session window. Losing one to a transient network blip is silent and
+// unrecoverable, so writes retry before giving up, and in-flight writes are tracked
+// so session teardown can wait for them.
+const TRANSCRIPT_WRITE_ATTEMPTS = 3;
+const TRANSCRIPT_RETRY_DELAY_MS = 500;
+const TRANSCRIPT_FLUSH_TIMEOUT_MS = 5000;
+const pendingTranscriptWrites = new Set();
+
 const BackendService = {
   async _fetch(endpoint, options = {}) {
     const url = `${getApiBaseUrl()}${endpoint}`;
@@ -202,11 +211,38 @@ const BackendService = {
     if (!res.ok) logger.error('Failed to end session');
   },
 
-  async addTranscript(sessionId, entry) {
-    this._fetch(`/iassist/sessions/${sessionId}/transcript`, {
-      method: 'POST',
-      body: JSON.stringify(entry),
-    }).catch(err => logger.error('Transcript persist failed', err.message));
+  // Deliberately not awaited by callers — a slow write must never delay an answer
+  // reaching the overlay. The promise is registered in pendingTranscriptWrites so
+  // stopSession can wait for it; without that, ending a session raced its own last
+  // rows and the transcript came back short (or empty on a short session).
+  addTranscript(sessionId, entry) {
+    const write = (async () => {
+      for (let attempt = 1; attempt <= TRANSCRIPT_WRITE_ATTEMPTS; attempt++) {
+        try {
+          const res = await this._fetch(`/iassist/sessions/${sessionId}/transcript`, {
+            method: 'POST',
+            body: JSON.stringify(entry),
+          });
+          if (res.ok) return;
+          // 4xx is a bad payload — retrying sends the same bytes to the same rejection.
+          if (res.status < 500) {
+            logger.error('Transcript rejected', res.status, entry.text?.slice(0, 60));
+            return;
+          }
+          logger.error('Transcript persist failed', res.status, `attempt ${attempt}`);
+        } catch (err) {
+          logger.error('Transcript persist failed', err.message, `attempt ${attempt}`);
+        }
+        if (attempt < TRANSCRIPT_WRITE_ATTEMPTS) {
+          await new Promise(r => setTimeout(r, TRANSCRIPT_RETRY_DELAY_MS * attempt));
+        }
+      }
+      logger.error('Transcript lost after retries', entry.text?.slice(0, 60));
+    })();
+
+    pendingTranscriptWrites.add(write);
+    write.finally(() => pendingTranscriptWrites.delete(write));
+    return write;
   },
 
   async getConfig() {
@@ -947,6 +983,16 @@ async function stopSession() {
     sessionWindow.close();
   }
 
+  // A question left queued when the drain timed out still gets a row: it was heard
+  // and displayed, so silently discarding it is the same lost-history bug.
+  for (const queued of aiRequestQueue) persistExchange(queued);
+  aiRequestQueue = [];
+
+  // Before the counts are reported, so questionsAnswered can't describe rows that
+  // are still in flight — and before sessionStartTime is cleared, which persistExchange
+  // needs to stamp timestamps.
+  await flushTranscriptWrites();
+
   if (sessionId) {
     try {
       await BackendService.endSession(sessionId, {
@@ -966,11 +1012,49 @@ async function stopSession() {
   isAiProcessing = false;
 }
 
+// Bounded: a write wedged behind an unreachable server must not hold the session
+// open. Anything still pending past the timeout is left to finish or fail on its own.
+async function flushTranscriptWrites() {
+  if (pendingTranscriptWrites.size === 0) return;
+  await Promise.race([
+    Promise.allSettled([...pendingTranscriptWrites]),
+    new Promise(r => setTimeout(r, TRANSCRIPT_FLUSH_TIMEOUT_MS)),
+  ]);
+}
+
 // ---------------------------------------------------------------------------
 // AI request queue — serial, max 1 pending, stale dropping
 // ---------------------------------------------------------------------------
 
+// The question was heard, transcribed and shown in the overlay, so it belongs in the
+// history whether or not an answer came back. `response: null` renders as a question
+// with no answer on the session detail page, which is the truth — better than the
+// exchange vanishing and leaving a gap the user cannot account for.
+function persistExchange(request, { response = null, tokens = 0, isQuestion = false } = {}) {
+  if (!request || !request.sessionId || !sessionStartTime) return;
+
+  // Counted here rather than at the call sites so the dashboard's number is by
+  // construction the number of rows written, whatever the outcome of the query.
+  currentSessionQuestionsCount++;
+
+  BackendService.addTranscript(request.sessionId, {
+    speaker: 'user',
+    text: request.message,
+    isQuestion,
+    response,
+    tokens,
+    timestamp: Math.floor((Date.now() - sessionStartTime) / 1000),
+  });
+}
+
 function enqueueAiRequest(request) {
+  // Max 1 pending: a newer question replaces one that never started. The dropped
+  // question is already on screen in the Questions pane, so record it too — otherwise
+  // the pane and the saved transcript disagree by however many questions arrived
+  // faster than the model could answer them.
+  const dropped = aiRequestQueue[0];
+  if (dropped) persistExchange(dropped);
+
   aiRequestQueue = [request];
   processAiQueue();
 }
@@ -994,12 +1078,6 @@ async function processAiQueue() {
       (text) => broadcastToLiveWindows('llm-answer-delta', { text })
     );
 
-    // Counts answered exchanges, one per persisted transcript row — the same thing
-    // the overlay's Questions pane counts and the same thing the session detail page
-    // lists. Counting only `result.isQuestion` made this a tally of the model's
-    // per-utterance classification instead, so the dashboard's number disagreed with
-    // the transcript by an amount that changed from session to session.
-    currentSessionQuestionsCount++;
     currentSessionTokensUsed += result.tokens || 0;
 
     broadcastToLiveWindows('llm-answer', {
@@ -1008,17 +1086,15 @@ async function processAiQueue() {
       isQuestion: result.isQuestion,
     });
 
-    BackendService.addTranscript(request.sessionId, {
-      speaker: 'user',
-      text: request.message,
-      isQuestion: result.isQuestion,
+    persistExchange(request, {
       response: result.response,
       tokens: result.tokens,
-      timestamp: Math.floor((Date.now() - sessionStartTime) / 1000),
+      isQuestion: result.isQuestion,
     });
   } catch (err) {
     logger.error('AI query error', err.message);
     assistantGone = isAssistantGone(err);
+    persistExchange(request);
     broadcastToLiveWindows('llm-answer', {
       response: assistantGone
         ? 'This assistant was deleted on the web. Ending the session.'
@@ -1031,8 +1107,8 @@ async function processAiQueue() {
 
     if (assistantGone) {
       // Every further question would fail the same way, so end the session
-      // rather than filling the transcript with identical errors.
-      aiRequestQueue = [];
+      // rather than filling the transcript with identical errors. Anything queued
+      // still gets a row — stopSession persists the queue before clearing it.
       loadAssistants();
       stopSession();
     } else {
