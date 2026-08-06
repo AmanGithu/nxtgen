@@ -32,13 +32,27 @@ Copy the environment templates and fill them in:
 cp server/.env.example server/.env && cp client/.env.example client/.env
 ```
 
-Generate the Prisma client and apply migrations:
+Generate the Prisma client and sync the database schema:
 
 ```bash
-npm run db:generate --prefix server && npm run db:migrate --prefix server
+npm run db:generate --prefix server && npm run db:push --prefix server
 ```
 
-`db:generate` only writes TypeScript types into `node_modules` and is always safe to re-run. `db:migrate` alters your database — check `server/prisma/migrations/` before running it.
+Optionally seed demo users, courses, internships, and certifications:
+
+```bash
+npm run db:seed --prefix server
+```
+
+### db:generate vs db:push vs db:migrate
+
+`db:generate` only writes TypeScript types into `node_modules`. It never touches the database and is always safe to re-run — you need it after any change to `schema.prisma`, including one that arrives in a pull.
+
+`db:push` applies the schema directly to the database without recording a migration. **This is how this project's databases are managed** — there is no `_prisma_migrations` history table.
+
+`db:migrate` is therefore **not** the command to use here. Run against a database with no migration history it detects drift and offers to reset, which drops data. Only use it if the project deliberately switches to migration-based management.
+
+Seeding is not idempotent: users and courses are upserted, but internships and certifications use `create` and will duplicate on a second run.
 
 ## Running
 
@@ -90,7 +104,7 @@ Internals of the capture and streaming pipeline are documented in [`desktop/CLAU
 
 **`429 ... limit: 0` from Gemini.** Not a rate limit you can wait out — see [AI models](#ai-models).
 
-**`The column ... does not exist in the current database`.** The Prisma client is ahead of the database. Run `npm run db:migrate --prefix server`.
+**`The column ... does not exist in the current database`.** The Prisma client is ahead of the database — `schema.prisma` changed but was never pushed. Run `npm run db:push --prefix server`, not `db:migrate`.
 
 **`Cannot find module` after a pull.** Dependencies changed. Run `npm install` in the affected package.
 
