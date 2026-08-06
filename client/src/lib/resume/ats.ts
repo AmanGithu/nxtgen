@@ -19,6 +19,21 @@ export interface JdKeyword {
    picked up by a generic pass in extractKeywords(). */
 type Lex = [string, ...string[]];
 const LEXICON: Lex[] = [
+  /* Role and discipline titles. A real ATS matches on these before it looks at
+     any tool — a "DevOps Engineer" posting is scanned for "DevOps" — and
+     leaving them out meant a job description that named the role but listed
+     its stack further down scored as though it contained nothing at all. */
+  ["DevOps", "dev ops", "devsecops"], ["Backend", "back end", "back-end"],
+  ["Frontend", "front end", "front-end"], ["Full Stack", "fullstack", "full-stack"],
+  ["Cloud"], ["Platform Engineering", "platform engineer"],
+  ["Data Engineering", "data engineer"], ["Data Analyst", "data analysis"],
+  ["Data Science", "data scientist"], ["Business Analyst", "business analysis"],
+  ["Product Management", "product manager"], ["Project Management", "project manager"],
+  ["Software Engineering", "software engineer", "software development"],
+  ["Mobile Development", "mobile developer", "ios developer", "android developer"],
+  ["UI/UX", "ux design", "ui design", "user experience"],
+  ["Solution Architect", "solutions architect", "technical architect"],
+  ["Support Engineer", "technical support"], ["Security Engineer", "application security"],
   // cloud & infrastructure
   ["AWS", "amazon web services"], ["GCP", "google cloud"], ["Azure", "microsoft azure"],
   ["Terraform"], ["CloudFormation"], ["Pulumi"], ["Ansible"], ["Packer"],
