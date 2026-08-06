@@ -512,8 +512,18 @@
       if (Number.isFinite(vad.minSpeechMs)) MIN_CHUNK_DURATION_MS = vad.minSpeechMs;
     }
     let isRecording = false;
-    let recordingStartTime = 0;
+    let speechStartTime = 0;
     let silenceStart = null;
+
+    // A standby recorder runs continuously and is recycled on this interval, so
+    // whenever speech triggers we already hold up to PRE_ROLL_MS of audio from
+    // *before* the amplitude threshold was crossed. Without it the opening
+    // word of every utterance is lost, because recording could only start once
+    // the sound that would have triggered it had already played.
+    const PRE_ROLL_MS = 1000;
+    const STANDBY_STAGGER_MS = PRE_ROLL_MS / 2;
+    let preRollTimer = null;
+    let standbys = [];
 
     async function startAudioCapture() {
       try {
@@ -546,6 +556,8 @@
       analyser.fftSize = 256;
       source.connect(analyser);
 
+      startStandbyRecorder();
+      startPreRollCycle();
       startVAD();
     }
 
@@ -561,7 +573,7 @@
         const rms = Math.sqrt(sum / dataArray.length);
 
         if (isRecording) {
-          const elapsed = Date.now() - recordingStartTime;
+          const elapsed = Date.now() - speechStartTime;
 
           if (rms > VAD_THRESHOLD) {
             silenceStart = null;
@@ -584,37 +596,94 @@
       }, VAD_INTERVAL_MS);
     }
 
-    function startRecordingChunk() {
-      if (isRecording || !mediaStream) return;
-      isRecording = true;
-      recordingStartTime = Date.now();
-      silenceStart = null;
-
-      mediaRecorder = new MediaRecorder(mediaStream, {
+    // Each recorder owns its own chunk array, so a recycled standby recorder
+    // flushing late can never leak audio into the next one.
+    function newRecorder(onKeep) {
+      const rec = new MediaRecorder(mediaStream, {
         mimeType: 'audio/webm;codecs=opus',
       });
 
       const chunks = [];
-      mediaRecorder.ondataavailable = (e) => {
+      rec.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.push(e.data);
       };
-
-      mediaRecorder.onstop = () => {
-        isRecording = false;
-        const duration = Date.now() - recordingStartTime;
-
-        if (chunks.length === 0 || duration < MIN_CHUNK_DURATION_MS) return;
-
-        const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = reader.result.split(',')[1];
-          window.iAssist.sendAudioChunk(base64, 'audio/webm;codecs=opus');
-        };
-        reader.readAsDataURL(blob);
+      rec.onstop = () => {
+        if (rec.keepOnStop) onKeep(chunks);
       };
 
-      mediaRecorder.start();
+      rec.keepOnStop = false;
+      rec.start();
+      return rec;
+    }
+
+    function sendUtterance(chunks) {
+      isRecording = false;
+      const speechMs = Date.now() - speechStartTime;
+      startStandbyRecorder();
+
+      // Measured from speech onset, not recorder start — the pre-roll is
+      // padding and must not make a too-short utterance look long enough.
+      if (chunks.length === 0 || speechMs < MIN_CHUNK_DURATION_MS) return;
+
+      const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result.split(',')[1];
+        window.iAssist.sendAudioChunk(base64, 'audio/webm;codecs=opus');
+      };
+      reader.readAsDataURL(blob);
+    }
+
+    function discardStandby(entry) {
+      if (entry.rec.state === 'recording') {
+        entry.rec.keepOnStop = false;
+        entry.rec.stop();
+      }
+    }
+
+    function spawnStandby() {
+      if (!mediaStream) return;
+      standbys.push({ rec: newRecorder(sendUtterance), startedAt: Date.now() });
+    }
+
+    function startStandbyRecorder() {
+      standbys.forEach(discardStandby);
+      standbys = [];
+      spawnStandby();
+    }
+
+    // Two standby recorders run staggered by half the pre-roll window. A single
+    // recycled recorder leaves a moment where the only recorder has just
+    // started and holds no history — speech beginning there still lost its
+    // opening word. With a staggered pair, the older recorder always carries
+    // between STANDBY_STAGGER_MS and PRE_ROLL_MS of audio, so the pre-roll
+    // never approaches zero.
+    function startPreRollCycle() {
+      clearInterval(preRollTimer);
+      preRollTimer = setInterval(() => {
+        if (isRecording || !mediaStream) return;
+        spawnStandby();
+        while (standbys.length > 2) discardStandby(standbys.shift());
+      }, STANDBY_STAGGER_MS);
+    }
+
+    // Speech detected: adopt the OLDEST standby (the one with the most history)
+    // and drop the rest. It already contains the run-up to this moment.
+    function startRecordingChunk() {
+      if (isRecording || standbys.length === 0) return;
+
+      const chosen = standbys[0];
+      if (chosen.rec.state !== 'recording') return;
+
+      isRecording = true;
+      speechStartTime = Date.now();
+      silenceStart = null;
+
+      chosen.rec.keepOnStop = true;
+      mediaRecorder = chosen.rec;
+
+      standbys.slice(1).forEach(discardStandby);
+      standbys = [];
     }
 
     function stopRecordingChunk() {
@@ -626,11 +695,18 @@
     function stopAudioCapture() {
       clearInterval(vadInterval);
       vadInterval = null;
+      clearInterval(preRollTimer);
+      preRollTimer = null;
 
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
+      // Only an adopted recorder (keepOnStop) flushes here, so a mid-utterance
+      // session end still delivers the last question. Idle standbys are dropped.
+      if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
       }
       mediaRecorder = null;
+
+      standbys.forEach(discardStandby);
+      standbys = [];
 
       if (mediaStream) {
         mediaStream.getTracks().forEach(t => t.stop());
