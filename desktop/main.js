@@ -368,6 +368,11 @@ function broadcastToLiveWindows(channel, data) {
 // 'undetectable' additionally makes it click-through (keyboard shortcuts only).
 function applyVisibilityMode(win, mode) {
   if (!win || win.isDestroyed()) return;
+  // Settings is the one window that keeps its mouse in undetectable mode. Content
+  // protection still hides it from screen shares and recordings, so nothing leaks —
+  // but a click-through settings panel cannot be scrolled, changed, or closed, which
+  // leaves no way back out of the mode except a shortcut the user has to already know.
+  const clickThroughExempt = win === settingsWindow;
   switch (mode) {
     case 'invisible':
       win.setContentProtection(true);
@@ -375,7 +380,7 @@ function applyVisibilityMode(win, mode) {
       break;
     case 'undetectable':
       win.setContentProtection(true);
-      win.setIgnoreMouseEvents(true);
+      win.setIgnoreMouseEvents(!clickThroughExempt);
       break;
     default: // 'visible'
       win.setContentProtection(false);
@@ -573,6 +578,14 @@ function createSettingsWindow() {
   });
 
   settingsWindow.on('closed', () => { settingsWindow = null; });
+}
+
+function toggleSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.close();
+    return;
+  }
+  createSettingsWindow();
 }
 
 function createShortcutsWindow() {
@@ -1022,8 +1035,10 @@ function registerPersistentShortcuts() {
     }
   });
 
+  // Toggle, not open: in undetectable mode the window is click-through, so this
+  // shortcut is the only way to dismiss it.
   globalShortcut.register('CommandOrControl+Shift+Alt+S', () => {
-    createSettingsWindow();
+    toggleSettingsWindow();
   });
 
   // Escape hatch out of undetectable, whose click-through makes every window
