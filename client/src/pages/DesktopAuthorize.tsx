@@ -57,13 +57,13 @@ const DesktopAuthorize = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg-canvas px-4">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-white/[0.08] bg-bg-card p-8 shadow-2xl">
+      <div className="w-full max-w-md space-y-6 rounded-2xl border border-line bg-bg-card p-8 shadow-2xl">
 
         {/* Header */}
         <div className="text-center">
           <h2 className="font-display text-2xl font-bold tracking-tight">
             <span className="text-brand-orange">NxtGen</span>
-            <span className="text-white ml-1">I-Assist</span>
+            <span className="text-strong ml-1">I-Assist</span>
           </h2>
           <p className="mt-1 text-sm text-text-muted">Desktop App Authorization</p>
         </div>
@@ -87,7 +87,7 @@ const DesktopAuthorize = () => {
               <ShieldCheck size={32} className="text-green-500" />
             </div>
             <div>
-              <p className="text-lg font-semibold text-white">Authorization Successful</p>
+              <p className="text-lg font-semibold text-strong">Authorization Successful</p>
               <p className="mt-1 text-sm text-text-muted">
                 Redirecting back to the desktop app...
               </p>
@@ -99,12 +99,12 @@ const DesktopAuthorize = () => {
         ) : (
           <div className="space-y-6">
             {/* User info */}
-            <div className="flex items-center gap-3 rounded-lg border border-white/[0.08] bg-bg-surface p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-orange text-white font-bold text-sm">
+            <div className="flex items-center gap-3 rounded-lg border border-line bg-bg-surface p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-orange text-on-brand font-bold text-sm">
                 {(user?.firstName || user?.email || '?').charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-white truncate">
+                <p className="text-sm font-medium text-strong truncate">
                   {user?.firstName && user?.lastName
                     ? `${user.firstName} ${user.lastName}`
                     : user?.email}
@@ -119,15 +119,15 @@ const DesktopAuthorize = () => {
                 The I-Assist desktop app is requesting access to your account:
               </p>
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-white/80">
+                <div className="flex items-center gap-2 text-sm text-strong/80">
                   <Monitor size={16} className="text-brand-orange flex-shrink-0" />
                   <span>Start and manage interview sessions</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-white/80">
+                <div className="flex items-center gap-2 text-sm text-strong/80">
                   <Monitor size={16} className="text-brand-orange flex-shrink-0" />
                   <span>Access your assistants and context documents</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-white/80">
+                <div className="flex items-center gap-2 text-sm text-strong/80">
                   <Monitor size={16} className="text-brand-orange flex-shrink-0" />
                   <span>Use AI transcription and query features</span>
                 </div>
@@ -145,14 +145,14 @@ const DesktopAuthorize = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => window.close()}
-                className="flex-1 rounded-lg border border-white/[0.08] bg-bg-surface px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-white/[0.05]"
+                className="flex-1 rounded-lg border border-line bg-bg-surface px-4 py-3 text-sm font-medium text-strong transition-colors hover:bg-elevate"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAuthorize}
                 disabled={status === 'authorizing'}
-                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-brand-orange px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-brand-orange px-4 py-3 text-sm font-medium text-on-brand transition-colors hover:bg-orange-600 disabled:opacity-50"
               >
                 {status === 'authorizing' ? (
                   <>

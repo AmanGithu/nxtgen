@@ -10,7 +10,7 @@ import DeleteDocumentDialog from './DeleteDocumentDialog';
 const FILE_TYPE_STYLES: Record<string, string> = {
   pdf: 'bg-red-500/10 text-red-400 border-red-500/20',
   docx: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  txt: 'bg-white/[0.04] text-text-muted border-white/[0.08]',
+  txt: 'bg-elevate text-text-muted border-line',
   md: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
 };
 
@@ -95,11 +95,11 @@ const UploadModal = ({ onUpload, onCreateText, onClose, saving }: UploadModalPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-bg-surface p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl border border-line bg-bg-surface p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-semibold">Upload a document</h3>
-          <button onClick={onClose} className="text-text-muted hover:text-white transition-colors">
+          <button onClick={onClose} className="text-text-muted hover:text-strong transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -113,7 +113,7 @@ const UploadModal = ({ onUpload, onCreateText, onClose, saving }: UploadModalPro
               onChange={e => setTitle(e.target.value)}
               placeholder="Document title"
               maxLength={200}
-              className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
             />
           </div>
 
@@ -125,21 +125,21 @@ const UploadModal = ({ onUpload, onCreateText, onClose, saving }: UploadModalPro
               placeholder="Optional description"
               rows={2}
               maxLength={500}
-              className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none resize-none"
+              className="mt-1 w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none resize-none"
             />
           </div>
 
           {/* Mode toggle */}
           <div>
             <label className="text-xs font-semibold text-text-muted">Content source *</label>
-            <div className="mt-1 flex gap-1 rounded-lg bg-bg-card p-1 border border-white/[0.08]">
+            <div className="mt-1 flex gap-1 rounded-lg bg-bg-card p-1 border border-line">
               <button
                 type="button"
                 onClick={() => setMode('file')}
                 className={
                   mode === 'file'
                     ? 'flex-1 rounded-md bg-brand-orange/10 px-3 py-1.5 text-xs font-medium text-brand-orange'
-                    : 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium text-text-muted hover:text-white transition-colors'
+                    : 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium text-text-muted hover:text-strong transition-colors'
                 }
               >
                 File upload
@@ -150,7 +150,7 @@ const UploadModal = ({ onUpload, onCreateText, onClose, saving }: UploadModalPro
                 className={
                   mode === 'text'
                     ? 'flex-1 rounded-md bg-brand-orange/10 px-3 py-1.5 text-xs font-medium text-brand-orange'
-                    : 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium text-text-muted hover:text-white transition-colors'
+                    : 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium text-text-muted hover:text-strong transition-colors'
                 }
               >
                 Paste text
@@ -168,12 +168,12 @@ const UploadModal = ({ onUpload, onCreateText, onClose, saving }: UploadModalPro
                 className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-8 cursor-pointer transition-colors ${
                   dragOver
                     ? 'border-brand-orange bg-brand-orange/5'
-                    : 'border-white/[0.12] hover:border-white/[0.24]'
+                    : 'border-line-strong hover:border-line-strong'
                 }`}
               >
                 <CloudUpload size={28} className={dragOver ? 'text-brand-orange' : 'text-text-muted'} />
                 {file ? (
-                  <p className="mt-2 text-xs text-white">{file.name} ({formatSize(file.size)})</p>
+                  <p className="mt-2 text-xs text-strong">{file.name} ({formatSize(file.size)})</p>
                 ) : (
                   <>
                     <p className="mt-2 text-xs text-text-muted">Drag and drop or choose file</p>
@@ -198,19 +198,19 @@ const UploadModal = ({ onUpload, onCreateText, onClose, saving }: UploadModalPro
                 placeholder="Paste your resume, job description, or notes here..."
                 rows={8}
                 maxLength={100000}
-                className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card px-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none resize-none"
+                className="mt-1 w-full rounded-lg border border-line bg-bg-card px-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none resize-none"
               />
             </div>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted hover:text-white transition-colors">
+            <button type="button" onClick={onClose} className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted hover:text-strong transition-colors">
               Cancel
             </button>
             <button
               type="submit"
               disabled={!canSubmit || saving}
-              className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-orange/90 transition-colors disabled:opacity-50"
+              className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand shadow-md hover:bg-brand-orange/90 transition-colors disabled:opacity-50"
             >
               {saving ? 'Uploading...' : 'Upload document'}
             </button>
@@ -280,7 +280,7 @@ const Documents = () => {
   ];
 
   return (
-    <div className="p-6 text-white max-w-5xl mx-auto space-y-6">
+    <div className="p-6 text-strong max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div>
         <h1 className="font-display text-2xl font-bold">I-Assist</h1>
@@ -288,7 +288,7 @@ const Documents = () => {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-white/[0.08]">
+      <div className="flex gap-1 border-b border-line">
         {tabs.map(tab => {
           const isActive = tab.label === 'Documents';
           return (
@@ -298,7 +298,7 @@ const Documents = () => {
               className={
                 isActive
                   ? 'px-4 py-2.5 text-sm font-medium text-brand-orange border-b-2 border-brand-orange -mb-px'
-                  : 'px-4 py-2.5 text-sm font-medium text-text-muted hover:text-white transition-colors'
+                  : 'px-4 py-2.5 text-sm font-medium text-text-muted hover:text-strong transition-colors'
               }
             >
               {tab.label}
@@ -311,13 +311,13 @@ const Documents = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Documents</h2>
-          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-text-muted tabular-nums">
+          <span className="rounded-full bg-elevate px-2 py-0.5 text-[10px] font-medium text-text-muted tabular-nums">
             {documents.length}
           </span>
         </div>
         <button
           onClick={() => setShowUpload(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-orange/90 transition-colors"
+          className="flex items-center gap-1.5 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand shadow-md hover:bg-brand-orange/90 transition-colors"
         >
           <Upload size={16} /> Upload
         </button>
@@ -331,30 +331,30 @@ const Documents = () => {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search documents..."
-          className="w-full rounded-lg border border-white/[0.08] bg-bg-surface pl-9 pr-3 py-2 text-sm text-white placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
+          className="w-full rounded-lg border border-line bg-bg-surface pl-9 pr-3 py-2 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
         />
       </div>
 
       {/* Documents table */}
       {loading ? (
-        <div className="rounded-xl border border-white/[0.08] bg-bg-surface overflow-hidden animate-pulse">
-          <div className="border-b border-white/[0.06] px-4 py-3 flex gap-4">
+        <div className="rounded-xl border border-line bg-bg-surface overflow-hidden animate-pulse">
+          <div className="border-b border-line-subtle px-4 py-3 flex gap-4">
             {['w-8', 'flex-1', 'w-16', 'w-16', 'w-16', 'w-24', 'w-8'].map((w, i) => (
-              <div key={i} className={`h-3 ${w} rounded bg-white/[0.06]`} />
+              <div key={i} className={`h-3 ${w} rounded bg-elevate`} />
             ))}
           </div>
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="border-b border-white/[0.04] px-4 py-3.5 flex items-center gap-4">
-              <div className="h-3 w-4 rounded bg-white/[0.06]" />
+            <div key={i} className="border-b border-line-subtle px-4 py-3.5 flex items-center gap-4">
+              <div className="h-3 w-4 rounded bg-elevate" />
               <div className="flex-1 space-y-1">
-                <div className="h-4 w-40 rounded bg-white/[0.08]" />
-                <div className="h-2.5 w-56 rounded bg-white/[0.04]" />
+                <div className="h-4 w-40 rounded bg-elevate" />
+                <div className="h-2.5 w-56 rounded bg-elevate" />
               </div>
-              <div className="h-5 w-10 rounded bg-white/[0.06]" />
-              <div className="h-3 w-14 rounded bg-white/[0.06]" />
-              <div className="h-3 w-12 rounded bg-white/[0.06]" />
-              <div className="h-3 w-20 rounded bg-white/[0.06]" />
-              <div className="h-4 w-4 rounded bg-white/[0.04]" />
+              <div className="h-5 w-10 rounded bg-elevate" />
+              <div className="h-3 w-14 rounded bg-elevate" />
+              <div className="h-3 w-12 rounded bg-elevate" />
+              <div className="h-3 w-20 rounded bg-elevate" />
+              <div className="h-4 w-4 rounded bg-elevate" />
             </div>
           ))}
         </div>
@@ -364,13 +364,13 @@ const Documents = () => {
           <p className="text-sm font-medium text-red-400">{error}</p>
           <button
             onClick={() => loadDocs(search)}
-            className="mt-4 flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted hover:text-white transition-colors"
+            className="mt-4 flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted hover:text-strong transition-colors"
           >
             <RefreshCw size={14} /> Retry
           </button>
         </div>
       ) : documents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.12] py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-line-strong py-16 text-center">
           <FileText size={40} className="text-text-muted mb-3" />
           <p className="text-sm font-medium text-text-muted">
             {search ? 'No documents match your search' : 'No documents yet'}
@@ -381,18 +381,18 @@ const Documents = () => {
           {!search && (
             <button
               onClick={() => setShowUpload(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-orange/90 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand shadow-md hover:bg-brand-orange/90 transition-colors"
             >
               <Upload size={16} /> Upload document
             </button>
           )}
         </div>
       ) : (
-        <div className="rounded-xl border border-white/[0.08] bg-bg-surface overflow-hidden">
+        <div className="rounded-xl border border-line bg-bg-surface overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-white/[0.06]">
+                <tr className="border-b border-line-subtle">
                   <th className="px-4 py-3 text-[10px] font-bold text-text-muted uppercase tracking-wider w-8">#</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-text-muted uppercase tracking-wider">Name</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-text-muted uppercase tracking-wider">Type</th>
@@ -402,12 +402,12 @@ const Documents = () => {
                   <th className="px-4 py-3 text-[10px] font-bold text-text-muted uppercase tracking-wider w-12"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.04]">
+              <tbody className="divide-y divide-line">
                 {documents.map((doc, i) => {
                   const ft = (doc.fileType || 'txt').toLowerCase();
                   const pillStyle = FILE_TYPE_STYLES[ft] || FILE_TYPE_STYLES.txt;
                   return (
-                    <tr key={doc.id} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={doc.id} className="hover:bg-elevate transition-colors">
                       <td className="px-4 py-3 text-xs text-text-muted tabular-nums">{i + 1}</td>
                       <td className="px-4 py-3">
                         <button
@@ -454,7 +454,7 @@ const Documents = () => {
           </div>
 
           {/* Table footer */}
-          <div className="border-t border-white/[0.06] px-4 py-3">
+          <div className="border-t border-line-subtle px-4 py-3">
             <p className="text-[10px] text-text-muted">
               Showing {documents.length} document{documents.length !== 1 ? 's' : ''}
             </p>

@@ -1,0 +1,313 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   NxtGen dark theme for the ported resume workspace.
+
+   The upstream MindSync CSS is entirely token-driven, so re-theming is a
+   matter of overriding the custom properties at the same scope rather than
+   touching any of the 600+ rules that consume them. This file must load
+   AFTER resume-workspace.css.
+
+   The greys are inverted: --gray-50 is the darkest surface and --gray-900 is
+   near-white text, which is what the upstream rules assume (low number =
+   background, high number = foreground).
+   ───────────────────────────────────────────────────────────────────────── */
+
+.resume-workspace {
+  /* Accent: NxtGen orange replaces PAVY ink */
+  --primary-50: #2a1a08;
+  --primary-100: #3d2409;
+  --primary-200: #5c360c;
+  --primary-300: #8a5211;
+  --primary-500: #f5820b;
+  --primary-600: #f5820b;
+  --primary-700: #ff9f43;
+  --primary: #f5820b;
+  --primary-hover: #ff9f43;
+
+  /* Neutrals inverted for dark canvas */
+  --gray-50: #0a0a0f;
+  --gray-100: #111118;
+  --gray-150: #16161f;
+  --gray-200: #1a1a24;
+  --gray-300: #23232f;
+  --gray-400: #3a3a48;
+  --gray-500: #6b7280;
+  --gray-600: #9ca3af;
+  --gray-700: #c9ccd4;
+  --gray-800: #e5e7eb;
+  --gray-900: #ffffff;
+
+  /* Score states — tuned for legibility on dark */
+  --success-50: #06231a;
+  --success-100: #0a3527;
+  --success-500: #22c55e;
+  --success-600: #16a34a;
+  --success-700: #4ade80;
+  --warning-50: #2a1a05;
+  --warning-100: #3d2607;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --warning-700: #fbbf24;
+  --danger-50: #2a0d0d;
+  --danger-100: #3d1212;
+  --danger-500: #ef4444;
+  --danger-600: #dc2626;
+
+  /* Surfaces & borders — match NxtGen's canvas/surface/card ramp */
+  --canvas: #0a0a0f;
+  --surface: #111118;
+  --surface-subtle: #16161f;
+  --surface-sunken: #1a1a24;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Form fields and body text. These sit in a separate token block upstream
+     and were the reason inputs kept rendering cream on the dark canvas. */
+  --field-bg: #1a1a24;
+  --text: #ffffff;
+  --text-secondary: #c9ccd4;
+  --text-muted: #9ca3af;
+
+  /* Focus ring and shadows retuned for a dark surface */
+  --ring: 0 0 0 3px rgba(245, 130, 11, 0.35);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 14px 38px rgba(0, 0, 0, 0.6);
+
+  /* Chrome around the A4 page: a hairline ring plus a drop shadow. Both must
+     flip — a white ring vanishes on a light canvas, and a near-black shadow
+     reads as grime rather than depth. */
+  --doc-ring: rgba(255, 255, 255, 0.05);
+  --doc-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
+  --doc-shadow-sm: 0 8px 20px -6px rgba(0, 0, 0, 0.7);
+  --wash-hover: rgba(255, 255, 255, 0.06);
+
+  background: var(--canvas);
+  color: var(--gray-900);
+}
+
+/* Inputs and textareas inherit the light field colour from several rules;
+   pin them here so every control matches regardless of which rule wins. */
+.resume-workspace .input,
+.resume-workspace input,
+.resume-workspace textarea,
+.resume-workspace select {
+  background: var(--field-bg);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.resume-workspace input::placeholder,
+.resume-workspace textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* The A4 document itself stays white — it's a printed page, and the preview
+   must match what actually exports to PDF/DOCX. */
+.resume-workspace .preview .page,
+.resume-workspace .resume,
+.resume-workspace .tpl-card__frame {
+  color-scheme: light;
+}
+
+/* Template thumbnails render the real document, so keep their frame light. */
+.resume-workspace .tpl-card__frame {
+  background: #fff;
+}
+
+/* Upstream paints the toast with --gray-900 (black on cream). Inverting the
+   ramp made that white-on-white — a blank bar at the bottom of the screen.
+   Pin it to a raised dark surface instead. */
+.resume-workspace .toast {
+  background: var(--surface-sunken);
+  color: var(--gray-900);
+  border-color: var(--border-strong);
+}
+
+/* ── Independent pane scrolling ───────────────────────────────────────────
+   Upstream `.app` is `height: 100vh` because it owned the whole viewport.
+   Inside NxtGen's dashboard it sits in a padded, scrolling <main>, so the
+   outer container scrolled the entire workspace as one block and the panes
+   never got their own scrollbars.
+
+   Filling the parent instead lets `.editor` and `.preview__scroll` keep the
+   independent overflow they already declare.
+   ──────────────────────────────────────────────────────────────────────── */
+/* NxtGen's dashboard renders <Outlet/> inside an unsized `p-8` div, so a
+   percentage height has nothing to resolve against. Size against the viewport
+   minus the 64px dashboard header, and cancel the wrapper's 2rem padding so
+   the editor runs full-bleed like it does upstream.
+
+   Applied ONLY when the editor is mounted (`.app` exists in that branch and
+   not on the landing deck) — the deck is a normal, page-scrolling layout and
+   full-bleed sizing pushed its grid off-screen. */
+.resume-workspace:has(> .app) {
+  height: calc(100vh - 4rem);
+  margin: -2rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.resume-workspace .app {
+  height: 100%;
+  min-height: 0;
+}
+
+.resume-workspace .workspace {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Each pane scrolls on its own. */
+.resume-workspace .editor {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.resume-workspace .preview {
+  min-height: 0;
+}
+
+.resume-workspace .preview__scroll {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── Topbar: template button + live ATS chip ──────────────────────────────
+   The dock rail these replaced is gone; Template opens a modal and the ATS
+   chip links through to the full checker page. */
+.resume-workspace .tb-tpl {
+  display: flex; align-items: center; gap: 8px;
+  margin-left: var(--space-3);
+  padding: 7px 12px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: inherit; font-size: var(--text-sm); font-weight: 600;
+  color: var(--gray-800); cursor: pointer;
+  transition: border-color .14s ease, color .14s ease;
+}
+.resume-workspace .tb-tpl:hover { border-color: var(--primary); color: var(--primary); }
+.resume-workspace .tb-tpl svg { width: 15px; height: 15px; flex: none; }
+
+.resume-workspace .tb-ats {
+  display: flex; align-items: center; gap: 10px;
+  margin-right: var(--space-3);
+  padding: 5px 12px 5px 6px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-family: inherit; cursor: pointer;
+  transition: border-color .14s ease;
+}
+.resume-workspace .tb-ats:hover { border-color: var(--border-strong); }
+
+/* Score dial drawn with a conic gradient — no extra markup or library. */
+.resume-workspace .tb-ats__ring {
+  position: relative; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 50%; flex: none;
+  background: conic-gradient(var(--band) calc(var(--pct) * 1%), var(--border) 0);
+}
+.resume-workspace .tb-ats__ring::after {
+  content: ""; position: absolute; inset: 3px;
+  border-radius: 50%; background: var(--surface-sunken);
+}
+.resume-workspace .tb-ats__ring b {
+  position: relative; z-index: 1;
+  font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--band);
+}
+.resume-workspace .tb-ats__txt { display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
+.resume-workspace .tb-ats__lbl { font-size: 11px; font-weight: 700; color: var(--gray-800); }
+.resume-workspace .tb-ats__sub { font-size: 10px; color: var(--text-muted); }
+
+.resume-workspace .tb-ats--good { --band: var(--success-500); }
+.resume-workspace .tb-ats--mid  { --band: var(--warning-500); }
+.resume-workspace .tb-ats--low  { --band: var(--danger-500); }
+
+/* ── Template picker modal ───────────────────────────────────────────────── */
+.resume-workspace .tpl-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: var(--space-6); }
+.resume-workspace .tpl-modal__scrim { position: absolute; inset: 0; background: var(--overlay); backdrop-filter: blur(3px); }
+.resume-workspace .tpl-modal__panel {
+  position: relative; display: flex; flex-direction: column; gap: var(--space-4);
+  width: min(1080px, 100%); max-height: 86vh; padding: var(--space-6);
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+}
+.resume-workspace .tpl-modal__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.resume-workspace .tpl-modal__title { margin: 0; font-size: var(--text-md); font-weight: 800; color: var(--gray-900); }
+.resume-workspace .tpl-modal__note { margin: 4px 0 0; font-size: var(--text-xs); color: var(--text-muted); max-width: 62ch; line-height: 1.5; }
+.resume-workspace .tpl-modal__body { overflow-y: auto; min-height: 0; padding-right: 4px; }
+
+/* ─── Light theme ────────────────────────────────────────────────────────────
+   The dark block above INVERTS the upstream ramp (low number = background).
+   Light mode restores the natural direction, so nothing below this point
+   changes — every rule already reads through these tokens.
+
+   Values are NxtGen's neutral light palette rather than upstream's cream, so
+   the workspace matches the rest of the app instead of reverting to PAVY's
+   paper tone. Higher specificity than the `.resume-workspace` block, so it
+   wins regardless of source order.
+   ──────────────────────────────────────────────────────────────────────────── */
+:root[data-theme='light'] .resume-workspace {
+  /* Orange is darkened for contrast: #f5820b on white is ~2.4:1 and fails AA
+     wherever it is used as text or a small icon. */
+  --primary-50: #fff5e9;
+  --primary-100: #ffe6c9;
+  --primary-200: #ffd0a0;
+  --primary-300: #f5a45c;
+  --primary-500: #a85400;
+  --primary-600: #8f4900;
+  --primary-700: #703a00;
+  --primary: #a85400;
+  --primary-hover: #8f4900;
+
+  /* Natural direction: 50 = lightest surface, 900 = near-black text. */
+  --gray-50: #f7f8fa;
+  --gray-100: #f1f3f6;
+  --gray-150: #eceff3;
+  --gray-200: #e4e7ec;
+  --gray-300: #d5d9e0;
+  --gray-400: #b0b6c0;
+  --gray-500: #6b7280;
+  --gray-600: #5b6472;
+  --gray-700: #414a58;
+  --gray-800: #253040;
+  --gray-900: #0f172a;
+
+  --success-50: #eafaf1;
+  --success-100: #cdf2de;
+  --success-500: #16a34a;
+  --success-600: #15803d;
+  --success-700: #166534;
+  --warning-50: #fff8e8;
+  --warning-100: #ffefc7;
+  --warning-500: #d97706;
+  --warning-600: #b45309;
+  --warning-700: #92400e;
+  --danger-50: #fdecec;
+  --danger-100: #fbd5d5;
+  --danger-500: #dc2626;
+  --danger-600: #b91c1c;
+
+  --canvas: #eceff3;
+  --surface: #ffffff;
+  --surface-subtle: #f7f8fa;
+  --surface-sunken: #eceff3;
+  --border: rgba(15, 23, 42, 0.16);
+  --border-strong: rgba(15, 23, 42, 0.28);
+
+  --field-bg: #ffffff;
+  --text: #0f172a;
+  --text-secondary: #414a58;
+  --text-muted: #5b6472;
+
+  --ring: 0 0 0 3px rgba(168, 84, 0, 0.28);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.10);
+  --shadow-lg: 0 14px 38px rgba(15, 23, 42, 0.16);
+
+  --doc-ring: rgba(15, 23, 42, 0.10);
+  --doc-shadow: 0 18px 44px -18px rgba(15, 23, 42, 0.28);
+  --doc-shadow-sm: 0 6px 16px -6px rgba(15, 23, 42, 0.22);
+  --wash-hover: rgba(15, 23, 42, 0.05);
+}

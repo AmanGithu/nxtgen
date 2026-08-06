@@ -203,6 +203,12 @@ const BackendService = {
     }).catch(err => logger.error('Transcript persist failed', err.message));
   },
 
+  async getConfig() {
+    const res = await this._fetch('/iassist/config');
+    if (!res.ok) throw new Error('Config fetch failed');
+    return await res.json();
+  },
+
   async transcribe(audio, mimeType, sessionId) {
     const res = await this._fetch('/iassist/transcribe', {
       method: 'POST',
@@ -220,6 +226,51 @@ const BackendService = {
     });
     if (!res.ok) throw new Error(await readErrorMessage(res, 'AI query failed'));
     return await res.json();
+  },
+
+  // Streams the answer via SSE, invoking onDelta for each fragment as it arrives.
+  // Resolves with the same shape as query() once the `done` event lands.
+  async queryStream(sessionId, assistantId, message, conversationHistory, responseType, onDelta) {
+    const res = await this._fetch('/iassist/query/stream', {
+      method: 'POST',
+      headers: { Accept: 'text/event-stream' },
+      body: JSON.stringify({ sessionId, assistantId, message, conversationHistory, responseType }),
+    });
+    if (!res.ok) throw new Error(await readErrorMessage(res, 'AI query failed'));
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let result = null;
+    let streamError = null;
+
+    const reader = res.body.getReader();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE frames are separated by a blank line; keep any partial tail buffered.
+      const frames = buffer.split('\n\n');
+      buffer = frames.pop();
+
+      for (const frame of frames) {
+        const eventLine = frame.split('\n').find(l => l.startsWith('event: '));
+        const dataLine = frame.split('\n').find(l => l.startsWith('data: '));
+        if (!eventLine || !dataLine) continue;
+
+        const event = eventLine.slice(7).trim();
+        const payload = JSON.parse(dataLine.slice(6));
+
+        if (event === 'delta') onDelta(payload.text);
+        else if (event === 'done') result = payload;
+        else if (event === 'error') streamError = new Error(payload.message);
+      }
+    }
+
+    if (streamError) throw streamError;
+    if (!result) throw new Error('AI stream ended before completing');
+    return result;
   },
 };
 
@@ -748,11 +799,21 @@ async function startSession(assistantId) {
       assistant,
     });
 
+    // Admin-tuned capture thresholds. A failure here must not block the session,
+    // so fall back to the renderer's built-in defaults.
+    let vad = null;
+    try {
+      ({ vad } = await BackendService.getConfig());
+    } catch (err) {
+      logger.warn('VAD config fetch failed, using defaults', err.message);
+    }
+
     if (sessionWindow && !sessionWindow.isDestroyed()) {
       sessionWindow.webContents.once('did-finish-load', () => {
         sessionWindow.webContents.send('start-audio-capture', {
           sessionId: currentBackendSessionId,
           assistant,
+          vad,
         });
       });
     }
@@ -845,12 +906,13 @@ async function processAiQueue() {
   try {
     broadcastToLiveWindows('ai-thinking', { thinking: true });
 
-    const result = await BackendService.query(
+    const result = await BackendService.queryStream(
       request.sessionId,
       request.assistantId,
       request.message,
       request.conversationHistory,
-      request.responseType
+      request.responseType,
+      (text) => broadcastToLiveWindows('llm-answer-delta', { text })
     );
 
     if (result.isQuestion) currentSessionQuestionsCount++;

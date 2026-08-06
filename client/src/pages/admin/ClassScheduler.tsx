@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Video, Plus, Clock, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Video, Plus, Clock, X, Trash2, Pencil } from 'lucide-react';
 import api from '../../services/api';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 const ClassScheduler = () => {
   const [schedules, setSchedules] = useState<any[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<any | null>(null);
   const [batches, setBatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
@@ -20,6 +22,26 @@ const ClassScheduler = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const deleteClass = async (item: any) => {
+    try {
+      await api.delete(`/admin/scheduler/${item.id}`);
+      setPendingDelete(null);
+      await fetchData();
+    } catch (err) {
+      console.error('Failed to delete class:', err);
+    }
+  };
+
+  /** Cancelling keeps the class on record; deleting removes it entirely. */
+  const cancelClass = async (item: any) => {
+    try {
+      await api.patch(`/admin/scheduler/${item.id}`, { status: 'cancelled' });
+      await fetchData();
+    } catch (err) {
+      console.error('Failed to cancel class:', err);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -50,7 +72,16 @@ const ClassScheduler = () => {
   };
 
   return (
-    <div className="space-y-6 p-6 text-white">
+    <div className="space-y-6 p-6 text-strong">
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Delete "${pendingDelete.title}"?`}
+          message="The class is removed from the schedule. Students will no longer see it."
+          confirmLabel="Delete class"
+          onConfirm={() => deleteClass(pendingDelete)}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold">Class Scheduler</h1>
@@ -58,16 +89,16 @@ const ClassScheduler = () => {
         </div>
 
         <div className="flex gap-3">
-          <div className="inline-flex rounded-lg border border-white/[0.08] bg-bg-surface p-1">
+          <div className="inline-flex rounded-lg border border-line bg-bg-surface p-1">
             <button
               onClick={() => setViewMode('list')}
-              className={`rounded px-3 py-1 text-xs font-semibold ${viewMode === 'list' ? 'bg-brand-orange text-white' : 'text-text-muted'}`}
+              className={`rounded px-3 py-1 text-xs font-semibold ${viewMode === 'list' ? 'bg-brand-orange text-on-brand' : 'text-text-muted'}`}
             >
               List View
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className={`rounded px-3 py-1 text-xs font-semibold ${viewMode === 'calendar' ? 'bg-brand-orange text-white' : 'text-text-muted'}`}
+              className={`rounded px-3 py-1 text-xs font-semibold ${viewMode === 'calendar' ? 'bg-brand-orange text-on-brand' : 'text-text-muted'}`}
             >
               Calendar View
             </button>
@@ -75,7 +106,7 @@ const ClassScheduler = () => {
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white hover:bg-brand-orange/90"
+            className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand hover:bg-brand-orange/90"
           >
             <Plus size={16} />
             Schedule Live Class
@@ -84,7 +115,7 @@ const ClassScheduler = () => {
       </div>
 
       {/* Schedules List */}
-      <div className="rounded-xl border border-white/[0.08] bg-bg-surface p-6">
+      <div className="rounded-xl border border-line bg-bg-surface p-6">
         {loading ? (
           <p className="text-sm text-text-muted">Loading schedules...</p>
         ) : schedules.length === 0 ? (
@@ -92,14 +123,33 @@ const ClassScheduler = () => {
         ) : (
           <div className="space-y-4">
             {schedules.map((s) => (
-              <div key={s.id} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-white/[0.08] bg-bg-card p-4">
+              <div key={s.id} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-line bg-bg-card p-4">
                 <div className="space-y-1">
                   <span className="text-xs font-bold text-brand-orange">{s.batch?.name || 'Cohort'}</span>
-                  <h3 className="font-semibold text-white text-base">{s.title}</h3>
+                  <h3 className="font-semibold text-strong text-base">{s.title}</h3>
                   <div className="flex items-center gap-4 text-xs text-text-muted">
                     <span className="flex items-center gap-1"><CalendarIcon size={14} /> {new Date(s.dateTime).toLocaleString()}</span>
                     <span className="flex items-center gap-1"><Clock size={14} /> {s.duration} mins</span>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {s.status !== 'cancelled' && (
+                    <button
+                      onClick={() => cancelClass(s)}
+                      title="Mark as cancelled"
+                      className="rounded-lg border border-line px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-strong"
+                    >
+                      Cancel class
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setPendingDelete(s)}
+                    title="Delete this class"
+                    className="rounded p-1.5 text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
 
                 {s.zoomLink && (
@@ -107,7 +157,7 @@ const ClassScheduler = () => {
                     href={s.zoomLink}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-lg border border-brand-orange/40 bg-brand-orange/10 px-4 py-2 text-xs font-semibold text-brand-orange hover:bg-brand-orange hover:text-white"
+                    className="inline-flex items-center gap-2 rounded-lg border border-brand-orange/40 bg-brand-orange/10 px-4 py-2 text-xs font-semibold text-brand-orange hover:bg-brand-orange hover:text-on-brand"
                   >
                     <Video size={16} />
                     Join Zoom Session
@@ -121,11 +171,11 @@ const ClassScheduler = () => {
 
       {/* MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-bg-surface p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h3 className="font-display text-lg font-bold text-white">Schedule Live Class</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-text-muted hover:text-white"><X size={20} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-xl border border-line bg-bg-surface p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h3 className="font-display text-lg font-bold text-strong">Schedule Live Class</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-text-muted hover:text-strong"><X size={20} /></button>
             </div>
 
             <form onSubmit={handleCreateSchedule} className="space-y-4">
@@ -134,7 +184,7 @@ const ClassScheduler = () => {
                 <select
                   required value={form.batchId}
                   onChange={(e) => setForm({ ...form, batchId: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2 text-sm text-white focus:border-brand-orange"
+                  className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2 text-sm text-strong focus:border-brand-orange"
                 >
                   <option value="">Select Batch</option>
                   {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -146,7 +196,7 @@ const ClassScheduler = () => {
                 <input
                   type="text" required placeholder="Prompt Engineering & Red Teaming" value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2 text-sm text-white focus:border-brand-orange"
+                  className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2 text-sm text-strong focus:border-brand-orange"
                 />
               </div>
 
@@ -155,7 +205,7 @@ const ClassScheduler = () => {
                 <input
                   type="datetime-local" required value={form.dateTime}
                   onChange={(e) => setForm({ ...form, dateTime: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2 text-xs text-white"
+                  className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2 text-xs text-strong"
                 />
               </div>
 
@@ -164,11 +214,11 @@ const ClassScheduler = () => {
                 <input
                   type="url" placeholder="https://zoom.us/j/123456789" value={form.zoomLink}
                   onChange={(e) => setForm({ ...form, zoomLink: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card p-2 text-sm text-white focus:border-brand-orange"
+                  className="mt-1 w-full rounded-lg border border-line bg-bg-card p-2 text-sm text-strong focus:border-brand-orange"
                 />
               </div>
 
-              <button type="submit" className="w-full rounded-lg bg-brand-orange py-2.5 text-sm font-semibold text-white hover:bg-brand-orange/90">
+              <button type="submit" className="w-full rounded-lg bg-brand-orange py-2.5 text-sm font-semibold text-on-brand hover:bg-brand-orange/90">
                 Save Scheduled Class
               </button>
             </form>

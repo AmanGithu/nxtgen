@@ -498,11 +498,19 @@
     let vadInterval = null;
     let audioContext = null;
     let analyser = null;
-    const VAD_THRESHOLD = 0.015;
+    // Overridden by admin config at session start; these are the fallbacks.
+    let VAD_THRESHOLD = 0.015;
+    let SILENCE_DURATION_MS = 1500;
+    let MIN_CHUNK_DURATION_MS = 500;
     const VAD_INTERVAL_MS = 100;
-    const SILENCE_DURATION_MS = 1500;
     const MAX_CHUNK_DURATION_MS = 15000;
-    const MIN_CHUNK_DURATION_MS = 500;
+
+    function applyVadConfig(vad) {
+      if (!vad) return;
+      if (Number.isFinite(vad.amplitudeThreshold)) VAD_THRESHOLD = vad.amplitudeThreshold;
+      if (Number.isFinite(vad.silenceMs)) SILENCE_DURATION_MS = vad.silenceMs;
+      if (Number.isFinite(vad.minSpeechMs)) MIN_CHUNK_DURATION_MS = vad.minSpeechMs;
+    }
     let isRecording = false;
     let recordingStartTime = 0;
     let silenceStart = null;
@@ -712,7 +720,15 @@
       transcriptScroll.scrollTop = transcriptScroll.scrollHeight;
     }
 
-    function renderAnswer() {
+    // Streamed fragments belong to the oldest unanswered entry, same as resolveAnswer.
+    function appendAnswerDelta(text) {
+      const entry = entries.find(e => e.pending);
+      if (!entry) return;
+      entry.answer = (entry.answer || '') + text;
+      if (selectedId === entry.id) renderAnswer({ preserveScroll: true });
+    }
+
+    function renderAnswer({ preserveScroll = false } = {}) {
       const entry = entries.find(e => e.id === selectedId);
 
       if (!entry) {
@@ -727,7 +743,9 @@
       answerQuestion.classList.remove('hidden');
       answerPlaceholder.classList.add('hidden');
 
-      if (entry.pending) {
+      // Show the spinner only until the first fragment lands; after that the
+      // partial answer itself is the progress indicator.
+      if (entry.pending && !entry.answer) {
         thinkingIndicator.classList.remove('hidden');
         answerBody.classList.add('hidden');
       } else {
@@ -736,7 +754,7 @@
         answerBody.classList.remove('hidden');
       }
 
-      answerScroll.scrollTop = 0;
+      if (!preserveScroll) answerScroll.scrollTop = 0;
     }
 
     transcriptList.addEventListener('click', (e) => {
@@ -780,6 +798,7 @@
         categoryBadge.className = `category-badge badge-${cat}`;
         categoryBadge.textContent = cat.replace('_', ' ');
       }
+      applyVadConfig(data.vad);
       startTimer();
       startAudioCapture();
     });
@@ -815,6 +834,10 @@
       conversationHistory.push({ role: 'user', text });
       window.iAssist.sendQuery(text, conversationHistory);
     }
+
+    window.iAssist.onLlmAnswerDelta((data) => {
+      if (data.text) appendAnswerDelta(data.text);
+    });
 
     window.iAssist.onLlmAnswer((data) => {
       if (data.response) {

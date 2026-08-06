@@ -105,7 +105,7 @@ const IAssistPreview = () => {
               {isAuthenticated ? (
                 <Link
                   to="/dashboard/student/tools/i-assist"
-                  className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-6 py-3 font-semibold text-white transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
+                  className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-6 py-3 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
                 >
                   <Download size={18} />
                   Get the Desktop App
@@ -113,7 +113,7 @@ const IAssistPreview = () => {
               ) : (
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-6 py-3 font-semibold text-white transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
+                  className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-6 py-3 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
                 >
                   Sign In to Get Started
                   <ArrowRight size={18} />
@@ -121,7 +121,7 @@ const IAssistPreview = () => {
               )}
               <a
                 href="#how-it-works"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/[0.15] bg-white/[0.05] px-6 py-3 font-medium text-white transition-all hover:bg-white/[0.1] backdrop-blur-sm"
+                className="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-elevate px-6 py-3 font-medium text-strong transition-all hover:bg-elevate backdrop-blur-sm"
               >
                 See How It Works
                 <ArrowRight size={16} />
@@ -131,10 +131,10 @@ const IAssistPreview = () => {
 
           {/* Hero visual — desktop app mockup */}
           <div className="mt-16 mx-auto max-w-4xl">
-            <div className="rounded-2xl border border-white/[0.08] bg-bg-surface p-1.5 shadow-2xl">
+            <div className="rounded-2xl border border-line bg-bg-surface p-1.5 shadow-2xl">
               <div className="rounded-xl bg-bg-card overflow-hidden">
                 {/* Title bar */}
-                <div className="flex items-center gap-2 border-b border-white/[0.08] px-4 py-2.5">
+                <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
                   <div className="flex gap-1.5">
                     <div className="h-3 w-3 rounded-full bg-red-500/60"></div>
                     <div className="h-3 w-3 rounded-full bg-yellow-500/60"></div>
@@ -148,17 +148,17 @@ const IAssistPreview = () => {
                 </div>
 
                 {/* Mock content */}
-                <div className="grid grid-cols-5 divide-x divide-white/[0.06] min-h-[280px]">
+                <div className="grid grid-cols-5 divide-x divide-line min-h-[280px]">
                   {/* Transcript panel */}
                   <div className="col-span-2 p-4 space-y-3">
                     <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Live Transcript</p>
                     <div className="space-y-2">
-                      <div className="rounded-lg bg-white/[0.04] p-2.5">
+                      <div className="rounded-lg bg-elevate p-2.5">
                         <p className="text-[11px] text-amber-400/80 font-medium mb-0.5">Interviewer</p>
                         <p className="text-xs text-text-muted leading-relaxed">"Tell me about a time you led a team through a difficult technical challenge."</p>
                         <p className="text-[10px] text-text-muted/50 mt-1 tabular-nums">0:42</p>
                       </div>
-                      <div className="rounded-lg bg-white/[0.04] p-2.5">
+                      <div className="rounded-lg bg-elevate p-2.5">
                         <p className="text-[11px] text-amber-400/80 font-medium mb-0.5">Interviewer</p>
                         <p className="text-xs text-text-muted leading-relaxed">"What was the outcome? How did you measure success?"</p>
                         <p className="text-[10px] text-text-muted/50 mt-1 tabular-nums">2:15</p>
@@ -170,16 +170,16 @@ const IAssistPreview = () => {
                   <div className="col-span-3 p-4 space-y-3">
                     <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">AI Coaching</p>
                     <div className="rounded-lg border border-green-500/20 bg-green-500/[0.05] p-3">
-                      <p className="text-xs text-white leading-relaxed">
+                      <p className="text-xs text-strong leading-relaxed">
                         <span className="font-bold text-green-400">Situation:</span> At [Company], our payment processing system was experiencing 12% failure rates during peak traffic...
                       </p>
-                      <p className="text-xs text-white leading-relaxed mt-2">
+                      <p className="text-xs text-strong leading-relaxed mt-2">
                         <span className="font-bold text-green-400">Task:</span> I was asked to lead a 4-person team to redesign the payment pipeline within 6 weeks...
                       </p>
-                      <p className="text-xs text-white leading-relaxed mt-2">
+                      <p className="text-xs text-strong leading-relaxed mt-2">
                         <span className="font-bold text-green-400">Action:</span> I introduced circuit breakers, migrated to async processing...
                       </p>
-                      <p className="text-xs text-white leading-relaxed mt-2">
+                      <p className="text-xs text-strong leading-relaxed mt-2">
                         <span className="font-bold text-green-400">Result:</span> Failure rate dropped to 0.3%, processing 2.4M transactions/day...
                       </p>
                     </div>
@@ -187,7 +187,7 @@ const IAssistPreview = () => {
                 </div>
 
                 {/* Bottom bar */}
-                <div className="flex items-center justify-between border-t border-white/[0.08] px-4 py-2">
+                <div className="flex items-center justify-between border-t border-line px-4 py-2">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
                     <span className="text-[11px] text-text-muted">Session active</span>
@@ -204,7 +204,7 @@ const IAssistPreview = () => {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-20 lg:py-24 border-t border-white/[0.06]">
+      <section id="how-it-works" className="py-20 lg:py-24 border-t border-line-subtle">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="font-display text-3xl font-bold sm:text-4xl">How It Works</h2>
@@ -215,14 +215,14 @@ const IAssistPreview = () => {
             {STEPS.map((step) => {
               const Icon = step.icon;
               return (
-                <div key={step.num} className="group relative rounded-xl border border-white/[0.08] bg-bg-surface p-6 transition-colors hover:border-brand-orange/30">
-                  <div className="absolute -top-3 left-6 rounded-full bg-brand-orange px-2.5 py-0.5 text-xs font-bold text-white">
+                <div key={step.num} className="group relative rounded-xl border border-line bg-bg-surface p-6 transition-colors hover:border-brand-orange/30">
+                  <div className="absolute -top-3 left-6 rounded-full bg-brand-orange px-2.5 py-0.5 text-xs font-bold text-on-brand">
                     {step.num}
                   </div>
                   <div className="mt-2 mb-4 rounded-lg bg-brand-orange/10 p-2.5 text-brand-orange w-fit">
                     <Icon size={22} />
                   </div>
-                  <h3 className="text-sm font-bold text-white mb-2">{step.title}</h3>
+                  <h3 className="text-sm font-bold text-strong mb-2">{step.title}</h3>
                   <p className="text-xs text-text-muted leading-relaxed">{step.desc}</p>
                 </div>
               );
@@ -232,7 +232,7 @@ const IAssistPreview = () => {
       </section>
 
       {/* Features Grid */}
-      <section className="py-20 lg:py-24 border-t border-white/[0.06] bg-bg-surface/30">
+      <section className="py-20 lg:py-24 border-t border-line-subtle bg-bg-surface/30">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="font-display text-3xl font-bold sm:text-4xl">Everything You Need</h2>
@@ -243,11 +243,11 @@ const IAssistPreview = () => {
             {FEATURES.map((feat) => {
               const Icon = feat.icon;
               return (
-                <div key={feat.title} className="rounded-xl border border-white/[0.08] bg-bg-surface p-6 transition-colors hover:border-white/[0.15]">
+                <div key={feat.title} className="rounded-xl border border-line bg-bg-surface p-6 transition-colors hover:border-line-strong">
                   <div className="mb-4 rounded-lg bg-brand-orange/10 p-2.5 text-brand-orange w-fit">
                     <Icon size={22} />
                   </div>
-                  <h3 className="text-sm font-bold text-white mb-2">{feat.title}</h3>
+                  <h3 className="text-sm font-bold text-strong mb-2">{feat.title}</h3>
                   <p className="text-xs text-text-muted leading-relaxed">{feat.desc}</p>
                 </div>
               );
@@ -257,7 +257,7 @@ const IAssistPreview = () => {
       </section>
 
       {/* Interview Categories */}
-      <section className="py-20 lg:py-24 border-t border-white/[0.06]">
+      <section className="py-20 lg:py-24 border-t border-line-subtle">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="font-display text-3xl font-bold sm:text-4xl">Interview Categories</h2>
@@ -266,10 +266,10 @@ const IAssistPreview = () => {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {CATEGORIES.map((cat) => (
-              <div key={cat.name} className="rounded-xl border border-white/[0.08] bg-bg-surface p-5 transition-colors hover:border-white/[0.15]">
+              <div key={cat.name} className="rounded-xl border border-line bg-bg-surface p-5 transition-colors hover:border-line-strong">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="h-3 w-3 rounded-full" style={{ backgroundColor: cat.color }}></div>
-                  <h3 className="text-sm font-bold text-white">{cat.name}</h3>
+                  <h3 className="text-sm font-bold text-strong">{cat.name}</h3>
                 </div>
                 <p className="text-xs text-text-muted leading-relaxed">{cat.desc}</p>
               </div>
@@ -279,9 +279,9 @@ const IAssistPreview = () => {
       </section>
 
       {/* Privacy / Security */}
-      <section className="py-20 lg:py-24 border-t border-white/[0.06] bg-bg-surface/30">
+      <section className="py-20 lg:py-24 border-t border-line-subtle bg-bg-surface/30">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-2xl border border-white/[0.08] bg-bg-surface p-8 sm:p-12">
+          <div className="rounded-2xl border border-line bg-bg-surface p-8 sm:p-12">
             <div className="flex items-start gap-4 mb-6">
               <div className="rounded-xl bg-brand-orange/10 p-3 text-brand-orange shrink-0">
                 <Shield size={28} />
@@ -312,7 +312,7 @@ const IAssistPreview = () => {
       </section>
 
       {/* CTA */}
-      <section className="py-20 lg:py-24 border-t border-white/[0.06]">
+      <section className="py-20 lg:py-24 border-t border-line-subtle">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="font-display text-3xl font-bold sm:text-4xl">
             Ready to Ace Your Next Interview?
@@ -326,14 +326,14 @@ const IAssistPreview = () => {
               <>
                 <Link
                   to="/dashboard/student/tools/i-assist"
-                  className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-8 py-3.5 font-semibold text-white transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
+                  className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-8 py-3.5 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
                 >
                   <Download size={18} />
                   Download Desktop App
                 </Link>
                 <Link
                   to="/dashboard/student/tools/i-assist/assistants"
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/[0.15] bg-white/[0.05] px-8 py-3.5 font-medium text-white transition-all hover:bg-white/[0.1]"
+                  className="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-elevate px-8 py-3.5 font-medium text-strong transition-all hover:bg-elevate"
                 >
                   Manage Assistants
                   <ArrowRight size={16} />
@@ -342,7 +342,7 @@ const IAssistPreview = () => {
             ) : (
               <Link
                 to="/login"
-                className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-8 py-3.5 font-semibold text-white transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-8 py-3.5 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
               >
                 Get Started Free
                 <ArrowRight size={18} />

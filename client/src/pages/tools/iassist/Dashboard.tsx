@@ -21,10 +21,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
-  BEHAVIORAL: 'bg-[#26215C] text-[#7F77DD]',
-  TECHNICAL: 'bg-[#04342C] text-[#1D9E75]',
-  SYSTEM_DESIGN: 'bg-[#4A1B0C] text-[#D85A30]',
-  GENERAL: 'bg-white/[0.06] text-[#888780] border border-white/[0.08]',
+  BEHAVIORAL: 'bg-cat-behavioral-bg text-cat-behavioral',
+  TECHNICAL: 'bg-cat-technical-bg text-cat-technical',
+  SYSTEM_DESIGN: 'bg-cat-design-bg text-cat-design',
+  GENERAL: 'bg-elevate text-cat-general border border-line',
 };
 
 type Period = 'all' | 'week' | 'month';
@@ -123,7 +123,7 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="p-6 text-white max-w-5xl mx-auto space-y-6">
+    <div className="p-6 text-strong max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div>
         <h1 className="font-display text-2xl font-bold">I-Assist</h1>
@@ -131,7 +131,7 @@ const Dashboard = () => {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-white/[0.08]">
+      <div className="flex gap-1 border-b border-line">
         {tabs.map(tab => {
           const isActive = tab.label === 'Sessions';
           return (
@@ -141,7 +141,7 @@ const Dashboard = () => {
               className={
                 isActive
                   ? 'px-4 py-2.5 text-sm font-medium text-brand-orange border-b-2 border-brand-orange -mb-px'
-                  : 'px-4 py-2.5 text-sm font-medium text-text-muted hover:text-white transition-colors'
+                  : 'px-4 py-2.5 text-sm font-medium text-text-muted hover:text-strong transition-colors'
               }
             >
               {tab.label}
@@ -184,7 +184,7 @@ const Dashboard = () => {
           {/* Weekly activity + category breakdown row */}
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
             {/* Weekly activity */}
-            <div className="lg:col-span-3 rounded-xl border border-white/[0.08] bg-bg-surface p-4">
+            <div className="lg:col-span-3 rounded-xl border border-line bg-bg-surface p-4">
               <div className="flex items-center gap-2 mb-3">
                 <BarChart3 size={14} className="text-text-muted" />
                 <span className="text-xs font-semibold text-text-muted">Last 7 days</span>
@@ -193,7 +193,7 @@ const Dashboard = () => {
             </div>
 
             {/* Category breakdown */}
-            <div className="lg:col-span-2 rounded-xl border border-white/[0.08] bg-bg-surface p-4">
+            <div className="lg:col-span-2 rounded-xl border border-line bg-bg-surface p-4">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp size={14} className="text-text-muted" />
                 <span className="text-xs font-semibold text-text-muted">By category</span>
@@ -205,7 +205,7 @@ const Dashboard = () => {
       )}
 
       {/* Desktop CTA banner */}
-      <div className="flex items-center gap-4 rounded-xl border border-white/[0.08] bg-bg-surface p-4">
+      <div className="flex items-center gap-4 rounded-xl border border-line bg-bg-surface p-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-orange/10">
           <Monitor size={20} className="text-brand-orange" />
         </div>
@@ -213,7 +213,7 @@ const Dashboard = () => {
           <p className="text-sm font-medium">Sessions run on the desktop app</p>
           <p className="text-xs text-text-muted">Download I-Assist Desktop to start interview sessions with real-time AI assistance.</p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-orange/90 transition-colors">
+        <button className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand shadow-md hover:bg-brand-orange/90 transition-colors">
           <Download size={16} />
           Download
         </button>
@@ -222,7 +222,7 @@ const Dashboard = () => {
       {/* Period filter */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">Session history</h2>
-        <div className="flex gap-1 rounded-lg bg-bg-surface p-1 border border-white/[0.08]">
+        <div className="flex gap-1 rounded-lg bg-bg-surface p-1 border border-line">
           {(['all', 'week', 'month'] as Period[]).map(p => (
             <button
               key={p}
@@ -230,7 +230,7 @@ const Dashboard = () => {
               className={
                 period === p
                   ? 'rounded-md bg-brand-orange/10 px-3 py-1 text-xs font-medium text-brand-orange'
-                  : 'rounded-md px-3 py-1 text-xs font-medium text-text-muted hover:text-white transition-colors'
+                  : 'rounded-md px-3 py-1 text-xs font-medium text-text-muted hover:text-strong transition-colors'
               }
             >
               {p === 'all' ? 'All' : p === 'week' ? 'This week' : 'This month'}
@@ -243,16 +243,16 @@ const Dashboard = () => {
       {loading ? (
         <div className="space-y-2">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 rounded-xl border border-white/[0.08] bg-bg-surface p-4 animate-pulse">
-              <div className="h-2.5 w-2.5 rounded-full bg-white/[0.08]" />
+            <div key={i} className="flex items-center gap-4 rounded-xl border border-line bg-bg-surface p-4 animate-pulse">
+              <div className="h-2.5 w-2.5 rounded-full bg-elevate" />
               <div className="flex-1 space-y-2">
-                <div className="h-4 w-40 rounded bg-white/[0.08]" />
-                <div className="h-3 w-56 rounded bg-white/[0.06]" />
+                <div className="h-4 w-40 rounded bg-elevate" />
+                <div className="h-3 w-56 rounded bg-elevate" />
               </div>
-              <div className="h-5 w-16 rounded-md bg-white/[0.06]" />
+              <div className="h-5 w-16 rounded-md bg-elevate" />
               <div className="hidden sm:flex items-center gap-4">
-                <div className="h-4 w-12 rounded bg-white/[0.06]" />
-                <div className="h-4 w-8 rounded bg-white/[0.06]" />
+                <div className="h-4 w-12 rounded bg-elevate" />
+                <div className="h-4 w-8 rounded bg-elevate" />
               </div>
             </div>
           ))}
@@ -263,13 +263,13 @@ const Dashboard = () => {
           <p className="text-sm font-medium text-red-400">{error}</p>
           <button
             onClick={() => loadSessions(period)}
-            className="mt-4 flex items-center gap-2 rounded-lg border border-white/[0.08] px-4 py-2 text-sm font-medium text-text-muted hover:text-white transition-colors"
+            className="mt-4 flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-text-muted hover:text-strong transition-colors"
           >
             <RefreshCw size={14} /> Retry
           </button>
         </div>
       ) : sessions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.12] py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-line-strong py-16 text-center">
           <Headphones size={40} className="text-text-muted mb-3" />
           <p className="text-sm font-medium text-text-muted">No sessions yet</p>
           <p className="text-xs text-text-muted mt-1">Download the desktop app to start your first interview session.</p>
@@ -283,7 +283,7 @@ const Dashboard = () => {
               <button
                 key={session.id}
                 onClick={() => navigate(`/dashboard/student/tools/i-assist/session/${session.id}`)}
-                className="w-full flex items-center gap-4 rounded-xl border border-white/[0.08] bg-bg-surface p-4 hover:border-white/[0.16] transition-colors text-left"
+                className="w-full flex items-center gap-4 rounded-xl border border-line bg-bg-surface p-4 hover:border-line-strong transition-colors text-left"
               >
                 <div
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -324,7 +324,7 @@ const Dashboard = () => {
 // ─── Sub-components ───
 
 const StatCard = ({ icon: Icon, label, value, sub }: { icon: any; label: string; value: string; sub: string }) => (
-  <div className="rounded-xl border border-white/[0.08] bg-bg-surface p-4">
+  <div className="rounded-xl border border-line bg-bg-surface p-4">
     <div className="flex items-center gap-2 text-text-muted mb-1">
       <Icon size={14} />
       <span className="text-[11px] font-medium">{label}</span>
@@ -391,7 +391,7 @@ const CategoryBreakdown = ({ data, total }: { data: Analytics['categoryBreakdown
                 {stats.sessions} ({pct}%)
               </span>
             </div>
-            <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+            <div className="h-1.5 w-full rounded-full bg-elevate overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
                 style={{

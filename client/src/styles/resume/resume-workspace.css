@@ -1,0 +1,364 @@
+/* ============================================================
+   Resume workspace — PAVY theme layer.
+
+   editor.css was lifted from the reference app, which is a dark
+   violet theme built on a design-system.css we don't ship. This
+   file supplies that missing layer in PAVY's colours (cream /
+   tan / ink) so the same structure renders on-brand, plus the
+   right-hand dock (Template · ATS · Tailoring) that replaces the
+   reference's separate /tailor page.
+
+   Load order matters: this must come AFTER editor.css.
+   ============================================================ */
+
+.resume-workspace {
+  /* ---- Accent: PAVY ink. The -50..-300 steps are the light warm
+     fills the reference used dark violet for; -700+ is text on them. ---- */
+  --primary-50: #EFEDE6;
+  --primary-100: #DFDCD2;
+  --primary-200: #CFCABD;
+  --primary-300: #B4AE9E;
+  --primary-500: #0A0A0A;
+  --primary-600: #0A0A0A;
+  --primary-700: #0A0A0A;
+  --primary: #0A0A0A;
+  --primary-hover: #262626;
+
+  /* ---- Neutrals: warm sand. -50 lightest → -900 darkest (light theme). ---- */
+  --gray-50: #F7F5F0;
+  --gray-100: #EFEDE6;
+  --gray-150: #E7E4DB;
+  --gray-200: #DCD9D0;
+  --gray-300: #C9C4B8;
+  --gray-400: #A8A296;
+  --gray-500: #8E8E8E;
+  --gray-600: #6B6B6B;
+  --gray-700: #4A4A4A;
+  --gray-800: #2A2A2A;
+  --gray-900: #0A0A0A;
+
+  /* ---- Semantic: score states ---- */
+  --success-50: #ECFDF3;
+  --success-100: #C7EFD7;
+  --success-500: #16A34A;
+  --success-600: #15803D;
+  --success-700: #166534;
+  --warning-50: #FEF6E7;
+  --warning-100: #F8E3BA;
+  --warning-500: #D97706;
+  --warning-600: #B45309;
+  --warning-700: #92400E;
+  --danger-50: #FDF2F2;
+  --danger-100: #F7D4D4;
+  --danger-500: #DC2626;
+  --danger-600: #B91C1C;
+
+  /* ---- Surfaces & borders ---- */
+  --canvas: #F5EBE1;
+  --surface: #EAE7E1;
+  --surface-subtle: #EFEDE6;
+  --surface-sunken: #F5F3EF;
+  --field-bg: #F5F3EF;
+  --border: #DCD9D0;
+  --border-strong: #C9C4B8;
+  --text: #0F172A;
+  --text-secondary: #5A5A5A;
+  --text-muted: #8E8E8E;
+
+  /* ---- Typography ---- */
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 16px;
+  --leading-snug: 1.45;
+  --tracking-wide: 0.06em;
+  --tracking-wider: 0.12em;
+
+  /* ---- Radii: rounder than the reference, to match PAVY's cards ---- */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 999px;
+
+  /* ---- Spacing ---- */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* ---- Elevation: soft, for a light theme ---- */
+  --shadow-xs: 0 1px 2px rgba(24, 20, 12, 0.04);
+  --shadow-sm: 0 1px 3px rgba(24, 20, 12, 0.07);
+  --shadow-lg: 0 14px 38px rgba(24, 20, 12, 0.14);
+  --ring: 0 0 0 3px rgba(10, 10, 10, 0.10);
+
+  color: var(--text);
+}
+
+/* ============================================================
+   Shell — the reference's .app is a 100vh page. Here it lives
+   inside DashboardLayout's <main>, so it fills the parent instead.
+   ============================================================ */
+.resume-workspace { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.resume-workspace .app {
+  height: 100%;
+  min-height: 0;
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+.resume-workspace .topbar { border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+
+/* editable document title, styled to read as the reference's bold <b> */
+.resume-workspace .tb-title {
+  font-family: inherit; font-size: var(--text-md); font-weight: 800; letter-spacing: -0.02em;
+  color: var(--gray-900); background: none; border: none; border-bottom: 1px solid transparent;
+  padding: 0 0 1px; width: 100%; max-width: 320px;
+}
+.resume-workspace .tb-title:hover { border-bottom-color: var(--border-strong); }
+.resume-workspace .tb-title:focus { outline: none; border-bottom-color: var(--primary); }
+
+/* ============================================================
+   Buttons / fields / badges — the design-system.css layer
+   editor.css expects.
+   ============================================================ */
+.resume-workspace .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  font-family: inherit; font-size: var(--text-sm); font-weight: 600; line-height: 1;
+  letter-spacing: -0.01em; padding: 0 var(--space-4); height: 38px;
+  border-radius: var(--radius-md); border: 1px solid transparent; cursor: pointer;
+  white-space: nowrap; user-select: none;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.resume-workspace .btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.resume-workspace .btn svg { width: 16px; height: 16px; flex: none; }
+.resume-workspace .btn--primary { background: var(--primary); color: #fff; box-shadow: var(--shadow-xs); }
+.resume-workspace .btn--primary:hover { background: var(--primary-hover); }
+.resume-workspace .btn--secondary { background: var(--surface-sunken); color: var(--gray-800); border-color: var(--border-strong); box-shadow: var(--shadow-xs); }
+.resume-workspace .btn--secondary:hover { background: #fff; border-color: var(--gray-400); }
+.resume-workspace .btn--ghost { background: transparent; color: var(--gray-600); }
+.resume-workspace .btn--ghost:hover { background: var(--gray-100); color: var(--gray-900); }
+.resume-workspace .btn--sm { height: 30px; font-size: var(--text-xs); padding: 0 var(--space-3); border-radius: var(--radius-sm); }
+.resume-workspace .btn--block { width: 100%; }
+.resume-workspace .btn:disabled { opacity: .5; pointer-events: none; }
+
+.resume-workspace .field { display: flex; flex-direction: column; gap: var(--space-2); }
+.resume-workspace .field__label { font-size: var(--text-sm); font-weight: 600; color: var(--gray-700); letter-spacing: -0.01em; }
+.resume-workspace .field__help { font-size: var(--text-xs); color: var(--text-muted); }
+.resume-workspace .input,
+.resume-workspace .textarea {
+  font-family: inherit; font-size: var(--text-base); color: var(--text);
+  background: var(--field-bg); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); padding: 9px var(--space-3); width: 100%;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.resume-workspace .input::placeholder,
+.resume-workspace .textarea::placeholder { color: var(--text-muted); }
+.resume-workspace .input:hover, .resume-workspace .textarea:hover { border-color: var(--gray-400); }
+.resume-workspace .input:focus, .resume-workspace .textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+.resume-workspace .textarea { resize: vertical; min-height: 92px; line-height: var(--leading-snug); }
+
+.resume-workspace .badge {
+  display: inline-flex; align-items: center; gap: 5px; font-size: var(--text-xs);
+  font-weight: 600; padding: 3px 9px; border-radius: var(--radius-full); border: 1px solid transparent;
+}
+.resume-workspace .badge svg { width: 12px; height: 12px; }
+.resume-workspace .badge--primary { background: var(--primary-50); color: var(--primary-700); border-color: var(--primary-100); }
+.resume-workspace .badge--success { background: var(--success-50); color: var(--success-700); border-color: var(--success-100); }
+.resume-workspace .badge--warning { background: var(--warning-50); color: var(--warning-700); border-color: var(--warning-100); }
+.resume-workspace .badge--danger { background: var(--danger-50); color: var(--danger-600); border-color: var(--danger-100); }
+.resume-workspace .badge__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* Score ring */
+.resume-workspace .score-ring { position: relative; display: inline-grid; place-items: center; }
+.resume-workspace .score-ring svg { transform: rotate(-90deg); display: block; }
+.resume-workspace .score-ring__track { stroke: var(--gray-200); fill: none; }
+.resume-workspace .score-ring__fill { fill: none; stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.4,0,.2,1); }
+.resume-workspace .score-ring__label { position: absolute; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.resume-workspace .score-ring__value { font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.resume-workspace .score-ring__cap { font-size: 10px; color: var(--text-muted); font-weight: 700; letter-spacing: var(--tracking-wide); text-transform: uppercase; margin-top: 3px; }
+.resume-workspace .tone-success .score-ring__fill { stroke: var(--success-500); }
+.resume-workspace .tone-warning .score-ring__fill { stroke: var(--warning-500); }
+.resume-workspace .tone-danger .score-ring__fill { stroke: var(--danger-500); }
+.resume-workspace .tone-success .score-ring__value { color: var(--success-600); }
+.resume-workspace .tone-warning .score-ring__value { color: var(--warning-600); }
+.resume-workspace .tone-danger .score-ring__value { color: var(--danger-600); }
+
+/* ============================================================
+   Light-theme corrections to editor.css (it was authored dark).
+   ============================================================ */
+.resume-workspace .topbar { background: var(--surface); }
+.resume-workspace .tb-doc b { font-size: var(--text-md); font-weight: 800; letter-spacing: -0.02em; color: var(--gray-900); }
+.resume-workspace .tb-doc .meta { text-transform: uppercase; letter-spacing: var(--tracking-wide); font-weight: 700; font-size: 10px; }
+.resume-workspace .tb-logo { background: var(--primary); }
+
+.resume-workspace .editor { background: var(--surface-sunken); }
+.resume-workspace .nav-rail { background: var(--surface); }
+/* PAVY marks the active nav item with solid ink, not a tinted fill */
+.resume-workspace .nav-item {
+  text-transform: uppercase; letter-spacing: var(--tracking-wide);
+  font-size: var(--text-xs); font-weight: 700; border-radius: var(--radius-md);
+}
+.resume-workspace .nav-item.is-active { background: var(--primary); color: #fff; }
+.resume-workspace .nav-item.is-active:hover { background: var(--primary-hover); color: #fff; }
+.resume-workspace .nav-rail .lbl { letter-spacing: var(--tracking-wider); font-weight: 800; }
+/* Hide/Show only appears on hover, so the rail stays quiet at rest.
+   Hidden sections keep their "Show" affordance visible — otherwise a
+   dimmed row gives no clue it can be brought back. */
+.resume-workspace .nav-item__st .add {
+  font-size: 9px; font-weight: 800; letter-spacing: var(--tracking-wide); text-transform: uppercase;
+  opacity: 0; transition: opacity .12s ease; padding: 2px 4px; border-radius: 4px;
+}
+.resume-workspace .nav-item:hover .nav-item__st .add { opacity: 1; }
+.resume-workspace .nav-item__st .add--always { opacity: 1; color: var(--success-600); }
+.resume-workspace .nav-item.is-active .nav-item__st .add { color: #fff; }
+
+/* Fit-to-width control, alongside the ± zoom steps */
+.resume-workspace .zoom__fit {
+  width: auto !important; padding: 0 8px; font-family: inherit; font-size: 10px; font-weight: 800;
+  letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--gray-600);
+}
+.resume-workspace .zoom__fit.is-active { background: var(--primary); color: #fff; }
+.resume-workspace .zoom__fit.is-active:hover { background: var(--primary-hover); }
+.resume-workspace .nav-progress .row { text-transform: uppercase; letter-spacing: var(--tracking-wide); font-weight: 700; font-size: 10px; }
+.resume-workspace .nav-progress .bar i { background: var(--primary); }
+
+/* the reference floated a translucent dark bar over the canvas */
+.resume-workspace .preview__bar { background: var(--surface); backdrop-filter: none; }
+.resume-workspace .preview { background: var(--canvas); }
+/* light-theme paper shadow (the dark theme used a near-black drop) */
+.resume-workspace .resume-doc > .resume,
+.resume-workspace .resume-doc > .resume-fit {
+  box-shadow: 0 0 0 1px rgba(24, 20, 12, 0.06), 0 18px 44px -18px rgba(24, 20, 12, 0.35);
+}
+.resume-workspace .sec__title { font-weight: 700; }
+.resume-workspace .sec__head .done { color: var(--success-500); }
+.resume-workspace .ai-chip.is-active,
+.resume-workspace .ai-chip--primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.resume-workspace .ai-suggestion { background: linear-gradient(180deg, var(--gray-100), var(--surface) 70%); border-color: var(--border-strong); }
+.resume-workspace .toast { background: var(--gray-900); color: #fff; border-color: var(--gray-900); }
+.resume-workspace .toast svg { color: #6EE7B7; }
+
+/* ============================================================
+   Right dock — Template · ATS score · Tailoring.
+   Collapsed it is a slim rail of section tabs; opening one slides
+   a ~50%-wide panel across the preview so the work has real room.
+   ============================================================ */
+.dock { position: relative; flex: none; display: flex; border-left: 1px solid var(--border); background: var(--surface); }
+
+/* the always-visible rail of section tabs */
+.dock__rail { width: 92px; flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4) 10px; overflow-y: auto; }
+.dock__tab {
+  display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 6px;
+  border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-sunken);
+  cursor: pointer; font-family: inherit; color: var(--gray-600);
+  transition: background .14s ease, color .14s ease, border-color .14s ease;
+}
+.dock__tab:hover { background: #fff; color: var(--gray-900); border-color: var(--border-strong); }
+.dock__tab.is-open { background: var(--primary); border-color: var(--primary); color: #fff; }
+.dock__tab svg { width: 18px; height: 18px; }
+.dock__tab-lbl { font-size: 9px; font-weight: 800; letter-spacing: var(--tracking-wide); text-transform: uppercase; text-align: center; line-height: 1.25; }
+.dock__tab-val { font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* the sliding panel — absolutely placed so the preview never reflows */
+.dock__panel {
+  position: absolute; top: 0; right: 92px; bottom: 0; width: 50vw; max-width: 880px; min-width: 380px;
+  display: flex; flex-direction: column; background: var(--surface);
+  border-left: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  transform: translateX(100%); opacity: 0; pointer-events: none;
+  transition: transform .22s cubic-bezier(.4, 0, .2, 1), opacity .18s ease;
+  z-index: 20;
+}
+.dock__panel.is-open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+.dock__panel-head {
+  height: 46px; flex: none; display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3); padding: 0 var(--space-4); border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.dock__panel-title { font-size: 11px; font-weight: 800; letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--gray-800); }
+.dock__close { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-sunken); cursor: pointer; color: var(--gray-600); }
+.dock__close:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+.dock__close svg { width: 15px; height: 15px; }
+.dock__panel-body { flex: 1; overflow-y: auto; padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
+.dock__lbl { font-size: 10px; font-weight: 800; letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--text-muted); }
+.dock__note { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.55; }
+
+/* ---- Text-size stepper (in the Template panel) ---- */
+.fs-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.fs-row__label { display: flex; flex-direction: column; gap: 3px; }
+.fs-row__hint { font-size: var(--text-xs); color: var(--text-muted); }
+.fs-stepper { display: flex; align-items: center; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px; }
+.fs-stepper button { display: inline-flex; align-items: center; gap: 1px; height: 30px; padding: 0 9px; border: none; background: none; cursor: pointer; color: var(--gray-700); border-radius: var(--radius-sm); font-family: inherit; }
+.fs-stepper button:hover { background: var(--gray-100); }
+.fs-stepper button:disabled { opacity: .35; pointer-events: none; }
+.fs-stepper button svg { width: 12px; height: 12px; }
+.fs-stepper__val { min-width: 46px; text-align: center; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--gray-900); }
+.fs-stepper__reset { font-size: 10px !important; font-weight: 800; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted) !important; border-left: 1px solid var(--border) !important; border-radius: 0 !important; }
+
+/* ---- Template chooser: real, rendered previews ----
+   Each card renders the user's actual résumé in that template at full
+   A4 width (660px, matching .resume-doc) and scales it into a fixed
+   288px frame — so the thumbnail is the real thing, not a mockup. Cards
+   are wide (2 per row in the 50% dock) so the genuine differences —
+   serif vs sans vs mono, header alignment, accent colour, bullet glyph —
+   are legible, and each carries a one-line blurb describing its look.
+   The frame width is fixed because the scale factor is precomputed. */
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-4); }
+.tpl-card { display: flex; flex-direction: column; gap: 8px; padding: 8px; cursor: pointer; background: var(--surface-sunken); border: 1.5px solid var(--border); border-radius: var(--radius-lg); font-family: inherit; transition: border-color .14s ease, box-shadow .14s ease; }
+.tpl-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+.tpl-card.is-active { border-color: var(--primary); box-shadow: var(--ring); }
+/* the live preview is rendered at full A4 width then scaled into this frame */
+.tpl-card__frame { position: relative; width: 100%; aspect-ratio: 210 / 297; overflow: hidden; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: inset 0 0 0 1px rgba(24,20,12,.03); }
+.tpl-card__scaler { position: absolute; top: 0; left: 0; width: 660px; transform-origin: top left; pointer-events: none; }
+.tpl-card__foot { display: flex; flex-direction: column; gap: 3px; padding: 0 2px 2px; }
+.tpl-card__foot-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.tpl-card__name { font-size: 11px; font-weight: 800; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--gray-700); }
+.tpl-card.is-active .tpl-card__name { color: var(--gray-900); }
+.tpl-card__blurb { font-size: 11px; color: var(--text-secondary); line-height: 1.35; }
+.tpl-card__pro { font-size: 8px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #7a4d00; background: linear-gradient(180deg, #ffe49a, #f5c451); border: 0.5px solid #e0a92e; border-radius: 999px; padding: 2px 6px; }
+.tpl-card__check { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--primary); color: #fff; flex: none; }
+.tpl-card__check svg { width: 10px; height: 10px; }
+
+/* ---- ATS score panel ---- */
+.ats-panel { display: flex; flex-direction: column; gap: var(--space-5); }
+.ats-panel__hero { display: flex; align-items: center; gap: var(--space-5); padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface-sunken); }
+.ats-panel__hero-txt { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.ats-panel__tips { margin: 0; padding-left: 18px; font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.75; }
+.ats-panel__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.ats-stat { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-sunken); text-align: center; }
+.ats-stat__num { font-size: 20px; font-weight: 800; color: var(--gray-900); font-variant-numeric: tabular-nums; }
+.ats-stat__lbl { font-size: 9px; font-weight: 800; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }
+
+/* per-section keyword coverage — shows which part of the résumé earns the score */
+.ats-split { display: flex; flex-direction: column; gap: 10px; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.ats-split__row { display: flex; align-items: center; gap: 10px; }
+.ats-split__name { flex: 0 0 76px; font-size: 10px; font-weight: 800; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-secondary); }
+.ats-split__bar { flex: 1; height: 7px; background: var(--gray-200); border-radius: var(--radius-full); overflow: hidden; }
+.ats-split__bar i { display: block; height: 100%; background: var(--primary); border-radius: var(--radius-full); transition: width .4s ease; }
+.ats-split__val { flex: none; width: 36px; text-align: right; font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--gray-800); }
+
+/* ---- Tailoring panel ---- */
+.tailor-sug__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.tailor-sug { display: flex; flex-direction: column; gap: 10px; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.tailor-sug__tag { align-self: flex-start; font-size: 9px; font-weight: 800; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--gray-700); background: var(--gray-100); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 3px 9px; }
+.tailor-sug__txt { font-size: var(--text-sm); color: var(--text); line-height: 1.55; }
+.tailor-sug__acts { display: flex; gap: 8px; }
+.tailor-empty { padding: var(--space-6); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.tailor-empty__title { font-size: var(--text-sm); font-weight: 800; color: var(--success-600); text-transform: uppercase; letter-spacing: var(--tracking-wide); }
+
+/* ============================================================
+   Responsive — editor.css hides its own .ats-rail below 1160px;
+   the dock stays (it is the only route to these tools now).
+   ============================================================ */
+@media (max-width: 1400px) {
+  .dock__panel { width: 58vw; }
+}
+@media (max-width: 1100px) {
+  .dock__rail { width: 76px; }
+  .dock__panel { right: 76px; width: 70vw; min-width: 320px; }
+}

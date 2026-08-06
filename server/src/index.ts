@@ -6,19 +6,27 @@ import cors from 'cors';
 import { env } from './config/env';
 import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
-import { setupWebSocketServer } from './websocket/server';
 import { sessionService } from './services/iassist/sessionService';
 
 import path from 'path';
 
 const app = express();
 
+/* Behind a reverse proxy (Render, nginx) req.ip is the proxy's address unless
+   this is set, which would make every rate limit apply to all users at once.
+   'loopback, linklocal, uniquelocal' trusts only private hops, not arbitrary
+   X-Forwarded-For headers from the internet. */
+app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+
 app.use(cors({
   origin: env.CLIENT_URL,
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Base64 JSON bodies blow past the 100kb default: audio chunks posted to
+// /iassist/transcribe (up to ~7MB of base64), and resume/LinkedIn imports
+// (a 200kb PDF arrives as ~290kb of body).
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve theme_assets media files statically
 app.use('/theme_assets', express.static(path.join(__dirname, '../../client/public/theme_assets')));
@@ -30,9 +38,6 @@ app.use(errorHandler);
 const server = app.listen(env.PORT, () => {
   console.log(`Server is running on port ${env.PORT} in ${env.NODE_ENV} mode`);
 });
-
-// Attach WebSocket server for real-time AI teleprompter & audio streams
-setupWebSocketServer(server);
 
 // I-Assist sessions are closed by the desktop client, so a crash leaves them
 // ACTIVE forever. Sweep on boot and hourly thereafter.

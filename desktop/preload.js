@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('iAssist', {
   // --- Listeners (Main → Renderer) ---
   onTranscriptionUpdate: (callback) => ipcRenderer.on('transcription-update', (_e, data) => callback(data)),
   onLlmAnswer: (callback) => ipcRenderer.on('llm-answer', (_e, data) => callback(data)),
+  onLlmAnswerDelta: (callback) => ipcRenderer.on('llm-answer-delta', (_e, data) => callback(data)),
   onAiThinking: (callback) => ipcRenderer.on('ai-thinking', (_e, data) => callback(data)),
   onSessionStateChanged: (callback) => ipcRenderer.on('session-state-changed', (_e, data) => callback(data)),
   onAuthStateChanged: (callback) => ipcRenderer.on('auth-state-changed', (_e, data) => callback(data)),
