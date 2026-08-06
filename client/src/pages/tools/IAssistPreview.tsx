@@ -94,7 +94,9 @@ const IAssistPreview = () => {
 
             <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
               Ace Every Interview with{' '}
-              <span className="text-brand-orange">I-Assist</span>
+              {/* nowrap because a browser treats the hyphen in "I-Assist" as a break
+                  opportunity and splits the product name across two lines. */}
+              <span className="whitespace-nowrap text-brand-orange">I-Assist</span>
             </h1>
 
             <p className="mt-6 text-lg text-text-muted leading-relaxed max-w-2xl mx-auto">
