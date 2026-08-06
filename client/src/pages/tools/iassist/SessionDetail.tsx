@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Clock, MessageSquare, Coins, Monitor, Mic, Bot, AlertTriangle, RefreshCw } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
+import AnswerBody from './AnswerBody';
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
   BEHAVIORAL: 'bg-cat-behavioral-bg text-cat-behavioral',
@@ -57,16 +58,6 @@ function formatDateTime(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
     + ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-}
-
-function renderMarkdownBold(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="text-strong font-semibold">{part.slice(2, -2)}</strong>;
-    }
-    return <span key={i}>{part}</span>;
-  });
 }
 
 const SessionDetailSkeleton = () => (
@@ -247,14 +238,7 @@ const SessionDetail = () => {
                       <Bot size={14} className="text-emerald-400" />
                     </div>
                     <div className="flex-1 min-w-0 rounded-lg border border-line-subtle bg-bg-card p-3">
-                      <div className="text-sm text-text-muted leading-relaxed whitespace-pre-line">
-                        {entry.response.split('\n').map((line, i) => (
-                          <span key={i}>
-                            {renderMarkdownBold(line)}
-                            {i < entry.response!.split('\n').length - 1 && '\n'}
-                          </span>
-                        ))}
-                      </div>
+                      <AnswerBody text={entry.response} />
                     </div>
                   </div>
                 )}
