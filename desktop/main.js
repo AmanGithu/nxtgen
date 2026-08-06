@@ -389,6 +389,18 @@ function applyVisibilityMode(win, mode) {
   }
 }
 
+// Every BrowserWindow must go through this instead of calling applyVisibilityMode
+// directly at creation. A window that opts out — or one added later that simply
+// forgets the call — stays capturable while the rest of the app is hidden, which is
+// worse than no stealth at all: the user believes they are covered and they are not.
+// The re-assert on 'show' is because content protection does not reliably survive a
+// hide/show cycle on Windows, and the bar, session and settings windows all get hidden.
+function trackVisibilityMode(win) {
+  if (!win || win.isDestroyed()) return;
+  applyVisibilityMode(win, currentVisibilityMode);
+  win.on('show', () => applyVisibilityMode(win, currentVisibilityMode));
+}
+
 function setVisibilityMode(mode) {
   currentVisibilityMode = mode;
   for (const win of getLiveWindows(mainWindow, sessionWindow, settingsWindow, shortcutsWindow)) {
@@ -436,7 +448,7 @@ function createMainWindow() {
   mainWindow.setAlwaysOnTop(true, 'screen-saver');
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.setOpacity(currentOpacity);
-  applyVisibilityMode(mainWindow, currentVisibilityMode);
+  trackVisibilityMode(mainWindow);
 
   mainWindow.on('move', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -501,7 +513,7 @@ function createSessionWindow() {
     sessionWindow.show();
     sessionWindow.setOpacity(currentOpacity);
   });
-  applyVisibilityMode(sessionWindow, currentVisibilityMode);
+  trackVisibilityMode(sessionWindow);
 
   sessionWindow.on('resize', () => {
     if (mainWindow && !mainWindow.isDestroyed() && sessionWindow && !sessionWindow.isDestroyed()) {
@@ -563,7 +575,7 @@ function createSettingsWindow() {
   settingsWindow.loadFile(path.join(__dirname, 'src', 'settings.html'));
   settingsWindow.setAlwaysOnTop(true, 'screen-saver');
   settingsWindow.once('ready-to-show', () => settingsWindow.show());
-  applyVisibilityMode(settingsWindow, currentVisibilityMode);
+  trackVisibilityMode(settingsWindow);
 
   settingsWindow.on('resize', () => {
     if (mainWindow && !mainWindow.isDestroyed() && settingsWindow && !settingsWindow.isDestroyed()) {
@@ -620,7 +632,7 @@ function createShortcutsWindow() {
   shortcutsWindow.loadFile(path.join(__dirname, 'src', 'shortcuts.html'));
   shortcutsWindow.setAlwaysOnTop(true, 'screen-saver');
   shortcutsWindow.once('ready-to-show', () => shortcutsWindow.show());
-  applyVisibilityMode(shortcutsWindow, currentVisibilityMode);
+  trackVisibilityMode(shortcutsWindow);
 
   shortcutsWindow.on('closed', () => { shortcutsWindow = null; });
 }
@@ -1042,10 +1054,12 @@ function registerPersistentShortcuts() {
   });
 
   // Escape hatch out of undetectable, whose click-through makes every window
-  // unusable by mouse. It drops to 'invisible' rather than 'visible' so it still
-  // restores the pointer without suddenly exposing the overlay on a live screen share.
+  // unusable by mouse. It always lands on 'invisible', never 'visible': this is the
+  // panic key, pressed mid-interview without looking, and a branch that could turn
+  // content protection off would expose the overlay on a live screen share.
+  // Going fully visible stays a deliberate choice in the settings panel.
   globalShortcut.register('CommandOrControl+Shift+Alt+Escape', () => {
-    setVisibilityMode(currentVisibilityMode === 'undetectable' ? 'invisible' : 'visible');
+    setVisibilityMode('invisible');
   });
 
   globalShortcut.register('CommandOrControl+Shift+Alt+J', () => {
