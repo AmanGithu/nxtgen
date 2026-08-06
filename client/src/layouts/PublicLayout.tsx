@@ -5,17 +5,12 @@ import {
   Menu, X, Sun, Moon, ChevronDown, Wrench, FileText, Target, Award, Globe, Bot, Sparkles, Mic
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { CAREER_TOOLS } from '../lib/tools';
 
-const TOOLS_LIST = [
-  { name: 'AI Resume Builder', path: '/dashboard/student/tools/resume-builder', icon: FileText, desc: 'Live A4 WYSIWYG editor with inline AI bullet rewriter' },
-  { name: 'ATS Score Checker', path: '/dashboard/student/tools/ats-checker', icon: Target, desc: '0-100% ATS match score ring & keyword audit' },
-  { name: 'JD Resume Tailor', path: '/dashboard/student/tools/tailor-resume', icon: Award, desc: 'Compare resume vs JD & inject missing terms' },
-  { name: 'LinkedIn Profile Analyser', path: '/dashboard/student/tools/linkedin-analyser', icon: Globe, desc: 'Profile SEO audit & AI recruiter headlines' },
-  { name: 'Cover Letter Builder', path: '/dashboard/student/tools/cover-letter', icon: FileText, desc: '250-word role-tailored cover letters' },
-  { name: 'Interview Prep Kit', path: '/dashboard/student/tools/interview-prep', icon: Bot, desc: '20 STAR-format model Q&A cards' },
-  { name: 'Upload & Enhance', path: '/tools/upload-enhance', icon: Sparkles, desc: 'Auto-parse PDF & enhance action verbs' },
-  { name: 'I-Assist', path: '/tools/i-assist', icon: Mic, desc: 'AI-powered interview co-pilot' },
-];
+/* One shared catalogue, so the nav dropdown and the home-page slider can't
+   drift apart — and so every entry points at the public /dashboard/tools
+   paths a signed-out visitor can actually reach. */
+const TOOLS_LIST = CAREER_TOOLS;
 
 const PublicLayout = () => {
   const { theme, toggleTheme } = useTheme();
@@ -84,21 +79,20 @@ const PublicLayout = () => {
 
             {/* ─── AI TOOLS MAIN MENU ITEM WITH DROPDOWN ─── */}
             <div className="relative flex items-center" ref={dropdownRef}>
-              <Link
-                to="/tools/resume-builder"
+              {/* A menu heading, not a destination. Linking it sent visitors
+                  straight into one tool's marketing preview and hid the other
+                  eight; the label now opens the list, which is what a caret
+                  next to a nav item implies. */}
+              <button
+                onClick={() => setIsToolsOpen(!isToolsOpen)}
+                aria-haspopup="menu"
+                aria-expanded={isToolsOpen}
                 className={clsx(
-                  "flex items-center text-sm font-semibold transition-colors py-2",
+                  "flex items-center gap-1 text-sm font-semibold transition-colors py-2",
                   location.pathname.includes('/tools') ? "text-brand-orange font-bold" : "text-text-muted hover:text-white"
                 )}
               >
                 <span>AI Tools</span>
-              </Link>
-
-              <button
-                onClick={() => setIsToolsOpen(!isToolsOpen)}
-                className="p-1 text-text-muted hover:text-white transition-colors"
-                title="Toggle AI Tools List"
-              >
                 <ChevronDown size={14} className={clsx("transition-transform", isToolsOpen && "rotate-180")} />
               </button>
 
@@ -239,7 +233,7 @@ const PublicLayout = () => {
             <h3 className="mb-4 font-semibold text-white">Internship & Tools</h3>
             <ul className="flex flex-col gap-2 text-sm text-text-muted">
               <li><Link to="/internship" className="hover:text-white">Internship Programs</Link></li>
-              <li><Link to="/dashboard/student/tools/resume-builder" className="hover:text-white">AI Career Toolkit</Link></li>
+              <li><Link to="/dashboard/tools/resume-builder" className="hover:text-white">AI Career Toolkit</Link></li>
             </ul>
           </div>
           <div>

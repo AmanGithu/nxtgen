@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, FileText, Check } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowLeft, FileText, Check, Wand2, Lock } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import ScoreRing from '../../components/resume/ScoreRing';
 import { scoreResume, extractKeywords } from '../../lib/resume/ats';
 import { sanitizeResumeData, type ResumeData } from '../../lib/resume/resumeData';
 import { readGuestResume, saveGuestResume } from '../../lib/guestStore';
+import SignInGate from '../../components/SignInGate';
+import { toolsBasePath } from '../../lib/tools';
 import {
   injectKeyword,
   buildSuggestions,
@@ -33,6 +35,7 @@ const toneFor = (n: number) => (n >= 75 ? 'success' : n >= 50 ? 'warning' : 'dan
  */
 const JDTailor = () => {
   const { token } = useAuth();
+  const location = useLocation();
   const [resumes, setResumes] = useState<ResumeSummary[]>([]);
   const [activeId, setActiveId] = useState('');
   const [data, setData] = useState<ResumeData | null>(null);
@@ -100,7 +103,23 @@ const JDTailor = () => {
     localStorage.setItem('atsJd', jd);
   }, [jd]);
 
-  const atsKeywords = useMemo(() => (jd.trim() ? extractKeywords(jd) : []), [jd]);
+  /* Suggestions are the product here — they name the exact keywords to add.
+     Deriving them from a submitted description rather than the live textarea
+     is what keeps them behind the account. */
+  const [tailoredJd, setTailoredJd] = useState('');
+  const [gate, setGate] = useState<null | 'tailor'>(null);
+
+  const atsKeywords = useMemo(() => (tailoredJd.trim() ? extractKeywords(tailoredJd) : []), [tailoredJd]);
+  const jdReady = jd.trim().length > 0;
+  const isStale = jdReady && jd.trim() !== tailoredJd.trim();
+
+  const runTailor = () => setTailoredJd(jd);
+
+  /* Guests see the first couple of fixes in full and the rest blurred: enough
+     to prove the tool works on their own résumé, not enough to act on without
+     an account. Accepting any of them is the moment we ask them to sign in. */
+  const PREVIEW_COUNT = 2;
+  const lockedFrom = token ? Infinity : PREVIEW_COUNT;
   const analysis = useMemo(
     () => (data && atsKeywords.length ? scoreResume(data, atsKeywords, 'all') : null),
     [data, atsKeywords]
@@ -113,6 +132,10 @@ const JDTailor = () => {
 
   /** Apply injections locally, then persist so the editor sees them. */
   const applyAndSave = async (list: { id: string; keyword: string; section: string }[]) => {
+    if (!token) {
+      setGate('tailor');
+      return;
+    }
     if (!data || !list.length) return;
     const next: ResumeData = JSON.parse(JSON.stringify(data));
     list.forEach((s) => injectKeyword(next, s.keyword, s.section));
@@ -161,7 +184,7 @@ const JDTailor = () => {
           Build or import a resume first, then tailor it to a specific job description.
         </p>
         <Link
-          to="/dashboard/tools/resume-builder"
+          to={`${toolsBasePath(location.pathname)}/resume-builder`}
           className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand transition-colors hover:bg-orange-600"
         >
           <ArrowLeft size={16} />
@@ -173,6 +196,7 @@ const JDTailor = () => {
 
   return (
     <div className="resume-workspace space-y-6">
+      {gate && <SignInGate tier="guest" action={gate} onClose={() => setGate(null)} />}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="font-display text-2xl font-bold text-strong">JD Resume Tailor</h2>
@@ -201,9 +225,26 @@ const JDTailor = () => {
           onChange={(e) => setJd(e.target.value)}
           spellCheck={false}
         />
-        <span className="field__help">
-          Scored with the same keyword &amp; coverage checks recruiters&apos; software runs — no AI call needed.
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={runTailor}
+            disabled={!jdReady}
+            className="btn btn--primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+          >
+            <Wand2 size={15} />
+            {isStale ? 'Tailor to this job' : 'Re-run tailoring'}
+          </button>
+
+          <span className="field__help" style={{ margin: 0 }}>
+            {!jdReady
+              ? 'Paste the role’s requirements, then tailor your résumé to them.'
+              : isStale
+                ? 'Description changed — run it again for updated suggestions.'
+                : 'Same keyword & coverage checks recruiters’ software runs — no AI call needed.'}
+          </span>
+        </div>
       </div>
 
       {analysis && (
@@ -240,32 +281,68 @@ const JDTailor = () => {
       </div>
 
       {visible.length > 0 ? (
-        visible.map((s) => (
-          <div key={s.id} className="tailor-sug">
-            <span className="tailor-sug__tag">{s.section} inject</span>
-            <p className="tailor-sug__txt">{s.text}</p>
-            <div className="tailor-sug__acts">
-              <button className="btn btn--primary btn--sm" disabled={saving} onClick={() => applyAndSave([s])}>
-                <Check /> Accept
-              </button>
-              <button
-                className="btn btn--ghost btn--sm"
-                onClick={() => setSugStatus((prev) => ({ ...prev, [s.id]: 'rejected' }))}
+        visible.map((s, i) => {
+          const locked = i >= lockedFrom;
+          return (
+            <div
+              key={s.id}
+              className="tailor-sug"
+              style={locked ? { position: 'relative', overflow: 'hidden' } : undefined}
+            >
+              <div
+                style={
+                  locked
+                    ? { filter: 'blur(5px)', opacity: 0.55, pointerEvents: 'none', userSelect: 'none' }
+                    : undefined
+                }
+                aria-hidden={locked}
               >
-                Reject
-              </button>
+                <span className="tailor-sug__tag">{s.section} inject</span>
+                <p className="tailor-sug__txt">{s.text}</p>
+                <div className="tailor-sug__acts">
+                  <button className="btn btn--primary btn--sm" disabled={saving} onClick={() => applyAndSave([s])}>
+                    <Check /> Accept
+                  </button>
+                  <button
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => setSugStatus((prev) => ({ ...prev, [s.id]: 'rejected' }))}
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+
+              {locked && (
+                <button
+                  onClick={() => setGate('tailor')}
+                  style={{
+                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', gap: 8, background: 'transparent',
+                    border: 0, cursor: 'pointer', font: 'inherit',
+                  }}
+                >
+                  <Lock size={14} />
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>Sign in to see this fix</span>
+                </button>
+              )}
             </div>
-          </div>
-        ))
+          );
+        })
       ) : (
         <div className="tailor-empty">
           <div className="tailor-empty__title">
-            {atsKeywords.length ? '✦ Résumé is ATS-optimised ✦' : 'Paste a job description above'}
+            {!tailoredJd.trim()
+              ? 'Paste a job description above'
+              : atsKeywords.length
+                ? '✦ Résumé is ATS-optimised ✦'
+                : 'No skills found in that description'}
           </div>
           <p className="dock__note" style={{ marginTop: 6 }}>
-            {atsKeywords.length
-              ? 'No coverage gaps detected for this description.'
-              : "You'll get a live match score and one-click keyword fixes."}
+            {!tailoredJd.trim()
+              ? 'Then press Tailor to see your match score and one-click keyword fixes.'
+              : atsKeywords.length
+                ? 'No coverage gaps detected for this description.'
+                : 'That looks like only the header of the posting — include the requirements section and run it again.'}
           </p>
         </div>
       )}

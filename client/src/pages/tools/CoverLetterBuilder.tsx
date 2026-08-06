@@ -4,7 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { readGuestResume, guestHeaders } from "../../lib/guestStore";
 import { entitlementsFor } from "../../lib/entitlements";
 import SignInGate from "../../components/SignInGate";
-import { Sparkles, FileDown, RefreshCw, Save, Check } from "lucide-react";
+import { Sparkles, FileDown, RefreshCw, Save, Check , Lock } from "lucide-react";
 
 interface Resume {
   id: string;
@@ -14,7 +14,7 @@ interface Resume {
 export default function CoverLetterBuilder() {
   const { token, user } = useAuth(false);
   const ent = entitlementsFor(!!token, (user as any)?.plan, (user as any)?.role);
-  const [gate, setGate] = useState<null | "save" | "export" | "premium-template" | "extra-resume">(null);
+  const [gate, setGate] = useState<null | "save" | "export" | "premium-template" | "extra-resume" | "cover-letter">(null);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [selectedResumeId, setSelectedResumeId] = useState("");
   const [company, setCompany] = useState("");
@@ -233,6 +233,10 @@ export default function CoverLetterBuilder() {
         {/* Top actions toolbar */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-bg-surface border border-line p-6 rounded-3xl">
           <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] uppercase tracking-wider text-text-muted">
+                Base profile — the résumé this letter is written from
+              </span>
             <select
               value={selectedResumeId}
               onChange={(e) => {
@@ -241,20 +245,21 @@ export default function CoverLetterBuilder() {
               }}
               className="px-4 py-2.5 bg-bg-card border border-line rounded-xl text-xs font-bold tracking-wider uppercase text-strong focus:outline-none focus:border-line-strong"
             >
-              <option value="">Select a base profile...</option>
+              <option value="">Select a base profile…</option>
               {resumes.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.title}
                 </option>
               ))}
             </select>
+            </div>
 
             {/* Visual thumbnail template selector */}
             <div className="flex gap-3 bg-bg-surface border border-line p-1.5 rounded-2xl">
               <button
                 onClick={() => setClTemplate("template1")}
                 className={`relative rounded-xl border p-1 flex flex-col items-center gap-1 min-w-[70px] transition-all cursor-pointer ${
-                  clTemplate === "template1" ? "border-line-strong bg-bg-card" : "border-line bg-bg-card/30"
+                  clTemplate === "template1" ? "border-brand-orange bg-brand-orange/10 ring-1 ring-brand-orange" : "border-line bg-bg-card/30 hover:border-line-strong"
                 }`}
               >
                 <div className="w-12 h-14 bg-bg-card rounded border border-line-strong relative overflow-hidden flex flex-col p-1">
@@ -268,7 +273,7 @@ export default function CoverLetterBuilder() {
               <button
                 onClick={() => setClTemplate("template2")}
                 className={`relative rounded-xl border p-1 flex flex-col items-center gap-1 min-w-[70px] transition-all cursor-pointer ${
-                  clTemplate === "template2" ? "border-line-strong bg-bg-card" : "border-line bg-bg-card/30"
+                  clTemplate === "template2" ? "border-brand-orange bg-brand-orange/10 ring-1 ring-brand-orange" : "border-line bg-bg-card/30 hover:border-line-strong"
                 }`}
               >
                 <div className="w-12 h-14 bg-bg-card rounded border border-line-strong relative overflow-hidden flex flex-col p-1">
@@ -385,13 +390,30 @@ export default function CoverLetterBuilder() {
             </div>
 
             <button
-              onClick={handleGenerate}
-              disabled={generateLoading || !selectedResumeId || !jdText.trim()}
-              className="w-full py-4 bg-brand-orange text-on-brand hover:bg-orange-600 text-xs font-black tracking-widest rounded-xl transition-all uppercase flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 animate-pulse"
+              onClick={token ? handleGenerate : () => setGate("cover-letter")}
+              disabled={generateLoading || (!!token && (!selectedResumeId || !jdText.trim()))}
+              className="w-full py-4 bg-brand-orange text-on-brand hover:bg-orange-600 text-xs font-black tracking-widest rounded-xl transition-all uppercase flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              {generateLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              GENERATE COVER LETTER
+              {generateLoading ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : token ? (
+                <Sparkles className="w-4 h-4" />
+              ) : (
+                <Lock className="w-4 h-4" />
+              )}
+              {token ? "GENERATE COVER LETTER" : "SIGN IN TO GENERATE"}
             </button>
+
+            {/* The button sat disabled with nothing explaining why. A base
+                profile is required because the letter is written from a saved
+                résumé — that was never stated anywhere on the page. */}
+            {token && (!selectedResumeId || !jdText.trim()) && (
+              <p className="mt-2 text-[11px] leading-relaxed text-text-muted">
+                {!selectedResumeId
+                  ? "Choose a base profile above — the letter is written from one of your saved résumés."
+                  : "Paste the job description to generate."}
+              </p>
+            )}
           </div>
 
           {/* RIGHT PANEL: Editorial Text Editor with template preview classes */}

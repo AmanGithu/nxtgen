@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
-import { Upload, Sparkles, Copy, Check, AlertTriangle, Info, Lightbulb, Globe, FileText } from 'lucide-react';
+import { Upload, Sparkles, Copy, Check, AlertTriangle, Info, Lightbulb, Globe, FileText , Lock } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../../hooks/useAuth';
+import SignInGate from '../../components/SignInGate';
 import ScoreRing from '../../components/resume/ScoreRing';
 import { guestHeaders } from '../../lib/guestStore';
 
@@ -63,6 +64,13 @@ const toneFor = (n: number) => (n >= 75 ? 'success' : n >= 50 ? 'warning' : 'dan
 
 const LinkedInAnalyser = () => {
   const { token } = useAuth();
+  const [gate, setGate] = useState<null | 'linkedin'>(null);
+  /* Guests get one audit. Remembering it here keeps the button honest after
+     the first run instead of letting them fire a request that will be refused. */
+  const [usedFreeRun, setUsedFreeRun] = useState(false);
+  const [pendingFile, setPendingFile] = useState<
+    { fileBase64: string; fileName: string; mimeType: string } | null
+  >(null);
   const [inputMode, setInputMode] = useState<'pdf' | 'text'>('pdf');
   const [profileText, setProfileText] = useState('');
   const [fileName, setFileName] = useState('');
@@ -96,6 +104,12 @@ const LinkedInAnalyser = () => {
       const payload = await res.json();
       if (res.ok && payload.success) {
         setAnalysis(payload.analysis);
+        if (!token) setUsedFreeRun(true);
+      } else if (res.status === 402 && !token) {
+        /* Their one free audit is spent. That is a funnel moment, not an
+           error, so it gets the sign-in prompt rather than a red banner. */
+        setUsedFreeRun(true);
+        setGate('linkedin');
       } else {
         setError(payload.message || 'Could not analyse that profile.');
       }
@@ -107,16 +121,34 @@ const LinkedInAnalyser = () => {
     }
   };
 
+  /* Reading the file no longer runs the analysis. Choosing a file and asking
+     for the result are separate decisions — firing automatically meant the
+     visitor never pressed anything and the whole report simply appeared. */
   const handleFile = (file: File) => {
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1];
-      post({ fileBase64: base64, fileName: file.name, mimeType: file.type });
+      setPendingFile({
+        fileBase64: (reader.result as string).split(',')[1],
+        fileName: file.name,
+        mimeType: file.type,
+      });
     };
     reader.onerror = () => setError('Could not read that file.');
     reader.readAsDataURL(file);
   };
+
+  /** Run whichever input the visitor has provided. */
+  const runAnalysis = () => {
+    if (inputMode === 'pdf') {
+      if (pendingFile) post(pendingFile);
+    } else if (profileText.trim().length >= 40) {
+      post({ text: profileText });
+    }
+  };
+
+  const canAnalyse =
+    inputMode === 'pdf' ? !!pendingFile : profileText.trim().length >= 40;
 
   const copy = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);
@@ -132,6 +164,7 @@ const LinkedInAnalyser = () => {
 
   return (
     <div className="resume-workspace space-y-6">
+      {gate && <SignInGate tier="guest" action={gate} onClose={() => setGate(null)} />}
       <div>
         <h2 className="font-display text-2xl font-bold text-strong">LinkedIn Profile Analyser</h2>
         <p className="mt-1 text-sm text-text-muted">
@@ -139,8 +172,10 @@ const LinkedInAnalyser = () => {
         </p>
       </div>
 
-      {/* Input mode toggle */}
-      <div className="flex flex-wrap gap-3">
+      {/* Input mode toggle, with the action on the same line so choosing a
+          source and asking for the report read as one step. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-3">
         {(['pdf', 'text'] as const).map((mode) => (
           <button
             key={mode}
@@ -161,6 +196,21 @@ const LinkedInAnalyser = () => {
             {mode === 'pdf' ? 'Upload LinkedIn Profile PDF' : 'Paste Raw Text'}
           </button>
         ))}
+        </div>
+
+        <button
+          className="btn btn--primary"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+          disabled={loading || (!canAnalyse && !(usedFreeRun && !token))}
+          onClick={usedFreeRun && !token ? () => setGate('linkedin') : runAnalysis}
+        >
+          {usedFreeRun && !token ? <Lock size={15} /> : <Sparkles size={15} />}
+          {loading
+            ? 'Analysing…'
+            : usedFreeRun && !token
+              ? 'Sign in to analyse again'
+              : 'Analyse profile'}
+        </button>
       </div>
 
       {/* Optional CV — when the name matches, drafts quote real achievements
@@ -246,14 +296,6 @@ const LinkedInAnalyser = () => {
             onChange={(e) => setProfileText(e.target.value)}
             spellCheck={false}
           />
-          <button
-            className="btn btn--primary btn--sm"
-            style={{ marginTop: 12 }}
-            disabled={loading || profileText.trim().length < 40}
-            onClick={() => post({ text: profileText })}
-          >
-            <Sparkles /> {loading ? 'Analysing…' : 'Analyse profile'}
-          </button>
         </div>
       )}
 
@@ -321,9 +363,14 @@ const LinkedInAnalyser = () => {
               ) : (
                 analysis.suggestions.map((s, i) => {
                   const Icon = SEVERITY_ICON[s.severity];
+                  /* Two fixes in full is enough to show the analysis is real
+                     and specific to their profile; the rest is what the
+                     account is for. */
+                  const locked = !token && i >= 2;
                   return (
                     <div
                       key={`${s.section}-${i}`}
+                      style={locked ? { position: 'relative', overflow: 'hidden' } : undefined}
                       className={clsx(
                         'flex gap-3 rounded-xl border bg-bg-surface p-4',
                         s.severity === 'high'
@@ -370,6 +417,17 @@ const LinkedInAnalyser = () => {
                           {s.section}
                         </span>
                       </div>
+
+                      {locked && (
+                        <button
+                          onClick={() => setGate('linkedin')}
+                          className="absolute inset-0 flex items-center justify-center gap-2 border-0 bg-bg-surface/10 text-sm font-bold text-strong backdrop-blur-[6px]"
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <Lock size={14} />
+                          Sign in to see more
+                        </button>
+                      )}
                     </div>
                   );
                 })

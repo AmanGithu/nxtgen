@@ -4,7 +4,7 @@ import { gateReason, type Tier } from '../lib/entitlements';
 
 interface Props {
   tier: Tier;
-  action: 'save' | 'export' | 'premium-template' | 'extra-resume';
+  action: 'save' | 'export' | 'premium-template' | 'extra-resume' | 'ats-score' | 'tailor' | 'linkedin' | 'cover-letter' | 'interview-prep';
   onClose: () => void;
 }
 

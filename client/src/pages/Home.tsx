@@ -58,7 +58,7 @@ const HERO_SLIDES: HeroSlide[] = [
     primaryCtaText: 'Launch I-Assist',
     primaryCtaLink: '/tools/i-assist',
     secondaryCtaText: 'View Dashboard',
-    secondaryCtaLink: '/dashboard/student/tools/i-assist'
+    secondaryCtaLink: '/dashboard/tools/i-assist'
   },
   {
     id: 'slide-3',
@@ -69,9 +69,9 @@ const HERO_SLIDES: HeroSlide[] = [
     highlightText: 'Recruiter Callbacks',
     subtitle: 'Live A4 WYSIWYG editor with inline AI bullet rewriter, keyword gap audit, and job description tailoring built for modern tech hiring.',
     primaryCtaText: 'Build AI Resume',
-    primaryCtaLink: '/dashboard/student/tools/resume-builder',
+    primaryCtaLink: '/dashboard/tools/resume-builder',
     secondaryCtaText: 'Check ATS Score',
-    secondaryCtaLink: '/dashboard/student/tools/ats-checker'
+    secondaryCtaLink: '/dashboard/tools/ats-checker'
   },
   {
     id: 'slide-4',
@@ -95,9 +95,9 @@ const HERO_SLIDES: HeroSlide[] = [
     highlightText: 'Role-Tailored Cover Letters',
     subtitle: 'Generate high-impact recruiter headlines, profile SEO audits, and tailored 250-word cover letters in seconds.',
     primaryCtaText: 'Analyze LinkedIn Profile',
-    primaryCtaLink: '/dashboard/student/tools/linkedin-analyser',
+    primaryCtaLink: '/dashboard/tools/linkedin-analyser',
     secondaryCtaText: 'Cover Letter Builder',
-    secondaryCtaLink: '/dashboard/student/tools/cover-letter'
+    secondaryCtaLink: '/dashboard/tools/cover-letter'
   },
   {
     id: 'slide-6',
@@ -460,12 +460,12 @@ const Home = () => {
           {[
             { name: 'Live AI Interview', path: '/tools/live-interview', desc: 'Voice & 3D Avatar screening' },
             { name: 'I-Assist Co-Pilot', path: '/tools/i-assist', desc: 'Real-time context assistant' },
-            { name: 'AI Resume Builder', path: '/dashboard/student/tools/resume-builder', desc: 'A4 WYSIWYG rewriter' },
-            { name: 'ATS Score Checker', path: '/dashboard/student/tools/ats-checker', desc: '0-100% keyword audit' },
-            { name: 'JD Resume Tailor', path: '/dashboard/student/tools/tailor-resume', desc: 'Targeted resume tailoring' },
-            { name: 'LinkedIn Analyser', path: '/dashboard/student/tools/linkedin-analyser', desc: 'Profile SEO audit' },
-            { name: 'Cover Letter AI', path: '/dashboard/student/tools/cover-letter', desc: '250-word letter generator' },
-            { name: 'Interview Prep Kit', path: '/dashboard/student/tools/interview-prep', desc: 'STAR model Q&A cards' },
+            { name: 'AI Resume Builder', path: '/dashboard/tools/resume-builder', desc: 'A4 WYSIWYG rewriter' },
+            { name: 'ATS Score Checker', path: '/dashboard/tools/ats-checker', desc: '0-100% keyword audit' },
+            { name: 'JD Resume Tailor', path: '/dashboard/tools/tailor-resume', desc: 'Targeted resume tailoring' },
+            { name: 'LinkedIn Analyser', path: '/dashboard/tools/linkedin-analyser', desc: 'Profile SEO audit' },
+            { name: 'Cover Letter AI', path: '/dashboard/tools/cover-letter', desc: '250-word letter generator' },
+            { name: 'Interview Prep Kit', path: '/dashboard/tools/interview-prep', desc: 'STAR model Q&A cards' },
           ].map((tool, i) => (
             <Link
               key={i}

@@ -4,7 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { readGuestResume, guestHeaders } from "../../lib/guestStore";
 import { entitlementsFor } from "../../lib/entitlements";
 import SignInGate from "../../components/SignInGate";
-import { Sparkles, RefreshCw, ChevronRight, CheckCircle2, Award, Volume2, Eye, EyeOff } from "lucide-react";
+import { Sparkles, RefreshCw, ChevronRight, CheckCircle2, Award, Volume2, Eye, EyeOff , Lock } from "lucide-react";
 
 import "../../styles/resume/interview.css";
 
@@ -26,7 +26,7 @@ const ORDER = ["From Your Résumé", "Role & Technical", "Behavioral", "Situatio
 export default function InterviewPrepKit() {
   const { token, user } = useAuth(false);
   const ent = entitlementsFor(!!token, (user as any)?.plan, (user as any)?.role);
-  const [gate, setGate] = useState<null | "save" | "export" | "premium-template" | "extra-resume">(null);
+  const [gate, setGate] = useState<null | "save" | "export" | "premium-template" | "extra-resume" | "interview-prep">(null);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [selectedResumeId, setSelectedResumeId] = useState("");
   const [role, setRole] = useState("");
@@ -245,13 +245,34 @@ export default function InterviewPrepKit() {
             </div>
 
             <button
-              onClick={handleGenerate}
-              disabled={generateLoading || !selectedResumeId || !jdText.trim()}
+              onClick={token ? handleGenerate : () => setGate("interview-prep")}
+              disabled={generateLoading || (!!token && (!selectedResumeId || !jdText.trim()))}
               className="w-full py-4 bg-brand-orange text-on-brand hover:bg-orange-600 text-xs font-black tracking-widest rounded-xl transition-all uppercase flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              {generateLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              {questions.length > 0 ? "REGENERATE QUESTIONS" : "GENERATE QUESTIONS"}
+              {generateLoading ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : token ? (
+                <Sparkles className="w-4 h-4" />
+              ) : (
+                <Lock className="w-4 h-4" />
+              )}
+              {!token
+                ? "SIGN IN TO GENERATE"
+                : questions.length > 0
+                  ? "REGENERATE QUESTIONS"
+                  : "GENERATE QUESTIONS"}
             </button>
+
+            {/* Same trap as the cover letter: the button sat disabled with no
+                reason given, and the reason is that the questions are built
+                from a saved résumé. */}
+            {token && (!selectedResumeId || !jdText.trim()) && (
+              <p className="mt-2 text-[11px] leading-relaxed text-text-muted">
+                {!selectedResumeId
+                  ? "Choose a base profile above — the questions are built from one of your saved résumés."
+                  : "Paste the job description to generate."}
+              </p>
+            )}
           </div>
 
           {/* RIGHT PANEL: Category Groups, Checklists & Answers reveal */}

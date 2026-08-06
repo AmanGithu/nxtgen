@@ -87,8 +87,38 @@ export const entitlementsFor = (
 };
 
 /** Why a gated action is blocked, phrased for the upsell prompt. */
-export const gateReason = (tier: Tier, action: 'save' | 'export' | 'premium-template' | 'extra-resume') => {
+export const gateReason = (tier: Tier, action: 'save' | 'export' | 'premium-template' | 'extra-resume' | 'ats-score' | 'tailor' | 'linkedin' | 'cover-letter' | 'interview-prep') => {
   if (tier === 'guest') {
+    if (action === 'interview-prep') {
+      return {
+        title: 'Sign in for your question set',
+        body: 'Create a free account to generate interview questions from your résumé and this job description, with model STAR answers.',
+      };
+    }
+    if (action === 'cover-letter') {
+      return {
+        title: 'Sign in to write your letter',
+        body: 'Create a free account to generate a cover letter from your résumé, tailored to this job.',
+      };
+    }
+    if (action === 'linkedin') {
+      return {
+        title: 'Sign in to see every fix',
+        body: 'Create a free account to see the full list of profile fixes, the rewritten headlines and the keywords recruiters search for.',
+      };
+    }
+    if (action === 'tailor') {
+      return {
+        title: 'Sign in to tailor your résumé',
+        body: 'Create a free account to see which keywords this job wants, and add the missing ones to your résumé in one click.',
+      };
+    }
+    if (action === 'ats-score') {
+      return {
+        title: 'Sign in to see your match score',
+        body: 'Create a free account to score your résumé against this job description and see exactly which keywords you are missing.',
+      };
+    }
     return action === 'export'
       ? { title: 'Sign in to download', body: 'Create a free account to export your résumé as PDF or DOCX.' }
       : { title: 'Sign in to save', body: "Your work is kept in this browser. Sign in free and we'll move it to your account." };
@@ -98,6 +128,16 @@ export const gateReason = (tier: Tier, action: 'save' | 'export' | 'premium-temp
       return { title: 'Upgrade to export', body: 'PDF and DOCX downloads are part of a paid plan.' };
     case 'premium-template':
       return { title: 'Premium template', body: 'This template is available on a paid plan.' };
+    case 'interview-prep':
+      return { title: 'Generate questions', body: 'Interview question sets are part of a paid plan.' };
+    case 'cover-letter':
+      return { title: 'Write this letter', body: 'Cover letter generation is part of a paid plan.' };
+    case 'linkedin':
+      return { title: 'See every fix', body: 'The full profile audit is part of a paid plan.' };
+    case 'tailor':
+      return { title: 'Tailor to this job', body: 'Tailoring against a pasted job description is part of a paid plan.' };
+    case 'ats-score':
+      return { title: 'Score against this job', body: 'Match scoring against a pasted job description is part of a paid plan.' };
     case 'extra-resume':
       return { title: 'One résumé on the free plan', body: 'Upgrade to keep multiple résumés and tailored versions.' };
     default:

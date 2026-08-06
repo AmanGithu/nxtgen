@@ -31,9 +31,23 @@ interface Entry {
 const byBrowser = new Map<string, Entry>();
 const byIp = new Map<string, Entry>();
 
+/**
+ * Per-feature guest counters, for tools where the shared pool is too generous.
+ *
+ * A profile audit is a one-shot deliverable: without its own cap, a guest can
+ * act on the two fixes shown, re-upload, and collect the next two — repeating
+ * until they have the whole report the account was meant to be for.
+ */
+const byFeature = new Map<string, Entry>();
+
+/** Guest allowances that differ from the shared pool. */
+export const GUEST_FEATURE_LIMITS: Record<string, number> = {
+  linkedin_analyse: Number(process.env.GUEST_FREE_LINKEDIN || 1),
+};
+
 const sweep = () => {
   const now = Date.now();
-  for (const map of [byBrowser, byIp]) {
+  for (const map of [byBrowser, byIp, byFeature]) {
     for (const [key, entry] of map) if (entry.resetAt <= now) map.delete(key);
   }
 };
@@ -100,5 +114,38 @@ export const consumeGuestAction = (ip: string, guestId: string): QuotaState => {
 export const resetGuestQuota = () => {
   byBrowser.clear();
   byIp.clear();
+  byFeature.clear();
   logger.info('[guestQuota] all guest allowances reset');
+};
+
+
+/**
+ * Claim one use of a feature that has its own guest limit.
+ *
+ * Returns false when the visitor has already had their allowance. Keyed on the
+ * browser id like the main pool — the per-IP ceiling still applies separately
+ * through consumeGuestAction, so this is about shaping the funnel rather than
+ * stopping a determined abuser.
+ */
+export const consumeGuestFeature = (
+  guestId: string,
+  feature: string
+): { allowed: boolean; used: number; limit: number } => {
+  const limit = GUEST_FEATURE_LIMITS[feature];
+  if (limit === undefined) return { allowed: true, used: 0, limit: Infinity };
+
+  const entry = entryFor(byFeature, `${feature}:${guestId}`);
+  if (entry.used >= limit) return { allowed: false, used: entry.used, limit };
+
+  entry.used += 1;
+  return { allowed: true, used: entry.used, limit };
+};
+
+/** Read a feature counter without consuming from it. */
+export const peekGuestFeature = (guestId: string, feature: string) => {
+  const limit = GUEST_FEATURE_LIMITS[feature];
+  if (limit === undefined) return { allowed: true, used: 0, limit: Infinity };
+  const entry = byFeature.get(`${feature}:${guestId}`);
+  const used = entry && entry.resetAt > Date.now() ? entry.used : 0;
+  return { allowed: used < limit, used, limit };
 };

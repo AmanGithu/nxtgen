@@ -134,7 +134,12 @@ export const importResume = async (req: AuthRequest, res: Response) => {
     const { fileBase64, fileName, mimeType, source } = req.body;
     if (!fileBase64 || !fileName) return res.status(400).json({ message: 'fileBase64 and fileName are required' });
     const buffer = Buffer.from(fileBase64, 'base64');
-    const r = await resumeService.importResume(userId, buffer, fileName, mimeType || '', source === 'linkedin');
+    /* Import creates a résumé just as POST /resumes does, so it has to respect
+       the same cap — otherwise the plan limit is bypassed simply by uploading
+       instead of clicking "new". */
+    const r = await entitlementService.createWithinLimit(userId, () =>
+      resumeService.importResume(userId, buffer, fileName, mimeType || '', source === 'linkedin')
+    );
     res.status(201).json(r);
   } catch (error: any) { handleError(res, 'Import resume', error, userId); }
 };

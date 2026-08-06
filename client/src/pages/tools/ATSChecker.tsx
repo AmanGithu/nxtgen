@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowLeft, FileText, Search, Lock } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import ScoreRing from '../../components/resume/ScoreRing';
 import {
@@ -10,6 +10,8 @@ import {
   GENERIC_JD,
 } from '../../lib/resume/ats';
 import { sanitizeResumeData, type ResumeData } from '../../lib/resume/resumeData';
+import SignInGate from '../../components/SignInGate';
+import { toolsBasePath } from '../../lib/tools';
 import { readGuestResume } from '../../lib/guestStore';
 
 import '../../styles/resume/editor.css';
@@ -33,6 +35,7 @@ const toneFor = (n: number) => (n >= 75 ? 'success' : n >= 50 ? 'warning' : 'dan
  */
 const ATSChecker = () => {
   const { token } = useAuth();
+  const location = useLocation();
   const [resumes, setResumes] = useState<ResumeSummary[]>([]);
   const [activeId, setActiveId] = useState<string>('');
   const [data, setData] = useState<ResumeData | null>(null);
@@ -92,7 +95,25 @@ const ATSChecker = () => {
     localStorage.setItem('atsJd', jd);
   }, [jd]);
 
-  const atsKeywords = useMemo(() => (jd.trim() ? extractKeywords(jd) : []), [jd]);
+  /* `scoredJd` is the description the current score belongs to. Keeping it
+     separate from `jd` is what makes the button meaningful: scoring live as
+     the user types would hand a guest the full match result before they ever
+     sign in, which is the thing the account is meant to be for. */
+  const [scoredJd, setScoredJd] = useState('');
+  const [gate, setGate] = useState<null | 'ats-score'>(null);
+
+  const atsKeywords = useMemo(() => (scoredJd.trim() ? extractKeywords(scoredJd) : []), [scoredJd]);
+  const jdReady = jd.trim().length > 0;
+  const isStale = jdReady && jd.trim() !== scoredJd.trim();
+
+  const runScore = () => {
+    if (!token) {
+      // Guests can paste and explore, but the result needs an account.
+      setGate('ats-score');
+      return;
+    }
+    setScoredJd(jd);
+  };
   const usingGenericJd = atsKeywords.length === 0;
   const scoreKeywords = useMemo(
     () => (usingGenericJd ? extractKeywords(GENERIC_JD) : atsKeywords),
@@ -120,7 +141,7 @@ const ATSChecker = () => {
           Build or import a resume first, then come back to score it against a job description.
         </p>
         <Link
-          to="/dashboard/tools/resume-builder"
+          to={`${toolsBasePath(location.pathname)}/resume-builder`}
           className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand transition-colors hover:bg-orange-600"
         >
           <ArrowLeft size={16} />
@@ -134,6 +155,7 @@ const ATSChecker = () => {
 
   return (
     <div className="resume-workspace space-y-6">
+      {gate && <SignInGate tier="guest" action={gate} onClose={() => setGate(null)} />}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="font-display text-2xl font-bold text-strong">ATS Score Checker</h2>
@@ -180,11 +202,28 @@ const ATSChecker = () => {
               onChange={(e) => setJd(e.target.value)}
               spellCheck={false}
             />
-            <span className="field__help">
-              {usingGenericJd
-                ? 'Empty — scoring summary + experience against a generic role profile.'
-                : 'Scoring the whole résumé against your description. Shared with the editor.'}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={runScore}
+                disabled={!jdReady}
+                className="btn btn--primary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              >
+                {token ? <Search size={15} /> : <Lock size={15} />}
+                {token ? (isStale ? 'Check ATS score' : 'Re-check score') : 'Sign in to check score'}
+              </button>
+
+              <span className="field__help" style={{ margin: 0 }}>
+                {!jdReady
+                  ? 'Paste a job description above, then check your score against it.'
+                  : isStale
+                    ? 'Description changed — check again for an updated score.'
+                    : usingGenericJd
+                      ? 'Showing a generic role profile until you score against a description.'
+                      : 'Scored against your description. Shared with the editor.'}
+              </span>
+            </div>
           </div>
 
           {usingGenericJd && (

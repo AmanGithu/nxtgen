@@ -9,7 +9,11 @@ import {
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
-  variant: 'admin' | 'student';
+  /* 'tools' is the career toolkit, which is open to signed-out visitors.
+     Without it, variant="tools" fell through to the student nav and showed a
+     guest Study Material, Class Schedule and a Logout button — links they
+     cannot use and an action that makes no sense when not signed in. */
+  variant: 'admin' | 'student' | 'tools';
 }
 
 interface NavLinkItem {
@@ -56,7 +60,23 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
     { name: 'Unlock All Packages', path: '/dashboard/student/unlock', icon: Lock },
   ];
 
-  const links = variant === 'admin' ? adminLinks : studentLinks;
+  /* Same tools, but pointed at the public /dashboard/tools paths rather than
+     the student-only ones, so a guest is never sent somewhere they'll be
+     bounced from. */
+  const toolLinks: NavLinkItem[] = [
+    { name: 'AI Resume Builder', path: '/dashboard/tools/resume-builder', icon: FileText },
+    { name: 'ATS Score Checker', path: '/dashboard/tools/ats-checker', icon: Settings },
+    { name: 'JD Resume Tailor', path: '/dashboard/tools/tailor-resume', icon: Award },
+    { name: 'LinkedIn Analyser', path: '/dashboard/tools/linkedin-analyser', icon: Users },
+    { name: 'Cover Letter Builder', path: '/dashboard/tools/cover-letter', icon: FileText },
+    { name: 'Interview Prep Kit', path: '/dashboard/tools/interview-prep', icon: LayoutDashboard },
+    { name: 'I-Assist', path: '/dashboard/tools/i-assist', icon: Mic },
+    { name: 'Live AI Interview', path: '/dashboard/tools/live-interview', icon: Bot },
+    { name: 'Unlock All Packages', path: '/dashboard/tools/unlock', icon: Lock },
+  ];
+
+  const links =
+    variant === 'admin' ? adminLinks : variant === 'tools' ? toolLinks : studentLinks;
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-canvas text-white">
@@ -69,9 +89,16 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
       >
         <div className="flex h-16 items-center justify-between px-4">
           {isSidebarOpen && (
-            <div className="font-display text-xl font-bold">
+            /* A masthead people expect to click — it was plain text, so the
+               only way out of the dashboard was the browser's back button. */
+            <Link
+              to="/"
+              title="Back to NxtGen Academy home"
+              className="font-display text-xl font-bold transition-opacity hover:opacity-80"
+            >
               <span className="text-brand-orange">NxtGen</span>
-            </div>
+              <span className="ml-1 text-strong">Academy</span>
+            </Link>
           )}
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-text-muted hover:text-white">
             <Menu size={20} />
@@ -81,11 +108,15 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
         <div className={clsx("mb-6 px-4", isSidebarOpen ? "block" : "hidden")}>
           <div className="flex items-center gap-3 rounded-lg bg-bg-card p-3 border border-white/[0.08]">
             <div className="h-10 w-10 rounded-full bg-brand-orange flex items-center justify-center font-bold text-white">
-              {user?.firstName?.[0] || 'U'}
+              {user?.firstName?.[0] || 'G'}
             </div>
             <div>
-              <p className="text-sm font-medium">{user?.firstName} {user?.lastName}</p>
-              <p className="text-xs text-text-muted capitalize">{user?.role}</p>
+              <p className="text-sm font-medium">
+                {user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() : 'Guest'}
+              </p>
+              <p className="text-xs text-text-muted capitalize">
+                {user ? user.role : 'Not signed in'}
+              </p>
             </div>
           </div>
         </div>
@@ -123,13 +154,25 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
         </nav>
 
         <div className="border-t border-white/[0.08] p-4">
-          <button
-            onClick={logout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-text-muted transition-colors hover:bg-white/[0.05] hover:text-white"
-          >
-            <LogOut size={20} />
-            {isSidebarOpen && <span className="text-sm font-medium">Logout</span>}
-          </button>
+          {user ? (
+            <button
+              onClick={logout}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-text-muted transition-colors hover:bg-white/[0.05] hover:text-white"
+            >
+              <LogOut size={20} />
+              {isSidebarOpen && <span className="text-sm font-medium">Logout</span>}
+            </button>
+          ) : (
+            /* Guests keep their work in the browser; signing in is what moves
+               it to an account, so that is the action to offer them here. */
+            <Link
+              to="/login"
+              className="flex w-full items-center gap-3 rounded-lg bg-brand-orange px-3 py-2 text-white transition-colors hover:bg-orange-600"
+            >
+              <LogOut size={20} className="rotate-180" />
+              {isSidebarOpen && <span className="text-sm font-medium">Sign in to save</span>}
+            </Link>
+          )}
         </div>
       </aside>
 

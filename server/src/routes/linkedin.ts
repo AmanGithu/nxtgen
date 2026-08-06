@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { optionalAuthenticate } from '../middleware/auth';
-import { consumeGuestAction, peekGuestQuota } from '../lib/guestQuota';
+import { consumeGuestAction, peekGuestQuota, consumeGuestFeature } from '../lib/guestQuota';
 import { AppError } from '../middleware/errorHandler';
 import { analyseLinkedIn } from '../services/linkedinAnalyser';
 import { looksLikePdf, looksLikeDocx, extractPdfText, extractDocxText } from '../services/resume/textExtract';
@@ -86,6 +86,17 @@ router.post('/analyse', async (req: Request, res: Response, next: NextFunction) 
     // Signed-out visitors spend one of their free AI actions; members don't.
     let quota;
     if (!req.user) {
+      /* One profile audit per guest. The report is a single deliverable, so
+         without this a visitor can act on the two fixes shown, re-upload, and
+         harvest the next two until they have the lot. */
+      const feature = consumeGuestFeature(guestId(req), 'linkedin_analyse');
+      if (!feature.allowed) {
+        throw new AppError(
+          'You\'ve used your free profile analysis. Sign in — it\'s free — to analyse again and see every fix.',
+          402
+        );
+      }
+
       quota = consumeGuestAction(clientIp(req), guestId(req));
       if (!quota.allowed) {
         throw new AppError(

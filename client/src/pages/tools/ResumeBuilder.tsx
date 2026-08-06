@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useTransition, useMemo, Fragment, useLayoutEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import ResumeDoc from "../../components/resume/ResumeDoc";
 import ScoreRing from "../../components/resume/ScoreRing";
 import TemplateThumb from "../../components/resume/TemplateThumb";
 import { sanitizeResumeData, resolveSectionOrder, clampFontScale, FONT_SCALE_MIN, FONT_SCALE_MAX, FONT_SCALE_STEP, type ResumeData, type ResumeVariant } from "../../lib/resume/resumeData";
 import { TEMPLATES, type TemplateMeta } from "../../lib/resume/templates";
+import { toolsBasePath } from "../../lib/tools";
 import { injectKeyword } from "../../lib/resume/tailor";
 import { entitlementsFor } from "../../lib/entitlements";
 import { saveGuestResume, readGuestResume, guestHeaders } from "../../lib/guestStore";
@@ -42,7 +43,8 @@ import {
   TrendingUp,
   Link2,
   ChevronRight,
-  Minus
+  Minus,
+  Lock
 } from "lucide-react";
 
 import "../../styles/resume/editor.css";
@@ -133,6 +135,7 @@ export default function ResumeBuilder() {
   const [gate, setGate] = useState<null | "save" | "export" | "premium-template" | "extra-resume">(null);
   const { promptUpgrade } = useUpgrade();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
 
   // Editor states
@@ -182,6 +185,22 @@ export default function ResumeBuilder() {
   const [pageCount, setPageCount] = useState(1);
   // Right dock: which section is expanded over the preview (null = rail only)
   const [dockOpen, setDockOpen] = useState<DockSection>(null);
+  const [strengthening, setStrengthening] = useState<string | null>(null);
+  const [strengthenOpen, setStrengthenOpen] = useState(false);
+  /** Suggested rewrites awaiting the author's decision, keyed role:bullet. */
+  const [proposals, setProposals] = useState<Record<string, string>>({});
+
+  const acceptProposal = (roleIndex: number, bulletIndex: number) => {
+    const key = `${roleIndex}:${bulletIndex}`;
+    const text = proposals[key];
+    if (!text) return;
+    mutateData((d) => { d.experience[roleIndex].bullets[bulletIndex] = text; });
+    setProposals((prev) => { const next = { ...prev }; delete next[key]; return next; });
+    toast("Bullet updated ✦");
+  };
+
+  const discardProposal = (key: string) =>
+    setProposals((prev) => { const next = { ...prev }; delete next[key]; return next; });
   // Pro-template gate: set to the attempted template when a free user taps a Pro one
   const [proGate, setProGate] = useState<TemplateMeta | null>(null);
   // scroll container for the editor column, so nav jumps scroll it (not the page)
@@ -997,6 +1016,58 @@ export default function ResumeBuilder() {
     </div>
   );
 
+  /* Bullets that assert something but quantify nothing. This is the whole of
+     what the old Upload & Enhance page contributed — everything else it did
+     (import, rewrite, save) the editor already does. Deterministic and free,
+     so guests see the diagnosis; the AI rewrite is what needs an account. */
+  const weakBullets = useMemo(() => {
+    const out: { roleIndex: number; bulletIndex: number; where: string; text: string }[] = [];
+    (editorData.experience ?? []).forEach((role, roleIndex) => {
+      (role.bullets ?? []).forEach((b, bulletIndex) => {
+        const text = (b || "").trim();
+        if (text.length > 20 && !/\d/.test(text)) {
+          out.push({
+            roleIndex,
+            bulletIndex,
+            where: role.company || role.role || "Experience",
+            text,
+          });
+        }
+      });
+    });
+    return out;
+  }, [editorData]);
+
+  /** Rewrite one weak bullet in place, or ask a guest to sign in first. */
+  const strengthenBullet = async (roleIndex: number, bulletIndex: number, text: string) => {
+    if (!token) {
+      setGate("save");
+      return;
+    }
+    setStrengthening(`${roleIndex}:${bulletIndex}`);
+    try {
+      const res = await fetch(`/api/resumes/${activeResumeId}/ai/rewrite-bullet`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ bullet: text, tone: "impact" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 402) { setGate("save"); return; }
+      if (res.ok && data.text) {
+        /* Held as a proposal rather than applied. A rewrite can lose a detail
+           only the author would notice, so replacing their words without
+           showing them first is the wrong default. */
+        setProposals((prev) => ({ ...prev, [`${roleIndex}:${bulletIndex}`]: data.text }));
+      } else {
+        toast(data.message || "Could not rewrite that bullet.");
+      }
+    } catch {
+      toast("Could not reach the rewriter.");
+    } finally {
+      setStrengthening(null);
+    }
+  };
+
   const rowStyle: React.CSSProperties = { display: "flex", gap: 8, alignItems: "center" };
   const mt3: React.CSSProperties = { marginTop: "var(--space-3)" };
 
@@ -1446,6 +1517,33 @@ export default function ResumeBuilder() {
               <ChevronDown />
             </button>
 
+            {/* Strengthen CV — the old Upload & Enhance, now a peer of the
+                template picker rather than a page. The count is the live
+                number of bullets that assert something but quantify nothing. */}
+            <button
+              className="tb-tpl"
+              onClick={() => setStrengthenOpen(true)}
+              title="Find bullets with no measurable result"
+            >
+              <Sparkles />
+              <span>Strengthen CV</span>
+              {weakBullets.length > 0 && (
+                <span
+                  style={{
+                    marginLeft: 2,
+                    fontSize: 10,
+                    fontWeight: 800,
+                    padding: "1px 7px",
+                    borderRadius: 999,
+                    background: "var(--primary)",
+                    color: "#fff",
+                  }}
+                >
+                  {weakBullets.length}
+                </span>
+              )}
+            </button>
+
             <div className="tb-spacer" />
 
             {/* Live ATS score. With no job description pasted this scores
@@ -1453,7 +1551,7 @@ export default function ResumeBuilder() {
                 ATS Score Checker for a targeted score. */}
             <button
               className={`tb-ats tb-ats--${atsBand(atsAnalysis.score)}`}
-              onClick={() => navigate("/dashboard/tools/ats-checker")}
+              onClick={() => navigate(`${toolsBasePath(location.pathname)}/ats-checker`)}
               title={
                 usingGenericJd
                   ? "Scored against a generic role profile — add a job description for a targeted score"
@@ -1519,6 +1617,132 @@ export default function ResumeBuilder() {
           </header>
 
           {/* ---------- Template picker (overlays the editor) ---------- */}
+          {/* Strengthen CV — same modal shell as the template picker, so it
+              reads as a peer rather than a different kind of thing. */}
+          {strengthenOpen && (
+            <div className="tpl-modal" role="dialog" aria-modal="true" aria-label="Strengthen CV">
+              <div className="tpl-modal__scrim" onClick={() => setStrengthenOpen(false)} />
+              <div className="tpl-modal__panel">
+                <div className="tpl-modal__head">
+                  <div>
+                    <h2 className="tpl-modal__title">Strengthen CV</h2>
+                    <p className="tpl-modal__note">
+                      These bullets say what you did but not what changed. A figure — time saved,
+                      volume handled, percentage moved — is the single biggest lift to how a
+                      recruiter reads them.
+                    </p>
+                  </div>
+                  <button className="dock__close" aria-label="Close" onClick={() => setStrengthenOpen(false)}>
+                    <X />
+                  </button>
+                </div>
+
+                <div className="tpl-modal__body">
+                  {weakBullets.length === 0 ? (
+                    <p className="dock__note">
+                      Every bullet in your experience already states a number. Nothing to strengthen.
+                    </p>
+                  ) : (
+                    weakBullets.map((w) => {
+                      const key = `${w.roleIndex}:${w.bulletIndex}`;
+                      return (
+                        <div
+                          key={key}
+                          style={{
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius-lg)",
+                            padding: 14,
+                            marginBottom: 10,
+                            background: "var(--surface-sunken)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 10,
+                              opacity: 0.6,
+                              textTransform: "uppercase",
+                              letterSpacing: ".05em",
+                            }}
+                          >
+                            {w.where}
+                          </div>
+                          <p style={{ margin: "6px 0 10px", fontSize: 13, lineHeight: 1.55 }}>{w.text}</p>
+
+                          {proposals[key] ? (
+                            <>
+                              {/* Shown side by side so the author can see what
+                                  the rewrite kept and what it dropped. */}
+                              <div
+                                style={{
+                                  border: "1px solid var(--primary)",
+                                  borderRadius: "var(--radius-md)",
+                                  padding: 10,
+                                  marginBottom: 10,
+                                  background: "var(--primary-50)",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 800,
+                                    textTransform: "uppercase",
+                                    letterSpacing: ".05em",
+                                    color: "var(--primary)",
+                                    marginBottom: 4,
+                                  }}
+                                >
+                                  Suggested rewrite
+                                </div>
+                                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>{proposals[key]}</p>
+                              </div>
+
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                <button
+                                  className="btn btn--primary btn--sm"
+                                  onClick={() => acceptProposal(w.roleIndex, w.bulletIndex)}
+                                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                                >
+                                  <Check /> Use this
+                                </button>
+                                <button
+                                  className="btn btn--ghost btn--sm"
+                                  disabled={strengthening === key}
+                                  onClick={() => strengthenBullet(w.roleIndex, w.bulletIndex, w.text)}
+                                >
+                                  {strengthening === key ? "Rewriting…" : "Try again"}
+                                </button>
+                                <button className="btn btn--ghost btn--sm" onClick={() => discardProposal(key)}>
+                                  Keep mine
+                                </button>
+                              </div>
+                              <p style={{ margin: "8px 0 0", fontSize: 10, opacity: 0.6 }}>
+                                Each rewrite counts as one AI action.
+                              </p>
+                            </>
+                          ) : (
+                            <button
+                              className="btn btn--primary btn--sm"
+                              disabled={strengthening === key}
+                              onClick={() => strengthenBullet(w.roleIndex, w.bulletIndex, w.text)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                            >
+                              {token ? <Sparkles /> : <Lock />}
+                              {strengthening === key
+                                ? "Rewriting…"
+                                : token
+                                  ? "Rewrite with AI"
+                                  : "Sign in to rewrite"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {templatePickerOpen && (
             <div className="tpl-modal" role="dialog" aria-modal="true" aria-label="Choose a template">
               <div className="tpl-modal__scrim" onClick={() => setTemplatePickerOpen(false)} />
