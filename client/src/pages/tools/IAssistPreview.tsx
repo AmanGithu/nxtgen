@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useDesktopDownload } from '../../hooks/useDesktopDownload';
 import {
   Mic, Monitor, Brain, Shield, Zap, Clock, FileText, MessageSquare,
-  ArrowRight, CheckCircle, Download, Headphones, Eye, EyeOff
+  ArrowRight, CheckCircle, Download, Headphones, Eye, EyeOff, Settings, Minus
 } from 'lucide-react';
 
 const FEATURES = [
@@ -140,73 +140,111 @@ const IAssistPreview = () => {
             </div>
           </div>
 
-          {/* Hero visual — desktop app mockup */}
-          <div className="mt-16 mx-auto max-w-4xl">
+          {/* Hero visual — mirrors the shipping desktop UI: the floating bar docked
+              above the session window, same labels, controls and layout as the app.
+              Worth keeping in step with desktop/src/index.html and session-window.html. */}
+          <div className="mt-16 mx-auto max-w-4xl space-y-2">
+
+            {/* Floating bar */}
+            <div className="mx-auto flex max-w-lg items-center gap-2.5 rounded-xl border border-line bg-bg-card px-3 py-2 shadow-2xl">
+              <span className="text-xs font-bold text-strong">I-Assist</span>
+              <span className="text-[11px] font-medium text-text-muted">Backend Engineer</span>
+              <span className="text-[11px] font-semibold tabular-nums text-brand-orange">04:12</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-text-muted">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                Session active
+              </span>
+              <span className="ml-auto flex items-center gap-2">
+                <span className="hidden rounded-md border border-line px-2 py-0.5 text-[10px] text-text-muted sm:inline">Jane D…</span>
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-red-500">
+                  <span className="h-1.5 w-1.5 rounded-[1px] bg-white" />
+                </span>
+                <Settings size={13} className="text-text-muted" />
+                <Minus size={13} className="text-text-muted" />
+              </span>
+            </div>
+
+            {/* Session window */}
             <div className="rounded-2xl border border-line bg-bg-surface p-1.5 shadow-2xl">
               <div className="rounded-xl bg-bg-card overflow-hidden">
-                {/* Title bar */}
-                <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
-                  <div className="flex gap-1.5">
-                    <div className="h-3 w-3 rounded-full bg-red-500/60"></div>
-                    <div className="h-3 w-3 rounded-full bg-yellow-500/60"></div>
-                    <div className="h-3 w-3 rounded-full bg-green-500/60"></div>
-                  </div>
-                  <span className="ml-2 text-xs text-text-muted font-medium">I-Assist — Interview Session</span>
-                  <div className="ml-auto flex items-center gap-3 text-text-muted">
-                    <EyeOff size={14} />
-                    <span className="text-[11px] tabular-nums">opacity: 85%</span>
-                  </div>
-                </div>
-
-                {/* Mock content */}
-                <div className="grid grid-cols-5 divide-x divide-line min-h-[280px]">
-                  {/* Transcript panel */}
-                  <div className="col-span-2 p-4 space-y-3">
-                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Live Transcript</p>
-                    <div className="space-y-2">
-                      <div className="rounded-lg bg-elevate p-2.5">
-                        <p className="text-[11px] text-amber-400/80 font-medium mb-0.5">Interviewer</p>
-                        <p className="text-xs text-text-muted leading-relaxed">"Tell me about a time you led a team through a difficult technical challenge."</p>
-                        <p className="text-[10px] text-text-muted/50 mt-1 tabular-nums">0:42</p>
-                      </div>
-                      <div className="rounded-lg bg-elevate p-2.5">
-                        <p className="text-[11px] text-amber-400/80 font-medium mb-0.5">Interviewer</p>
-                        <p className="text-xs text-text-muted leading-relaxed">"What was the outcome? How did you measure success?"</p>
-                        <p className="text-[10px] text-text-muted/50 mt-1 tabular-nums">2:15</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* AI response panel */}
-                  <div className="col-span-3 p-4 space-y-3">
-                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">AI Coaching</p>
-                    <div className="rounded-lg border border-green-500/20 bg-green-500/[0.05] p-3">
-                      <p className="text-xs text-strong leading-relaxed">
-                        <span className="font-bold text-green-400">Situation:</span> At [Company], our payment processing system was experiencing 12% failure rates during peak traffic...
-                      </p>
-                      <p className="text-xs text-strong leading-relaxed mt-2">
-                        <span className="font-bold text-green-400">Task:</span> I was asked to lead a 4-person team to redesign the payment pipeline within 6 weeks...
-                      </p>
-                      <p className="text-xs text-strong leading-relaxed mt-2">
-                        <span className="font-bold text-green-400">Action:</span> I introduced circuit breakers, migrated to async processing...
-                      </p>
-                      <p className="text-xs text-strong leading-relaxed mt-2">
-                        <span className="font-bold text-green-400">Result:</span> Failure rate dropped to 0.3%, processing 2.4M transactions/day...
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom bar */}
-                <div className="flex items-center justify-between border-t border-line px-4 py-2">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-[11px] text-text-muted">Session active</span>
+                    <span className="text-xs font-semibold text-strong">Backend Engineer</span>
+                    <span className="rounded-md bg-cat-technical-bg px-2 py-0.5 text-[10px] font-medium text-cat-technical">technical</span>
                   </div>
-                  <div className="flex items-center gap-4 text-[11px] text-text-muted tabular-nums">
-                    <span>14 questions</span>
-                    <span>18:22</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] font-semibold tabular-nums text-brand-orange">04:12</span>
+                    <EyeOff size={13} className="text-text-muted" />
+                    <span className="rounded-md bg-red-500 px-2.5 py-1 text-[10px] font-medium text-white">Stop</span>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-5 divide-x divide-line min-h-[280px]">
+                  {/* Questions heard */}
+                  <div className="col-span-2">
+                    <div className="flex items-center justify-between border-b border-line px-3 py-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Questions</span>
+                      <span className="rounded-full bg-elevate px-1.5 text-[10px] tabular-nums text-text-muted">3</span>
+                    </div>
+                    <div className="space-y-1 p-2">
+                      <div className="rounded-lg px-2.5 py-2">
+                        <p className="text-[10px] tabular-nums text-text-muted/60">00:31</p>
+                        <p className="mt-0.5 text-[11px] leading-snug text-text-muted">How do you decide between a queue and a direct API call?</p>
+                      </div>
+                      <div className="rounded-lg px-2.5 py-2">
+                        <p className="text-[10px] tabular-nums text-text-muted/60">01:58</p>
+                        <p className="mt-0.5 text-[11px] leading-snug text-text-muted">Tell me about a time you had to debug a production outage.</p>
+                      </div>
+                      {/* Selected question — orange rule, as in the app */}
+                      <div className="rounded-lg border-l-2 border-brand-orange bg-elevate px-2.5 py-2">
+                        <p className="text-[10px] tabular-nums text-brand-orange">03:40</p>
+                        <p className="mt-0.5 text-[11px] font-semibold leading-snug text-strong">Write a function to check if two strings are anagrams</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Suggested answer */}
+                  <div className="col-span-3">
+                    <div className="border-b border-line px-3 py-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Suggested Answer</span>
+                    </div>
+                    <div className="border-b border-line px-3 py-2 text-[11px] italic text-text-muted">
+                      Write a function to check if two strings are anagrams
+                    </div>
+                    <div className="space-y-2 p-3">
+                      <p className="text-[11px] leading-relaxed text-strong">
+                        Sorting both sides is the one-liner, but I'd count characters instead — same answer in linear time rather than n log n.
+                      </p>
+                      {/* Fenced code renders as a real block in the app, with the language and a copy button */}
+                      <div className="overflow-hidden rounded-lg border border-line bg-elevate">
+                        <div className="flex items-center justify-between border-b border-line px-2.5 py-1">
+                          <span className="font-mono text-[9px] uppercase tracking-wider text-brand-orange">python</span>
+                          <span className="rounded border border-line px-1.5 text-[9px] text-text-muted">Copy</span>
+                        </div>
+                        <pre className="overflow-x-auto p-2.5 font-mono text-[10px] leading-relaxed text-strong">
+<span className="text-purple-400">def</span> <span className="text-blue-400">is_anagram</span>(a, b):{'\n'}    <span className="text-purple-400">if</span> <span className="text-blue-400">len</span>(a) != <span className="text-blue-400">len</span>(b):{'\n'}        <span className="text-purple-400">return False</span>{'\n'}    counts = {'{}'}{'\n'}    <span className="text-purple-400">for</span> ch <span className="text-purple-400">in</span> a:{'\n'}        counts[ch] = counts.get(ch, <span className="text-amber-400">0</span>) + <span className="text-amber-400">1</span>{'\n'}    <span className="text-purple-400">for</span> ch <span className="text-purple-400">in</span> b:{'\n'}        <span className="text-purple-400">if</span> counts.get(ch, <span className="text-amber-400">0</span>) == <span className="text-amber-400">0</span>:{'\n'}            <span className="text-purple-400">return False</span>{'\n'}        counts[ch] -= <span className="text-amber-400">1</span>{'\n'}    <span className="text-purple-400">return True</span></pre>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-strong">
+                        That's O(n) time and O(k) space for the alphabet, and it exits early the moment a count goes negative.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live transcription tape */}
+                <div className="flex items-center gap-2 border-t border-line px-4 py-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Live transcription</span>
+                  <span className="truncate text-[11px] text-strong">Write a function to check if two strings are anagrams</span>
+                </div>
+
+                {/* Ask box */}
+                <div className="flex items-center gap-2 border-t border-line px-3 py-2">
+                  <div className="flex-1 truncate rounded-lg border border-line bg-bg-surface px-3 py-1.5 text-[11px] text-text-muted/60">
+                    Ask a question or type a command...
+                  </div>
+                  <span className="rounded-lg bg-brand-orange px-3 py-1.5 text-[11px] font-semibold text-on-brand">Send</span>
                 </div>
               </div>
             </div>
