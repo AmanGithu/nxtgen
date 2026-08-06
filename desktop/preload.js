@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('iAssist', {
   hideBar: () => ipcRenderer.send('hide-bar'),
   showSessionWindow: () => ipcRenderer.send('show-session-window'),
   hideSessionWindow: () => ipcRenderer.send('hide-session-window'),
+  copyToClipboard: (text) => ipcRenderer.send('copy-to-clipboard', text),
   quitApp: () => ipcRenderer.send('quit-app'),
 
   // --- Listeners (Main → Renderer) ---

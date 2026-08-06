@@ -9,6 +9,7 @@ const {
   screen,
   nativeImage,
   desktopCapturer,
+  clipboard,
   session: electronSession,
 } = require('electron');
 const path = require('path');
@@ -1383,6 +1384,11 @@ function setupIPC() {
 
   ipcMain.on('hide-session-window', () => {
     if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.hide();
+  });
+
+  // Renderer pages load from file://, where navigator.clipboard is unavailable.
+  ipcMain.on('copy-to-clipboard', (_event, text) => {
+    if (typeof text === 'string' && text) clipboard.writeText(text);
   });
 
   ipcMain.on('hide-bar', () => {
