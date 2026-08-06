@@ -5,102 +5,239 @@
 @tailwind utilities;
 
 @layer base {
-  /* ─── Theme tokens ───────────────────────────────────────────────────────
-     Every colour in the app resolves through these, so a theme is a matter of
-     re-valuing the block rather than duplicating utilities with `dark:`.
 
-     :root carries the DARK values because dark is the product's default and
-     its original design — if the boot script or JS ever fails, the site still
-     renders exactly as it always has instead of flashing an unstyled light.
-
-     Naming is by role, not by shade: `--text-strong` is "the primary
-     foreground", which is near-white on dark and near-black on light. That is
-     why the light block can invert lightness without any rule knowing.
-     ──────────────────────────────────────────────────────────────────────── */
-  :root {
+  :root,
+  html.dark {
     --brand-orange: #f5820b;
-    /* Constant across themes: the label on a filled orange/red button. Solid
-       accent fills stay dark enough that white text is correct in both. */
-    --on-brand: #ffffff;
-
+    --brand-orange-rgb: 245, 130, 11;
     --bg-canvas: #0a0a0f;
+    --bg-canvas-rgb: 10, 10, 15;
     --bg-surface: #111118;
+    --bg-surface-rgb: 17, 17, 24;
     --bg-card: #1a1a24;
-
-    --text-strong: #ffffff;
+    --bg-card-rgb: 26, 26, 36;
+    --text-primary: #ffffff;
+    --text-primary-rgb: 255, 255, 255;
     --text-muted: #9ca3af;
-
-    --border-subtle: rgba(255, 255, 255, 0.04);
-    --border-base: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.16);
-
-    /* Hover wash over a surface, and the scrim behind modals. */
-    --surface-elevate: rgba(255, 255, 255, 0.05);
-    --overlay: rgba(0, 0, 0, 0.72);
-
-    /* i-Assist question-category tints. Triplets, not hex, so Tailwind's
-       `/30` style opacity modifiers still resolve against them. */
-    --cat-behavioral: 127 119 221;
-    --cat-behavioral-bg: 38 33 92;
-    --cat-technical: 29 158 117;
-    --cat-technical-bg: 4 52 44;
-    --cat-design: 216 90 48;
-    --cat-design-bg: 74 27 12;
-    --cat-general: 136 135 128;
-
+    --text-muted-rgb: 156, 163, 175;
+    --border-subtle: rgba(255, 255, 255, 0.08);
     color-scheme: dark;
   }
 
-  :root[data-theme='light'] {
-    /* Light themes need a deeper accent. #f5820b reads at 2.6:1 on white —
-       failing AA as body text AND as the label colour on filled buttons.
-       #a85400 clears 4.5:1 against every light surface in all three roles
-       (text, fill, border), so one value keeps the whole theme compliant. */
-    --brand-orange: #a85400;
-    --on-brand: #ffffff;
-
-    /* Elevation reads inverted in light: the page recedes to grey and
-       panels come forward as white, so cards need no shadow to separate. */
-    --bg-canvas: #eceff3;
+  /* Spur+fit & Theme 2 Light Mode Specification */
+  html.light {
+    --brand-orange: #2563eb;
+    --brand-orange-rgb: 37, 99, 235;
+    --bg-canvas: #f0f4f8;
+    --bg-canvas-rgb: 240, 244, 248;
     --bg-surface: #ffffff;
-    /* Recessed rather than raised: inputs use this over bg-surface, so it
-       carries the field affordance that a hairline border alone cannot. */
-    --bg-card: #f1f4f8;
-
-    --text-strong: #0f172a;
-    --text-muted: #5b6472;
-
-    --border-subtle: rgba(15, 23, 42, 0.08);
-    --border-base: rgba(15, 23, 42, 0.16);
-    --border-strong: rgba(15, 23, 42, 0.28);
-
-    --surface-elevate: rgba(15, 23, 42, 0.05);
-    --overlay: rgba(15, 23, 42, 0.45);
-
-    /* Staging shipped these as dark-only tints; the light set is darkened to
-       stay legible as small badge text on a white surface. */
-    --cat-behavioral: 67 56 202;
-    --cat-behavioral-bg: 238 242 255;
-    --cat-technical: 4 120 87;
-    --cat-technical-bg: 236 253 245;
-    --cat-design: 180 83 9;
-    --cat-design-bg: 255 247 237;
-    --cat-general: 91 100 114;
-
+    --bg-surface-rgb: 255, 255, 255;
+    --bg-card: #f8fafc;
+    --bg-card-rgb: 248, 250, 252;
+    --text-primary: #0f172a;
+    --text-primary-rgb: 15, 23, 42;
+    --text-muted: #475569;
+    --text-muted-rgb: 71, 85, 105;
+    --border-subtle: #e2e8f0;
     color-scheme: light;
   }
 
-  html, body {
-    @apply bg-bg-canvas text-strong font-sans antialiased;
+  /* Marine Voyage / Light_new Theme Specification (from theme.md) */
+  html.light_new {
+    --brand-orange: #3d7e88;
+    --brand-orange-rgb: 61, 126, 136;
+    --bg-canvas: #193950;
+    --bg-canvas-rgb: 25, 57, 80;
+    --bg-surface: #2f5a6a;
+    --bg-surface-rgb: 47, 90, 106;
+    --bg-card: #234958;
+    --bg-card-rgb: 35, 73, 88;
+    --text-primary: #e3e5e7;
+    --text-primary-rgb: 227, 229, 231;
+    --text-muted: #9eb7ba;
+    --text-muted-rgb: 158, 183, 186;
+    --border-subtle: #717a86;
+    color-scheme: dark;
   }
 
-  /* Horizontal card rails scroll without a visible bar */
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  /* Finovate Sage / Light_green Theme Specification (from theme copy.md) */
+  html.light_green {
+    --brand-orange: #addb1c;
+    --brand-orange-rgb: 173, 219, 28;
+    --bg-canvas: #f9f8f7;
+    --bg-canvas-rgb: 249, 248, 247;
+    --bg-surface: #eef0ea;
+    --bg-surface-rgb: 238, 240, 234;
+    --bg-card: #f1f3ed;
+    --bg-card-rgb: 241, 243, 237;
+    --text-primary: #302318;
+    --text-primary-rgb: 48, 35, 24;
+    --text-muted: #645039;
+    --text-muted-rgb: 100, 80, 57;
+    --border-subtle: #c3c6be;
+    color-scheme: light;
   }
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
+
+  html,
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    @apply font-sans antialiased;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* Light mode theme color adaptations */
+  html.light body {
+    color: #0f172a;
+    background-color: #f0f4f8;
+  }
+
+  html.light .text-white:not(.hero-section *):not(.hero-text-white) {
+    color: #0f172a !important;
+  }
+
+  html.light .hero-section h1,
+  html.light .hero-section h1 *,
+  html.light .hero-text-white {
+    color: #ffffff !important;
+  }
+
+  html.light .hero-section p {
+    color: #cbd5e1 !important;
+  }
+
+  html.light header,
+  html.light aside,
+  html.light [class*="bg-bg-surface"],
+  html.light .bg-\[\#171C24\],
+  html.light .bg-\[\#1D2430\],
+  html.light .bg-\[\#111118\] {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  html.light [class*="bg-bg-canvas"],
+  html.light .bg-\[\#0a0a0f\],
+  html.light .bg-\[\#0E1116\] {
+    background-color: #f0f4f8 !important;
+  }
+
+  html.light [class*="bg-bg-card"] {
+    background-color: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light .border-white\/\[0\.08\],
+  html.light .border-white\/\[0\.1\],
+  html.light .border-white\/\[0\.12\],
+  html.light .border-white\/\[0\.05\],
+  html.light .border-white\/\[0\.15\] {
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light .bg-white\/\[0\.05\],
+  html.light .bg-white\/\[0\.06\],
+  html.light .bg-white\/\[0\.08\] {
+    background-color: #eff6ff !important;
+    color: #0f172a !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light .hover\:bg-white\/\[0\.05\]:hover,
+  html.light .hover\:bg-white\/\[0\.06\]:hover,
+  html.light .hover\:bg-white\/\[0\.1\]:hover {
+    background-color: #e2e8f0 !important;
+  }
+
+  /* Light_new (Marine Voyage) theme color adaptations */
+  html.light_new body {
+    color: #e3e5e7;
+    background-color: #193950;
+  }
+
+  html.light_new header,
+  html.light_new aside,
+  html.light_new [class*="bg-bg-surface"] {
+    background-color: #2f5a6a !important;
+    border-color: #717a86 !important;
+  }
+
+  html.light_new [class*="bg-bg-canvas"] {
+    background-color: #193950 !important;
+  }
+
+  html.light_new [class*="bg-bg-card"] {
+    background-color: #234958 !important;
+    border-color: #717a86 !important;
+  }
+
+  html.light_new .text-text-muted {
+    color: #9eb7ba !important;
+  }
+
+  html.light_new .border-white\/\[0\.08\],
+  html.light_new .border-white\/\[0\.1\],
+  html.light_new .border-white\/\[0\.12\],
+  html.light_new .border-white\/\[0\.05\],
+  html.light_new .border-white\/\[0\.15\] {
+    border-color: #717a86 !important;
+  }
+
+  /* Light_green (Finovate Sage) theme color adaptations */
+  html.light_green body {
+    color: #302318;
+    background-color: #f9f8f7;
+  }
+
+  html.light_green .text-white:not(.hero-section *):not(.hero-text-white) {
+    color: #302318 !important;
+  }
+
+  html.light_green .hero-section h1,
+  html.light_green .hero-section h1 *,
+  html.light_green .hero-text-white {
+    color: #ffffff !important;
+  }
+
+  html.light_green .hero-section p {
+    color: #cbd5e1 !important;
+  }
+
+  html.light_green header,
+  html.light_green aside,
+  html.light_green [class*="bg-bg-surface"] {
+    background-color: #eef0ea !important;
+    border-color: #c3c6be !important;
+  }
+
+  html.light_green [class*="bg-bg-canvas"] {
+    background-color: #f9f8f7 !important;
+  }
+
+  html.light_green [class*="bg-bg-card"] {
+    background-color: #f1f3ed !important;
+    border-color: #c3c6be !important;
+  }
+
+  html.light_green .text-text-muted {
+    color: #645039 !important;
+  }
+
+  html.light_green .border-white\/\[0\.08\],
+  html.light_green .border-white\/\[0\.1\],
+  html.light_green .border-white\/\[0\.12\],
+  html.light_green .border-white\/\[0\.05\],
+  html.light_green .border-white\/\[0\.15\] {
+    border-color: #c3c6be !important;
+  }
+
+  html.light_green .bg-white\/\[0\.05\],
+  html.light_green .bg-white\/\[0\.06\],
+  html.light_green .bg-white\/\[0\.08\] {
+    background-color: #e2e5dc !important;
+    color: #302318 !important;
+    border-color: #c3c6be !important;
   }
 
   /* Custom scrollbar */
@@ -108,28 +245,18 @@
     width: 6px;
     height: 6px;
   }
+
   ::-webkit-scrollbar-track {
-    @apply bg-bg-canvas;
+    background-color: var(--bg-canvas);
   }
+
   ::-webkit-scrollbar-thumb {
-    @apply bg-bg-surface rounded-full border border-line;
+    background-color: var(--bg-surface);
+    border-radius: 9999px;
+    border: 1px solid var(--border-subtle);
   }
+
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-bg-card;
+    background-color: var(--bg-card);
   }
-}
-
-/* Tool pages that manage their own internal scrolling (side panel + results)
-   need to fill the dashboard viewport instead of growing the page. The
-   dashboard renders <Outlet/> inside an unsized `p-8` div, so `h-full` has
-   nothing to resolve against and both panes scroll as one block.
-
-   Negative margin cancels that padding so the page runs full-bleed; the
-   matching padding puts the inner spacing back. */
-.tool-fill {
-  height: calc(100vh - 4rem);
-  margin: -2rem;
-  padding: 2rem;
-  min-height: 0;
-  overflow: hidden;
 }

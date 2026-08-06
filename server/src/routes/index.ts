@@ -16,6 +16,7 @@ import billingRouter from './billing';
 import iassistRouter from './iassist';
 import iassistDesktopRouter from './iassistDesktop';
 import agentsRouter from './agents';
+import themeAssetsRouter from './themeAssets';
 
 const router = Router();
 
@@ -34,6 +35,7 @@ router.use('/linkedin', linkedinRouter);
 router.use('/guest', guestRouter);
 router.use('/billing', billingRouter);
 router.use('/agents', agentsRouter);
+router.use('/theme-assets', themeAssetsRouter);
 router.use('/iassist/desktop', iassistDesktopRouter);
 router.use('/iassist', iassistRouter);
 

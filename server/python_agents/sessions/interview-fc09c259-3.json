@@ -1,0 +1,16 @@
+{
+  "candidate_name": "Candidate",
+  "course_title": "Generative AI Masterclass",
+  "module_title": "Module 1: Prompt Engineering & LLM Architecture, Module 2: Vector Databases & RAG Pipelines, Module 3: Multi-Agent Frameworks (LangGraph & AutoGen), Module 4: Model Fine-Tuning (LoRA & QLoRA), Module 5: Production Deployment & MLOps, Module 6: Capstone Project & Portfolio",
+  "selected_modules": [
+    "Module 1: Prompt Engineering & LLM Architecture",
+    "Module 2: Vector Databases & RAG Pipelines",
+    "Module 3: Multi-Agent Frameworks (LangGraph & AutoGen)",
+    "Module 4: Model Fine-Tuning (LoRA & QLoRA)",
+    "Module 5: Production Deployment & MLOps",
+    "Module 6: Capstone Project & Portfolio"
+  ],
+  "resume_text": "",
+  "jd_text": "",
+  "interview_mode": "audio"
+}

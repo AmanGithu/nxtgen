@@ -6,9 +6,12 @@ import { prisma } from '../lib/prisma';
 import { assistantService } from '../services/iassist/assistantService';
 import { contextDocService } from '../services/iassist/contextDocService';
 import { sessionService } from '../services/iassist/sessionService';
-import { aiQueryService } from '../services/iassist/aiQueryService';
+import { aiQueryService, getVadConfig } from '../services/iassist/aiQueryService';
 
 const router = Router();
+
+// Matches the desktop client's idle timeout so both ends give up together.
+const STREAM_IDLE_TIMEOUT_MS = 30000;
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
 
 function param(val: string | string[]): string {
@@ -350,6 +353,106 @@ router.post('/query', async (req: Request, res: Response, next: NextFunction) =>
 
     res.json({ success: true, ...result });
   } catch (error) {
+    next(error);
+  }
+});
+
+// Capture tuning for the desktop app. Admin-owned values, but readable by any
+// authenticated user since the desktop needs them to start a session.
+router.get('/config', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json({ success: true, vad: await getVadConfig() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Server-sent events variant of /query. Emits `delta` events while the model is
+// still generating, then a final `done` event carrying the full text and usage.
+router.post('/query/stream', async (req: Request, res: Response, next: NextFunction) => {
+  let streamStarted = false;
+
+  try {
+    const data = z.object({
+      sessionId: z.string().uuid(),
+      assistantId: z.string().uuid(),
+      message: z.string().min(1).max(10000),
+      conversationHistory: z.array(z.object({
+        role: z.enum(['user', 'model']),
+        text: z.string().max(10000),
+      })).max(50).optional(),
+      responseType: z.string().max(200).optional(),
+    }).parse(req.body);
+
+    await sessionService.verifyOwnership(data.sessionId, req.user!.id);
+    await assistantService.getById(data.assistantId, req.user!.id);
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    streamStarted = true;
+
+    let aborted = false;
+    const upstream = new AbortController();
+
+    // The overlay closed or the session ended: stop consuming the model stream
+    // rather than generating into a response nobody will receive.
+    req.on('close', () => {
+      aborted = true;
+      upstream.abort();
+    });
+
+    const send = (event: string, payload: unknown) => {
+      if (aborted) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+    };
+
+    // Close the stream if the model stops producing. The generation itself keeps
+    // running upstream — this frees the client, it does not cancel the request.
+    let watchdog: NodeJS.Timeout | undefined;
+    const armWatchdog = () => {
+      clearTimeout(watchdog);
+      watchdog = setTimeout(() => {
+        send('error', { message: 'AI response timed out' });
+        aborted = true;
+        upstream.abort();
+        res.end();
+      }, STREAM_IDLE_TIMEOUT_MS);
+    };
+
+    try {
+      armWatchdog();
+
+      const result = await aiQueryService.queryStream({
+        assistantId: data.assistantId,
+        message: data.message,
+        conversationHistory: data.conversationHistory,
+        responseType: data.responseType,
+      }, (text) => {
+        armWatchdog();
+        send('delta', { text });
+      }, upstream.signal);
+
+      send('done', result);
+    } catch (err) {
+      // An abort we triggered is expected teardown, not a failure to report —
+      // the client has already been told why the stream ended.
+      if (!aborted) throw err;
+    } finally {
+      clearTimeout(watchdog);
+    }
+
+    if (!aborted) res.end();
+  } catch (error) {
+    // Once headers are flushed the error handler can no longer set a status, so
+    // report the failure in-band and close the stream.
+    if (streamStarted) {
+      const message = error instanceof Error ? error.message : 'AI request failed';
+      res.write(`event: error\ndata: ${JSON.stringify({ message })}\n\n`);
+      res.end();
+      return;
+    }
     next(error);
   }
 });

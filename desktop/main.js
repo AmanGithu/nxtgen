@@ -121,6 +121,12 @@ function isAssistantGone(err) {
   return /assistant not found/i.test(err?.message || '');
 }
 
+// Streaming answers have no natural end-of-request, so these bound it: the idle
+// timer covers a stalled model mid-generation, the hard cap a stream that keeps
+// trickling forever.
+const STREAM_IDLE_TIMEOUT_MS = 30000;
+const STREAM_MAX_MS = 120000;
+
 const BackendService = {
   async _fetch(endpoint, options = {}) {
     const url = `${getApiBaseUrl()}${endpoint}`;
@@ -203,6 +209,12 @@ const BackendService = {
     }).catch(err => logger.error('Transcript persist failed', err.message));
   },
 
+  async getConfig() {
+    const res = await this._fetch('/iassist/config');
+    if (!res.ok) throw new Error('Config fetch failed');
+    return await res.json();
+  },
+
   async transcribe(audio, mimeType, sessionId) {
     const res = await this._fetch('/iassist/transcribe', {
       method: 'POST',
@@ -220,6 +232,84 @@ const BackendService = {
     });
     if (!res.ok) throw new Error(await readErrorMessage(res, 'AI query failed'));
     return await res.json();
+  },
+
+  // Streams the answer via SSE, invoking onDelta for each fragment as it arrives.
+  // Resolves with the same shape as query() once the `done` event lands.
+  //
+  // Both timeouts exist to guarantee this promise always settles. processAiQueue
+  // only clears isAiProcessing in a `finally`, which never runs on a promise
+  // that hangs forever — a single stalled response would otherwise silently
+  // drop every remaining question in the session.
+  async queryStream(sessionId, assistantId, message, conversationHistory, responseType, onDelta) {
+    const controller = new AbortController();
+    let timedOut = false;
+    let idleTimer = null;
+
+    const abortNow = () => { timedOut = true; controller.abort(); };
+    const armIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(abortNow, STREAM_IDLE_TIMEOUT_MS);
+    };
+    const hardTimer = setTimeout(abortNow, STREAM_MAX_MS);
+
+    try {
+      armIdleTimer();
+
+      const res = await this._fetch('/iassist/query/stream', {
+        method: 'POST',
+        headers: { Accept: 'text/event-stream' },
+        body: JSON.stringify({ sessionId, assistantId, message, conversationHistory, responseType }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(await readErrorMessage(res, 'AI query failed'));
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let result = null;
+      let streamError = null;
+
+      const reader = res.body.getReader();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // Progress resets the idle clock; the hard cap still applies.
+        armIdleTimer();
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE frames are separated by a blank line. Tolerate CRLF — a proxy in
+        // front of the server may normalise line endings, and splitting on LF
+        // alone would then never find a frame boundary.
+        const frames = buffer.split(/\r?\n\r?\n/);
+        buffer = frames.pop();
+
+        for (const frame of frames) {
+          const lines = frame.split(/\r?\n/);
+          const eventLine = lines.find(l => l.startsWith('event: '));
+          const dataLine = lines.find(l => l.startsWith('data: '));
+          if (!eventLine || !dataLine) continue;
+
+          const event = eventLine.slice(7).trim();
+          const payload = JSON.parse(dataLine.slice(6));
+
+          if (event === 'delta') onDelta(payload.text);
+          else if (event === 'done') result = payload;
+          else if (event === 'error') streamError = new Error(payload.message);
+        }
+      }
+
+      if (streamError) throw streamError;
+      if (!result) throw new Error('AI stream ended before completing');
+      return result;
+    } catch (err) {
+      if (timedOut) throw new Error('AI response timed out');
+      throw err;
+    } finally {
+      clearTimeout(idleTimer);
+      clearTimeout(hardTimer);
+    }
   },
 };
 
@@ -748,11 +838,21 @@ async function startSession(assistantId) {
       assistant,
     });
 
+    // Admin-tuned capture thresholds. A failure here must not block the session,
+    // so fall back to the renderer's built-in defaults.
+    let vad = null;
+    try {
+      ({ vad } = await BackendService.getConfig());
+    } catch (err) {
+      logger.warn('VAD config fetch failed, using defaults', err.message);
+    }
+
     if (sessionWindow && !sessionWindow.isDestroyed()) {
       sessionWindow.webContents.once('did-finish-load', () => {
         sessionWindow.webContents.send('start-audio-capture', {
           sessionId: currentBackendSessionId,
           assistant,
+          vad,
         });
       });
     }
@@ -845,12 +945,13 @@ async function processAiQueue() {
   try {
     broadcastToLiveWindows('ai-thinking', { thinking: true });
 
-    const result = await BackendService.query(
+    const result = await BackendService.queryStream(
       request.sessionId,
       request.assistantId,
       request.message,
       request.conversationHistory,
-      request.responseType
+      request.responseType,
+      (text) => broadcastToLiveWindows('llm-answer-delta', { text })
     );
 
     if (result.isQuestion) currentSessionQuestionsCount++;
