@@ -161,8 +161,6 @@ const SessionDetail = () => {
 
   const cat = session.assistant?.category || 'GENERAL';
 
-  const qaPairs = session.transcripts.filter(t => t.isQuestion);
-
   const stats = [
     { label: 'Duration', value: formatDuration(session.durationSeconds), icon: Clock },
     { label: 'Questions', value: String(session.questionsAnswered), icon: MessageSquare },
@@ -213,66 +211,55 @@ const SessionDetail = () => {
       <div>
         <h2 className="text-sm font-semibold mb-4">Transcript</h2>
 
-        {qaPairs.length === 0 && session.transcripts.length === 0 ? (
+        {session.transcripts.length === 0 ? (
           <div className="rounded-xl border border-dashed border-line-strong py-12 text-center">
             <p className="text-sm text-text-muted">No transcript entries recorded.</p>
           </div>
         ) : (
+          /*
+           * Every stored entry is rendered, with its answer when one exists.
+           * `isQuestion` is a per-utterance model classification, not a structural
+           * flag — filtering the list by it dropped whole exchanges from the view
+           * even though their answers were saved, and how much survived varied
+           * session to session with the model's own judgement.
+           */
           <div className="space-y-0 divide-y divide-line">
-            {qaPairs.length > 0 ? (
-              qaPairs.map(entry => (
-                <div key={entry.id} className="py-5 first:pt-0">
-                  {/* Question */}
-                  <div className="flex gap-3">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500/10 mt-0.5">
-                      <Mic size={14} className="text-amber-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-strong">{entry.text}</p>
-                      <p className="text-[10px] text-text-muted tabular-nums mt-1">{formatTimestamp(entry.timestamp)}</p>
-                    </div>
+            {session.transcripts.map(entry => (
+              <div key={entry.id} className="py-5 first:pt-0">
+                <div className="flex gap-3">
+                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5 ${
+                    entry.speaker === 'user' ? 'bg-amber-500/10' : 'bg-emerald-500/10'
+                  }`}>
+                    {entry.speaker === 'user'
+                      ? <Mic size={14} className="text-amber-400" />
+                      : <Bot size={14} className="text-emerald-400" />
+                    }
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-strong">{entry.text}</p>
+                    <p className="text-[10px] text-text-muted tabular-nums mt-1">{formatTimestamp(entry.timestamp)}</p>
+                  </div>
+                </div>
 
-                  {/* AI Response */}
-                  {entry.response && (
-                    <div className="flex gap-3 mt-3 ml-10">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 mt-0.5">
-                        <Bot size={14} className="text-emerald-400" />
-                      </div>
-                      <div className="flex-1 min-w-0 rounded-lg border border-line-subtle bg-bg-card p-3">
-                        <div className="text-sm text-text-muted leading-relaxed whitespace-pre-line">
-                          {entry.response.split('\n').map((line, i) => (
-                            <span key={i}>
-                              {renderMarkdownBold(line)}
-                              {i < entry.response!.split('\n').length - 1 && '\n'}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
+                {entry.response && (
+                  <div className="flex gap-3 mt-3 ml-10">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 mt-0.5">
+                      <Bot size={14} className="text-emerald-400" />
                     </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              session.transcripts.map(entry => (
-                <div key={entry.id} className="py-5 first:pt-0">
-                  <div className="flex gap-3">
-                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5 ${
-                      entry.speaker === 'user' ? 'bg-amber-500/10' : 'bg-emerald-500/10'
-                    }`}>
-                      {entry.speaker === 'user'
-                        ? <Mic size={14} className="text-amber-400" />
-                        : <Bot size={14} className="text-emerald-400" />
-                      }
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-strong">{entry.text}</p>
-                      <p className="text-[10px] text-text-muted tabular-nums mt-1">{formatTimestamp(entry.timestamp)}</p>
+                    <div className="flex-1 min-w-0 rounded-lg border border-line-subtle bg-bg-card p-3">
+                      <div className="text-sm text-text-muted leading-relaxed whitespace-pre-line">
+                        {entry.response.split('\n').map((line, i) => (
+                          <span key={i}>
+                            {renderMarkdownBold(line)}
+                            {i < entry.response!.split('\n').length - 1 && '\n'}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
-            )}
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

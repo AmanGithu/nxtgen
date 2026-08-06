@@ -994,7 +994,12 @@ async function processAiQueue() {
       (text) => broadcastToLiveWindows('llm-answer-delta', { text })
     );
 
-    if (result.isQuestion) currentSessionQuestionsCount++;
+    // Counts answered exchanges, one per persisted transcript row — the same thing
+    // the overlay's Questions pane counts and the same thing the session detail page
+    // lists. Counting only `result.isQuestion` made this a tally of the model's
+    // per-utterance classification instead, so the dashboard's number disagreed with
+    // the transcript by an amount that changed from session to session.
+    currentSessionQuestionsCount++;
     currentSessionTokensUsed += result.tokens || 0;
 
     broadcastToLiveWindows('llm-answer', {
