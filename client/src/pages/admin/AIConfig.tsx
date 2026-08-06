@@ -30,6 +30,7 @@ const AIConfig = () => {
     IASSIST_VAD_SILENCE_MS: '1500',
     IASSIST_VAD_AMPLITUDE_THRESHOLD: '0.015',
     IASSIST_VAD_MIN_SPEECH_MS: '500',
+    IASSIST_DESKTOP_DOWNLOAD_URL_WIN: '',
   });
 
   const [liveAgentConfig, setLiveAgentConfig] = useState({
@@ -383,6 +384,25 @@ const AIConfig = () => {
                   />
                   <p className={hintClass}>Minimum speech chunk to send for transcription. Filters out short noise bursts.</p>
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 border-t border-line pt-4">
+              <h3 className="text-sm font-semibold">Desktop App Download</h3>
+
+              <div>
+                <label className={labelClass}>Windows Installer URL</label>
+                <input
+                  type="url"
+                  placeholder="https://.../NxtGen-I-Assist-Setup-1.0.0.exe"
+                  value={iassistConfig.IASSIST_DESKTOP_DOWNLOAD_URL_WIN}
+                  onChange={(e) => setIassistConfig({ ...iassistConfig, IASSIST_DESKTOP_DOWNLOAD_URL_WIN: e.target.value })}
+                  className={inputClass}
+                />
+                <p className={hintClass}>
+                  Direct link to the published .exe. Leave empty until a build is released — the
+                  download buttons on the site and dashboard stay hidden while this is blank.
+                </p>
               </div>
             </div>
 

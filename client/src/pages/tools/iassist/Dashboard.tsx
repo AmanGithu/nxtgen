@@ -5,6 +5,7 @@ import {
   Activity, Zap, BarChart3, TrendingUp, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { iAssistAPI } from '../../../services/api';
+import { useDesktopDownload } from '../../../hooks/useDesktopDownload';
 
 const CATEGORY_COLORS: Record<string, string> = {
   BEHAVIORAL: '#7F77DD',
@@ -95,6 +96,7 @@ const Dashboard = () => {
   const [period, setPeriod] = useState<Period>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { url: downloadUrl } = useDesktopDownload();
 
   const loadAnalytics = () => {
     iAssistAPI.getAnalytics().then(res => {
@@ -211,12 +213,24 @@ const Dashboard = () => {
         </div>
         <div className="flex-1">
           <p className="text-sm font-medium">Sessions run on the desktop app</p>
-          <p className="text-xs text-text-muted">Download I-Assist Desktop to start interview sessions with real-time AI assistance.</p>
+          <p className="text-xs text-text-muted">
+            {downloadUrl
+              ? 'Download I-Assist Desktop to start interview sessions with real-time AI assistance.'
+              : 'The desktop app download is not available yet — check back soon.'}
+          </p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand shadow-md hover:bg-brand-orange/90 transition-colors">
-          <Download size={16} />
-          Download
-        </button>
+        {/* Rendered only once a build is published: an always-visible button with no
+            file behind it is what made this look broken. */}
+        {downloadUrl && (
+          <a
+            href={downloadUrl}
+            download
+            className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand shadow-md hover:bg-brand-orange/90 transition-colors"
+          >
+            <Download size={16} />
+            Download
+          </a>
+        )}
       </div>
 
       {/* Period filter */}

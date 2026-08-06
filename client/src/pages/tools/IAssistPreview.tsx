@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useDesktopDownload } from '../../hooks/useDesktopDownload';
 import {
   Mic, Monitor, Brain, Shield, Zap, Clock, FileText, MessageSquare,
   ArrowRight, CheckCircle, Download, Headphones, Eye, EyeOff
@@ -74,6 +75,7 @@ const CATEGORIES = [
 
 const IAssistPreview = () => {
   const { isAuthenticated } = useAuth();
+  const { url: downloadUrl } = useDesktopDownload();
 
   return (
     <div className="flex flex-col gap-0 pb-0">
@@ -102,23 +104,30 @@ const IAssistPreview = () => {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              {isAuthenticated ? (
-                <Link
-                  to="/dashboard/student/tools/i-assist"
+              {/* The installer is offered to everyone, signed in or not — the download
+                  endpoint is public. The account CTA sits alongside it and drops to
+                  secondary styling so there is still one clear primary action. */}
+              {downloadUrl && (
+                <a
+                  href={downloadUrl}
+                  download
                   className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-6 py-3 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
                 >
                   <Download size={18} />
                   Get the Desktop App
-                </Link>
-              ) : (
-                <Link
-                  to="/login"
-                  className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-6 py-3 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
-                >
-                  Sign In to Get Started
-                  <ArrowRight size={18} />
-                </Link>
+                </a>
               )}
+              <Link
+                to={isAuthenticated ? '/dashboard/student/tools/i-assist' : '/login'}
+                className={
+                  downloadUrl
+                    ? 'inline-flex items-center gap-2 rounded-lg border border-line-strong bg-elevate px-6 py-3 font-medium text-strong transition-all hover:bg-elevate backdrop-blur-sm'
+                    : 'inline-flex items-center gap-2 rounded-lg bg-brand-orange px-6 py-3 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20'
+                }
+              >
+                {isAuthenticated ? 'Open I-Assist' : 'Sign In to Get Started'}
+                <ArrowRight size={18} />
+              </Link>
               <a
                 href="#how-it-works"
                 className="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-elevate px-6 py-3 font-medium text-strong transition-all hover:bg-elevate backdrop-blur-sm"
@@ -322,27 +331,32 @@ const IAssistPreview = () => {
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            {downloadUrl && (
+              <a
+                href={downloadUrl}
+                download
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-8 py-3.5 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
+              >
+                <Download size={18} />
+                Download Desktop App
+              </a>
+            )}
             {isAuthenticated ? (
-              <>
-                <Link
-                  to="/dashboard/student/tools/i-assist"
-                  className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-8 py-3.5 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
-                >
-                  <Download size={18} />
-                  Download Desktop App
-                </Link>
-                <Link
-                  to="/dashboard/student/tools/i-assist/assistants"
-                  className="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-elevate px-8 py-3.5 font-medium text-strong transition-all hover:bg-elevate"
-                >
-                  Manage Assistants
-                  <ArrowRight size={16} />
-                </Link>
-              </>
+              <Link
+                to="/dashboard/student/tools/i-assist/assistants"
+                className="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-elevate px-8 py-3.5 font-medium text-strong transition-all hover:bg-elevate"
+              >
+                Manage Assistants
+                <ArrowRight size={16} />
+              </Link>
             ) : (
               <Link
                 to="/login"
-                className="inline-flex items-center gap-2 rounded-lg bg-brand-orange px-8 py-3.5 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20"
+                className={
+                  downloadUrl
+                    ? 'inline-flex items-center gap-2 rounded-lg border border-line-strong bg-elevate px-8 py-3.5 font-medium text-strong transition-all hover:bg-elevate'
+                    : 'inline-flex items-center gap-2 rounded-lg bg-brand-orange px-8 py-3.5 font-semibold text-on-brand transition-all hover:scale-105 hover:bg-orange-600 shadow-lg shadow-brand-orange/20'
+                }
               >
                 Get Started Free
                 <ArrowRight size={18} />
