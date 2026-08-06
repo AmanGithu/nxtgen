@@ -33,9 +33,9 @@ contextBridge.exposeInMainWorld('iAssist', {
   openWebDashboard: () => ipcRenderer.send('open-web-dashboard'),
   openShortcutsWindow: () => ipcRenderer.send('open-shortcuts-window'),
   closeShortcutsWindow: () => ipcRenderer.send('close-shortcuts-window'),
-  toggleSessionWindow: () => ipcRenderer.send('toggle-session-window'),
   hideBar: () => ipcRenderer.send('hide-bar'),
-  minimizeSessionWindow: () => ipcRenderer.send('minimize-session-window'),
+  showSessionWindow: () => ipcRenderer.send('show-session-window'),
+  hideSessionWindow: () => ipcRenderer.send('hide-session-window'),
   quitApp: () => ipcRenderer.send('quit-app'),
 
   // --- Listeners (Main → Renderer) ---
@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld('iAssist', {
   onAdjustFontSize: (callback) => ipcRenderer.on('adjust-font-size', (_e, data) => callback(data)),
   onAssistantsAvailability: (callback) => ipcRenderer.on('assistants-availability', (_e, data) => callback(data)),
   onSessionStartFailed: (callback) => ipcRenderer.on('session-start-failed', (_e, data) => callback(data)),
+  onSessionWindowVisibility: (callback) => ipcRenderer.on('session-window-visibility', (_e, data) => callback(data)),
 
   // --- Cleanup ---
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),

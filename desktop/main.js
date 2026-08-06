@@ -510,7 +510,22 @@ function createSessionWindow() {
     }
   });
 
-  sessionWindow.on('closed', () => { sessionWindow = null; });
+  // The bar's restore button only exists while the session window is off screen,
+  // so every path that shows or hides it has to report back — button clicks,
+  // global shortcuts and visibility-mode changes alike.
+  sessionWindow.on('show', notifySessionWindowVisibility);
+  sessionWindow.on('hide', notifySessionWindowVisibility);
+
+  sessionWindow.on('closed', () => {
+    sessionWindow = null;
+    notifySessionWindowVisibility();
+  });
+}
+
+function notifySessionWindowVisibility() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const visible = !!(sessionWindow && !sessionWindow.isDestroyed() && sessionWindow.isVisible());
+  mainWindow.webContents.send('session-window-visibility', { visible });
 }
 
 function createSettingsWindow() {
@@ -1026,13 +1041,11 @@ function registerPersistentShortcuts() {
     if (currentAssistant) startSession(currentAssistant.id);
   });
 
+  // Bar only. The session window runs with skipTaskbar, so minimizing it leaves
+  // nothing to restore it from — it hides instead, via Ctrl+Shift+Alt+T.
   globalShortcut.register('CommandOrControl+Shift+Alt+M', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    const shouldRestore = mainWindow.isMinimized();
-    if (shouldRestore) mainWindow.restore(); else mainWindow.minimize();
-    if (sessionWindow && !sessionWindow.isDestroyed()) {
-      if (shouldRestore) sessionWindow.restore(); else sessionWindow.minimize();
-    }
+    if (mainWindow.isMinimized()) mainWindow.restore(); else mainWindow.minimize();
   });
 
   globalShortcut.register('CommandOrControl+Shift+Alt+Up', () => {
@@ -1093,12 +1106,6 @@ function registerSessionShortcuts() {
   });
 
   globalShortcut.register('CommandOrControl+Shift+Alt+T', () => {
-    if (sessionWindow && !sessionWindow.isDestroyed()) {
-      sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
-    }
-  });
-
-  globalShortcut.register('CommandOrControl+Shift+Alt+O', () => {
     if (sessionWindow && !sessionWindow.isDestroyed()) {
       sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
     }
@@ -1260,18 +1267,16 @@ function setupIPC() {
     }
   });
 
-  ipcMain.on('toggle-session-window', () => {
-    if (sessionWindow && !sessionWindow.isDestroyed()) {
-      sessionWindow.isVisible() ? sessionWindow.hide() : sessionWindow.show();
-    }
+  ipcMain.on('show-session-window', () => {
+    if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.show();
+  });
+
+  ipcMain.on('hide-session-window', () => {
+    if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.hide();
   });
 
   ipcMain.on('hide-bar', () => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
-  });
-
-  ipcMain.on('minimize-session-window', () => {
-    if (sessionWindow && !sessionWindow.isDestroyed()) sessionWindow.minimize();
   });
 
   ipcMain.on('quit-app', () => {
