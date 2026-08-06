@@ -11,6 +11,7 @@ import toolsRouter from './tools';
 import iassistRouter from './iassist';
 import iassistDesktopRouter from './iassistDesktop';
 import agentsRouter from './agents';
+import themeAssetsRouter from './themeAssets';
 
 const router = Router();
 
@@ -24,6 +25,7 @@ router.use('/admin', adminRouter);
 router.use('/student', studentRouter);
 router.use('/tools', toolsRouter);
 router.use('/agents', agentsRouter);
+router.use('/theme-assets', themeAssetsRouter);
 router.use('/iassist/desktop', iassistDesktopRouter);
 router.use('/iassist', iassistRouter);
 

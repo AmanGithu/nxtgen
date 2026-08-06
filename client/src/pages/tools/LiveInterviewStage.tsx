@@ -25,10 +25,13 @@ import {
   History,
   CheckSquare,
   Square,
-  FileCheck
+  FileCheck,
+  Headphones,
+  VideoIcon
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { Room, RoomEvent, Track } from 'livekit-client';
 import api from '../../services/api';
 
 interface CourseOption {
@@ -144,7 +147,7 @@ const LiveInterviewStage: React.FC = () => {
   // Part 1: Setup State
   const [courses, setCourses] = useState<CourseOption[]>(DEFAULT_COURSES);
   const [selectedCourseId, setSelectedCourseId] = useState<string>(DEFAULT_COURSES[0].id);
-  
+
   // Multi-selection module IDs
   const [selectedModuleIds, setSelectedModuleIds] = useState<string[]>(
     DEFAULT_COURSES[0].modules.map((m) => m.id)
@@ -160,23 +163,23 @@ const LiveInterviewStage: React.FC = () => {
   const [extraDocFile, setExtraDocFile] = useState<File | null>(null);
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [isStarting, setIsStarting] = useState<boolean>(false);
+  const [startingMode, setStartingMode] = useState<'audio' | 'video' | null>(null);
 
-  // Previous Sessions State (Right Hand Side)
+  // Previous Sessions State
   const [previousSessions, setPreviousSessions] = useState<PreviousSession[]>([]);
 
-  // Part 2 & 3: Stage State
+  // Stage State
   const [stageMode, setStageMode] = useState<'audio' | 'video'>('audio');
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isCamOff, setIsCamOff] = useState<boolean>(false);
-  const [timerSeconds, setTimerSeconds] = useState<number>(765); // 12:45
+  const [timerSeconds, setTimerSeconds] = useState<number>(765);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [typedMessage, setTypedMessage] = useState<string>('');
   const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
   const [showLiveNotes, setShowLiveNotes] = useState<boolean>(false);
   const [liveNotesText, setLiveNotesText] = useState<string>('');
-  const [currentQuestionPrompt, setCurrentQuestionPrompt] = useState<string>(
-    'Tell me about a time you architected a multi-agent orchestration system.'
-  );
+  const [agentConnected, setAgentConnected] = useState<boolean>(false);
+  const [agentStatusText, setAgentStatusText] = useState<string>('Waiting for AI Interviewer to join...');
 
   // Live Stats State
   const [liveStats, setLiveStats] = useState({
@@ -187,16 +190,18 @@ const LiveInterviewStage: React.FC = () => {
     technicalScore: 94,
   });
 
-  // Part 4: Report State
+  // Report State
   const [evaluationReport, setEvaluationReport] = useState<EvaluationReport | null>(null);
   const [isReportGenerating, setIsReportGenerating] = useState<boolean>(false);
   const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
 
-  // Video and Report container Refs
+  // LiveKit and Video Container Refs
   const userWebcamRef = useRef<HTMLVideoElement | null>(null);
+  const stageVideoRef = useRef<HTMLVideoElement | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const reportContainerRef = useRef<HTMLDivElement | null>(null);
+  const livekitRoomRef = useRef<Room | null>(null);
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) || courses[0];
   const selectedModules = selectedCourse.modules.filter((m) => selectedModuleIds.includes(m.id));
@@ -274,17 +279,6 @@ const LiveInterviewStage: React.FC = () => {
     }
   };
 
-  // Voice speech synthesis helper
-  const speakTextAloud = (text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
-
   // Timer effect during call stage
   useEffect(() => {
     let timerInterval: any = null;
@@ -300,9 +294,9 @@ const LiveInterviewStage: React.FC = () => {
     };
   }, [viewState, timerSeconds]);
 
-  // Webcam camera handling: STRICTLY active ONLY in Video mode
+  // Webcam camera handling: active ONLY in Video mode when not using LiveKit local video track
   useEffect(() => {
-    if (viewState === 'stage' && stageMode === 'video') {
+    if (viewState === 'stage' && stageMode === 'video' && !livekitRoomRef.current) {
       navigator.mediaDevices
         ?.getUserMedia({ video: true, audio: false })
         .then((stream) => {
@@ -312,19 +306,12 @@ const LiveInterviewStage: React.FC = () => {
           }
         })
         .catch((err) => console.warn('Webcam unavailable or blocked:', err));
-    } else {
+    } else if (stageMode !== 'video') {
       if (webcamStreamRef.current) {
         webcamStreamRef.current.getTracks().forEach((track) => track.stop());
         webcamStreamRef.current = null;
       }
     }
-
-    return () => {
-      if (webcamStreamRef.current) {
-        webcamStreamRef.current.getTracks().forEach((track) => track.stop());
-        webcamStreamRef.current = null;
-      }
-    };
   }, [viewState, stageMode]);
 
   // Scroll chat to bottom
@@ -332,33 +319,113 @@ const LiveInterviewStage: React.FC = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  // Part 1: Start Interview handler
-  const handleStartInterview = async () => {
+  // Clean up LiveKit room on unmount
+  useEffect(() => {
+    return () => {
+      if (livekitRoomRef.current) {
+        livekitRoomRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  // LiveKit Room Connection Handler
+  const connectLiveKitRoom = async (url: string, token: string, mode: 'audio' | 'video') => {
+    try {
+      const room = new Room();
+
+      room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        console.log(`Track subscribed: ${track.kind} from ${participant.identity}`);
+        setAgentConnected(true);
+
+        if (track.kind === Track.Kind.Video) {
+          if (stageVideoRef.current) {
+            track.attach(stageVideoRef.current);
+          }
+        } else if (track.kind === Track.Kind.Audio) {
+          const audioElement = track.attach();
+          document.body.appendChild(audioElement);
+        }
+      });
+
+      room.on(RoomEvent.LocalTrackPublished, (pub) => {
+        if (pub.source === Track.Source.Camera && pub.track && userWebcamRef.current) {
+          pub.track.attach(userWebcamRef.current);
+        }
+      });
+
+      room.on(RoomEvent.Disconnected, () => {
+        console.log('LiveKit room disconnected');
+        setAgentConnected(false);
+      });
+
+      // Register text stream handler for real-time transcription captions
+      room.registerTextStreamHandler('lk.transcription', async (reader, info) => {
+        const text = await reader.readAll();
+        if (!text) return;
+
+        const isMe = info.identity === room.localParticipant.identity;
+        const msg: ChatMessage = {
+          id: `transcription-${Date.now()}`,
+          sender: isMe ? 'candidate' : 'interviewer',
+          text,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+
+        setChatMessages((prev) => [...prev, msg]);
+      });
+
+      await room.connect(url, token);
+      await room.localParticipant.setMicrophoneEnabled(true);
+
+      if (mode === 'video') {
+        try {
+          await room.localParticipant.setCameraEnabled(true);
+        } catch (e) {
+          console.warn('Camera unavailable:', e);
+        }
+      }
+
+      livekitRoomRef.current = room;
+      setAgentStatusText('AI Interviewer connected. Speaking...');
+    } catch (err) {
+      console.warn('LiveKit room connection failed, falling back to simulated stage:', err);
+      setAgentStatusText('Simulated session active (LiveKit worker not running locally).');
+    }
+  };
+
+  // Start Interview Handler (Audio or Video Mode)
+  const handleStartInterview = async (mode: 'audio' | 'video') => {
     setIsStarting(true);
+    setStartingMode(mode);
+    setStageMode(mode);
     const selectedModTitles = selectedModules.map((m) => m.title);
 
+    let livekitUrl = '';
+    let livekitToken = '';
+
     try {
-      // Invoke AI Agent endpoint on Express backend (mints LiveKit JWT & saves room context JSON)
       const res = await api.post('/agents/start-interview', {
         candidateName,
         courseTitle: selectedCourse.title,
         selectedModuleTitles: selectedModTitles,
         resumeText,
-        customInstructions
+        customInstructions,
+        interviewMode: mode
       });
 
-      console.log('LiveKit Agent Session Invoked successfully:', res.data);
+      if (res.data.success) {
+        livekitUrl = res.data.url;
+        livekitToken = res.data.token;
+      }
     } catch (err) {
-      console.warn('Agent start interview fallback:', err);
+      console.warn('Backend start-interview endpoint fallback:', err);
     }
 
-    const initialPrompt = `Hello ${candidateName || 'Candidate'}! Welcome to your AI technical screening interview for ${
-      selectedCourse.title
-    }. Today we will evaluate your expertise in: ${selectedModTitles.join(
+    const initialPrompt = `Hello ${candidateName || 'Candidate'}! Welcome to your ${
+      mode === 'video' ? 'Video Avatar' : 'Audio'
+    } AI technical screening interview for ${selectedCourse.title}. Today we will evaluate your expertise in: ${selectedModTitles.join(
       ', '
-    )}. To start off, could you briefly introduce yourself and walk me through your background with these technologies?`;
-
-    setCurrentQuestionPrompt(initialPrompt);
+    )}. To start off, could you briefly introduce yourself and walk me through your background?`;
 
     const initialGreeting: ChatMessage = {
       id: 'msg-1',
@@ -370,13 +437,16 @@ const LiveInterviewStage: React.FC = () => {
 
     setChatMessages([initialGreeting]);
     setIsStarting(false);
-    setStageMode('audio');
+    setStartingMode(null);
     setViewState('stage');
     setTimerSeconds(765);
-    speakTextAloud(initialPrompt);
+
+    if (livekitUrl && livekitToken) {
+      await connectLiveKitRoom(livekitUrl, livekitToken, mode);
+    }
   };
 
-  // Send typed chat message (connected to Real Gemini API)
+  // Send typed chat message (connected to Gemini API)
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!typedMessage.trim() || isAiThinking) return;
@@ -417,8 +487,6 @@ const LiveInterviewStage: React.FC = () => {
       };
 
       setChatMessages((prev) => [...prev, agentReply]);
-      setCurrentQuestionPrompt(replyText);
-      speakTextAloud(replyText);
 
       setLiveStats((prev) => ({
         confidence: Math.min(98, prev.confidence + 1),
@@ -428,9 +496,9 @@ const LiveInterviewStage: React.FC = () => {
         technicalScore: Math.min(98, prev.technicalScore + 1)
       }));
     } catch (err) {
-      console.error('API Error, using fallback spoken response:', err);
-      const fallbackText = `That is a solid approach to ${selectedModTitles[0] || 'the module'}. How do you ensure high availability and data integrity when handling concurrent transactions?`;
-      
+      console.error('API Error, using fallback response:', err);
+      const fallbackText = `That is a solid approach to ${selectedModTitles[0] || 'the module'}. How do you ensure high availability and data integrity under concurrent load?`;
+
       const agentReply: ChatMessage = {
         id: `agent-${Date.now()}`,
         sender: 'interviewer',
@@ -440,17 +508,44 @@ const LiveInterviewStage: React.FC = () => {
       };
 
       setChatMessages((prev) => [...prev, agentReply]);
-      setCurrentQuestionPrompt(fallbackText);
-      speakTextAloud(fallbackText);
     } finally {
       setIsAiThinking(false);
     }
   };
 
-  // Part 4: End Interview & Save Session to DB + Local History
+  // Toggle Microphone
+  const handleToggleMute = async () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    if (livekitRoomRef.current) {
+      try {
+        await livekitRoomRef.current.localParticipant.setMicrophoneEnabled(!newMuted);
+      } catch (e) {
+        console.warn('Microphone toggle error:', e);
+      }
+    }
+  };
+
+  // Toggle Camera
+  const handleToggleCam = async () => {
+    const newCamOff = !isCamOff;
+    setIsCamOff(newCamOff);
+    if (livekitRoomRef.current) {
+      try {
+        await livekitRoomRef.current.localParticipant.setCameraEnabled(!newCamOff);
+      } catch (e) {
+        console.warn('Camera toggle error:', e);
+      }
+    }
+  };
+
+  // End Interview & Save Session
   const handleEndInterview = async () => {
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    
+    if (livekitRoomRef.current) {
+      livekitRoomRef.current.disconnect();
+      livekitRoomRef.current = null;
+    }
+
     if (webcamStreamRef.current) {
       webcamStreamRef.current.getTracks().forEach((track) => track.stop());
       webcamStreamRef.current = null;
@@ -460,7 +555,6 @@ const LiveInterviewStage: React.FC = () => {
     setViewState('report');
 
     const selectedModTitles = selectedModules.map((m) => m.title);
-
     let reportDataToSave: EvaluationReport;
 
     try {
@@ -485,7 +579,7 @@ const LiveInterviewStage: React.FC = () => {
         sentenceFramingScore: liveStats.sentenceFraming,
         topicDepthScore: 91,
         technicalRating: liveStats.technicalScore,
-        overallSuggestions: `Exceptional depth in explaining ${selectedCourse.title} concepts. Demonstrated clear STAR format answers with specific metrics across: ${selectedModTitles.join(
+        overallSuggestions: `Exceptional depth in explaining ${selectedCourse.title} concepts. Demonstrated clear STAR format answers across: ${selectedModTitles.join(
           ', '
         )}. Recommend elaborating slightly more on fault tolerance.`,
         moduleFeedbacks: selectedModTitles.map((modTitle, idx) => ({
@@ -502,7 +596,6 @@ const LiveInterviewStage: React.FC = () => {
     setEvaluationReport(reportDataToSave);
     setIsReportGenerating(false);
 
-    // Save session locally and to DB so it appears in the right hand side immediately
     const sessionItem: PreviousSession = {
       id: `session-${Date.now()}`,
       courseTitle: selectedCourse.title,
@@ -534,7 +627,7 @@ const LiveInterviewStage: React.FC = () => {
     }
   };
 
-  // Export report to PDF using jsPDF + html2canvas
+  // Export report to PDF
   const handleDownloadPdfReport = async () => {
     if (!reportContainerRef.current) return;
     setIsExportingPdf(true);
@@ -598,80 +691,59 @@ const LiveInterviewStage: React.FC = () => {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/[0.08] pb-6">
         <div>
           <div className="flex items-center gap-2">
-            <Sparkles className="text-brand-orange animate-pulse" size={26} />
-            <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight">
-              Live AI Interview Stage
+            <Sparkles className="text-brand-orange animate-pulse" size={24} />
+            <h1 className="font-display text-2xl md:text-3xl font-extrabold text-white">
+              Real-Time AI Technical Interview Stage
             </h1>
           </div>
-          <p className="text-xs md:text-sm text-text-muted mt-1">
-            Real-time module-wise screening interviews with AI voice streams and 3D digital avatars.
+          <p className="text-xs text-text-muted mt-1">
+            Real-time interactive voice & video avatar screening using Gemini Live API and LiveKit WebRTC
           </p>
         </div>
 
         {viewState === 'stage' && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setStageMode('audio')}
-              className={`px-4 py-2 text-xs font-semibold rounded-full transition-all ${
-                stageMode === 'audio'
-                  ? 'bg-emerald-500 text-white shadow-md font-bold'
-                  : 'bg-bg-surface text-text-muted hover:text-white border border-white/[0.08]'
-              }`}
-            >
-              Audio-Only Mode
-            </button>
-            <button
-              onClick={() => setStageMode('video')}
-              className={`px-4 py-2 text-xs font-semibold rounded-full transition-all ${
-                stageMode === 'video'
-                  ? 'bg-brand-orange text-white shadow-md font-bold'
-                  : 'bg-bg-surface text-text-muted hover:text-white border border-white/[0.08]'
-              }`}
-            >
-              3D Avatar Stage
-            </button>
-          </div>
+          <button
+            onClick={handleEndInterview}
+            className="flex items-center gap-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 text-xs font-bold hover:bg-red-500/30 transition-colors"
+          >
+            End Interview & View Report
+          </button>
         )}
 
         {viewState === 'report' && (
           <button
             onClick={() => setViewState('setup')}
-            className="flex items-center gap-2 rounded-lg bg-brand-orange px-5 py-2.5 text-xs font-bold text-white hover:bg-brand-orange/90 shadow-md"
+            className="flex items-center gap-2 rounded-xl bg-brand-orange px-4 py-2 text-xs font-bold text-white hover:bg-brand-orange/90 transition-colors"
           >
-            <RefreshCw size={14} /> Start New Interview Session
+            Start New Interview Round
           </button>
         )}
       </div>
 
-      {/* ─── PART 1: MAIN SETUP PAGE WITH PREVIOUS SESSIONS PANEL ─── */}
+      {/* ─── PART 1: SETUP SCREEN ─── */}
       {viewState === 'setup' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* LEFT 2 COLS: SETUP FORM */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-2xl border border-white/[0.08] bg-[#171C24] p-6 md:p-8 space-y-6 shadow-2xl">
-              <div className="border-b border-white/[0.08] pb-4">
-                <span className="text-xs font-bold text-brand-orange uppercase tracking-wider">
-                  Part 1: Candidate Brief & Target Configuration
-                </span>
-                <h2 className="font-display text-xl md:text-2xl font-bold text-white mt-1">
-                  Configure Your Practice Interview
-                </h2>
-                <p className="text-xs text-text-muted mt-1">
-                  Select your course and pick the target modules using the dropdown menu below.
-                </p>
-              </div>
+          <div className="lg:col-span-2 rounded-2xl border border-white/[0.08] bg-[#171C24] p-6 space-y-6 shadow-xl">
+            <div className="border-b border-white/[0.08] pb-4 space-y-1">
+              <h2 className="font-display text-lg font-bold text-white">Interview Configuration Brief</h2>
+              <p className="text-xs text-text-muted">
+                Select your enrolled course, target modules, upload your resume, and choose Audio or Video Avatar mode.
+              </p>
+            </div>
 
+            <div className="space-y-4">
               {/* Candidate Name Input */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-text-muted flex items-center gap-1.5">
-                  <User size={14} className="text-brand-orange" /> Candidate Name (Optional)
+                  <User size={14} className="text-brand-orange" /> Candidate Full Name (Optional)
                 </label>
                 <input
                   type="text"
                   value={candidateName}
                   onChange={(e) => setCandidateName(e.target.value)}
-                  placeholder="e.g. Ravi Kumar"
-                  className="w-full rounded-xl border border-white/[0.08] bg-[#1D2430] p-3.5 text-sm text-white focus:border-brand-orange focus:outline-none transition-colors"
+                  placeholder="e.g. Amit Kumar"
+                  className="w-full rounded-xl border border-white/[0.08] bg-[#1D2430] p-3 text-xs text-white focus:border-brand-orange focus:outline-none transition-colors"
                 />
               </div>
 
@@ -683,69 +755,62 @@ const LiveInterviewStage: React.FC = () => {
                 <select
                   value={selectedCourseId}
                   onChange={(e) => handleCourseChange(e.target.value)}
-                  className="w-full rounded-xl border border-white/[0.08] bg-[#1D2430] p-3.5 text-sm text-white focus:border-brand-orange focus:outline-none transition-colors"
+                  className="w-full rounded-xl border border-white/[0.08] bg-[#1D2430] p-3 text-xs text-white focus:border-brand-orange focus:outline-none transition-colors"
                 >
                   {courses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.title} ({course.modules.length} Modules)
+                    <option key={course.id} value={course.id} className="bg-[#171C24]">
+                      {course.title}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* CUSTOM MULTI-SELECT DROPDOWN MENU FOR MODULES */}
+              {/* Multi-Selection Module Dropdown */}
               <div className="space-y-2 relative" ref={moduleDropdownRef}>
                 <label className="text-xs font-semibold text-text-muted flex items-center gap-1.5">
-                  <Layers size={14} className="text-brand-orange" /> Select Target Modules (Multi-Select Dropdown)
+                  <Layers size={14} className="text-brand-orange" /> Target Modules to Evaluate
                 </label>
 
-                {/* Dropdown Control Button */}
-                <button
-                  type="button"
+                <div
                   onClick={() => setIsModuleDropdownOpen(!isModuleDropdownOpen)}
-                  className="w-full flex items-center justify-between rounded-xl border border-white/[0.08] bg-[#1D2430] p-3.5 text-sm text-white focus:border-brand-orange focus:outline-none transition-colors shadow-md text-left"
+                  className="w-full flex items-center justify-between rounded-xl border border-white/[0.08] bg-[#1D2430] p-3 text-xs text-white cursor-pointer hover:border-brand-orange transition-colors"
                 >
-                  <span className="truncate font-semibold">{getModuleDropdownLabel()}</span>
+                  <span className="truncate font-medium">{getModuleDropdownLabel()}</span>
                   <ChevronDown
-                    size={18}
+                    size={16}
                     className={`text-text-muted transition-transform duration-200 ${
-                      isModuleDropdownOpen ? 'transform rotate-180 text-brand-orange' : ''
+                      isModuleDropdownOpen ? 'rotate-180' : ''
                     }`}
                   />
-                </button>
+                </div>
 
-                {/* Floating Multi-Select Dropdown Menu Overlay */}
                 {isModuleDropdownOpen && (
-                  <div className="absolute z-30 top-full left-0 right-0 mt-2 rounded-2xl border border-white/[0.12] bg-[#171C24] p-3 shadow-2xl space-y-2 max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-white/[0.1]">
-                    {/* Toggle Select All Header Option */}
+                  <div className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-white/[0.12] bg-[#171C24] p-3 space-y-2 shadow-2xl max-h-60 overflow-y-auto">
                     <div
                       onClick={handleToggleSelectAllModules}
-                      className="flex items-center gap-3 p-2.5 rounded-xl border border-brand-orange/30 bg-brand-orange/10 cursor-pointer text-brand-orange font-bold text-xs hover:bg-brand-orange/20 transition-colors"
+                      className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/[0.05] cursor-pointer text-xs font-bold text-brand-orange border-b border-white/[0.08] pb-2"
                     >
                       {selectedModuleIds.length === selectedCourse.modules.length ? (
                         <CheckSquare size={16} />
                       ) : (
                         <Square size={16} />
                       )}
-                      <span>Select All Modules ({selectedCourse.modules.length})</span>
+                      <span>
+                        {selectedModuleIds.length === selectedCourse.modules.length
+                          ? 'Deselect All Modules'
+                          : 'Select All Modules'}
+                      </span>
                     </div>
 
-                    <div className="border-t border-white/[0.08] my-1" />
-
-                    {/* Individual Module Checkbox Options inside Dropdown */}
                     {selectedCourse.modules.map((mod) => {
                       const isChecked = selectedModuleIds.includes(mod.id);
                       return (
                         <div
                           key={mod.id}
                           onClick={() => handleToggleModule(mod.id)}
-                          className={`flex items-start gap-3 p-2.5 rounded-xl border cursor-pointer transition-all ${
-                            isChecked
-                              ? 'bg-[#1D2430] border-brand-orange/60 text-white font-semibold'
-                              : 'bg-[#171C24] border-transparent text-text-muted hover:bg-[#1D2430] hover:text-white'
-                          }`}
+                          className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-white/[0.05] cursor-pointer text-xs text-white"
                         >
-                          <div className="mt-0.5 shrink-0 text-brand-orange">
+                          <div className="text-brand-orange">
                             {isChecked ? <CheckSquare size={16} /> : <Square size={16} />}
                           </div>
                           <span className="text-xs">{mod.title}</span>
@@ -756,7 +821,7 @@ const LiveInterviewStage: React.FC = () => {
                 )}
               </div>
 
-              {/* Optional Document Uploads */}
+              {/* Document Uploads */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 {/* Resume Dropzone */}
                 <div className="space-y-2">
@@ -802,7 +867,7 @@ const LiveInterviewStage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Custom Instructions / Job Description Textarea */}
+              {/* Custom Instructions / Job Description */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-text-muted flex items-center gap-1.5">
                   <MessageSquare size={14} className="text-brand-orange" /> Specific Instructions / Job Description (Optional)
@@ -816,26 +881,53 @@ const LiveInterviewStage: React.FC = () => {
                 />
               </div>
 
-              {/* Start Button */}
-              <button
-                onClick={handleStartInterview}
-                disabled={isStarting}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand-orange py-4 font-display font-bold text-sm text-white hover:bg-brand-orange/90 shadow-xl transition-all disabled:opacity-50"
-              >
-                {isStarting ? (
-                  <>
-                    <RefreshCw className="animate-spin" size={18} /> Initializing Interview Session...
-                  </>
-                ) : (
-                  <>
-                    Start Live Interview Session <ChevronRight size={18} />
-                  </>
-                )}
-              </button>
+              {/* START BUTTONS: TWO PART SELECTION (Audio Only & Video Avatar) */}
+              <div className="pt-2 space-y-2">
+                <label className="text-xs font-semibold text-text-muted flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-brand-orange" /> Choose Interview Mode & Launch Session
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Part 1: Audio Only Button */}
+                  <button
+                    onClick={() => handleStartInterview('audio')}
+                    disabled={isStarting}
+                    className="flex items-center justify-center gap-2.5 rounded-xl bg-emerald-600 py-4 px-4 font-display font-bold text-sm text-white hover:bg-emerald-500 shadow-xl transition-all disabled:opacity-50 group"
+                  >
+                    {isStarting && startingMode === 'audio' ? (
+                      <>
+                        <RefreshCw className="animate-spin" size={18} /> Connecting Audio Session...
+                      </>
+                    ) : (
+                      <>
+                        <Headphones size={20} className="group-hover:scale-110 transition-transform" />
+                        <span>Start Audio Interview</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Part 2: Video Avatar Button */}
+                  <button
+                    onClick={() => handleStartInterview('video')}
+                    disabled={isStarting}
+                    className="flex items-center justify-center gap-2.5 rounded-xl bg-brand-orange py-4 px-4 font-display font-bold text-sm text-white hover:bg-brand-orange/90 shadow-xl transition-all disabled:opacity-50 group"
+                  >
+                    {isStarting && startingMode === 'video' ? (
+                      <>
+                        <RefreshCw className="animate-spin" size={18} /> Initializing Video Avatar...
+                      </>
+                    ) : (
+                      <>
+                        <VideoIcon size={20} className="group-hover:scale-110 transition-transform" />
+                        <span>Start Video Avatar Interview</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* RIGHT 1 COL: PREVIOUS SESSIONS TAKEN BY STUDENT */}
+          {/* RIGHT 1 COL: PREVIOUS SESSIONS */}
           <div className="space-y-6">
             <div className="rounded-2xl border border-white/[0.08] bg-[#171C24] p-6 space-y-4 shadow-xl">
               <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3">
@@ -897,8 +989,9 @@ const LiveInterviewStage: React.FC = () => {
           <div className="rounded-2xl border border-white/[0.08] bg-[#171C24] p-5 space-y-4 shadow-xl">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] pb-3">
               <div>
-                <h3 className="font-display text-base font-bold text-white">
-                  Live Screening Round: {selectedCourse.title}
+                <h3 className="font-display text-base font-bold text-white flex items-center gap-2">
+                  {stageMode === 'video' ? <VideoIcon size={18} className="text-brand-orange" /> : <Headphones size={18} className="text-emerald-400" />}
+                  Live Screening Round: {selectedCourse.title} ({stageMode === 'video' ? 'Video Avatar Mode' : 'Audio Mode'})
                 </h3>
                 <span className="text-xs text-brand-orange font-semibold">
                   Scope: {selectedModules.map((m) => m.title).join(', ')}
@@ -906,7 +999,6 @@ const LiveInterviewStage: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-4">
-                {/* Session Timer & VAD Active Badge */}
                 <div className="flex items-center gap-2 bg-[#1D2430] px-3.5 py-1.5 rounded-xl border border-white/[0.08]">
                   <Clock size={14} className="text-brand-orange" />
                   <span className="text-xs font-mono font-bold text-brand-orange">
@@ -916,20 +1008,17 @@ const LiveInterviewStage: React.FC = () => {
 
                 <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase">VAD Active</span>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase">Live WebRTC</span>
                 </div>
               </div>
             </div>
-
-
           </div>
 
           {/* CENTRAL CANVAS CONTAINER */}
           <div className="relative rounded-3xl border border-white/[0.1] bg-[#0E1116] min-h-[460px] p-6 shadow-2xl flex flex-col justify-between items-center overflow-hidden">
-            {/* PART 2: AUDIO-ONLY CANVAS STRICTLY MATCHING 12_livekit_avatar_interview_stage_1785223971964.png */}
+            {/* AUDIO-ONLY CANVAS */}
             {stageMode === 'audio' && (
               <div className="flex flex-col items-center justify-center my-auto w-full space-y-6 text-center">
-                {/* Generated High Quality Portrait of Young Energetic Indian Interviewer */}
                 <div className="relative h-44 w-44 rounded-full border-4 border-emerald-500/40 shadow-2xl overflow-hidden bg-[#171C24] p-1">
                   <img
                     src="/indian_interviewer.png"
@@ -942,7 +1031,7 @@ const LiveInterviewStage: React.FC = () => {
                   <div className="absolute inset-0 rounded-full border-2 border-emerald-400/50 animate-pulse pointer-events-none" />
                 </div>
 
-                {/* Sleek Animated Teal Audio Waveform Line directly beneath photo */}
+                {/* Animated Teal Audio Waveform Line */}
                 <div className="w-full max-w-md flex items-center justify-center gap-1 h-8">
                   {[20, 45, 75, 90, 40, 85, 100, 65, 95, 35, 80, 50, 90, 60, 100, 40, 70, 30].map((h, i) => (
                     <div
@@ -953,23 +1042,32 @@ const LiveInterviewStage: React.FC = () => {
                   ))}
                 </div>
 
+                <div className="text-xs text-text-muted font-medium bg-[#171C24] px-4 py-1.5 rounded-full border border-white/[0.08]">
+                  {agentStatusText}
+                </div>
               </div>
             )}
 
-            {/* PART 3: 3D AVATAR VIDEO CANVAS */}
+            {/* VIDEO AVATAR CANVAS */}
             {stageMode === 'video' && (
               <div className="relative w-full h-full min-h-[380px] flex flex-col justify-between">
-                {/* Avatar Video Stream Mock / Player */}
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-[#171C24] to-[#0E1116] rounded-2xl">
-                  <div className="text-center space-y-3 p-4">
-                    <div className="h-28 w-28 rounded-full border-2 border-brand-orange mx-auto overflow-hidden shadow-2xl">
-                      <img src="/indian_interviewer.png" alt="Avatar" className="w-full h-full object-cover" />
+                {/* Avatar WebRTC Video Element */}
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-[#171C24] to-[#0E1116] rounded-2xl overflow-hidden">
+                  <video
+                    ref={stageVideoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  {!agentConnected && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-center">
+                      <div className="space-y-3">
+                        <RefreshCw size={36} className="animate-spin text-brand-orange mx-auto" />
+                        <h4 className="font-display text-sm font-bold text-white">Connecting bitHuman Cloud Avatar...</h4>
+                        <p className="text-xs text-text-muted">Waiting for avatar video stream via LiveKit WebRTC</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-display text-base font-bold text-white">LiveKit 3D Avatar WebRTC Video Stream</h4>
-                      <p className="text-xs text-text-muted">Interviewer video feed synchronized with live voice output</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Candidate Webcam PIP Preview (Bottom Right) */}
@@ -997,11 +1095,11 @@ const LiveInterviewStage: React.FC = () => {
               </div>
             )}
 
-            {/* BOTTOM CONTROL BAR WITH 4 PROMINENT PILL BUTTONS */}
+            {/* BOTTOM CONTROL BAR */}
             <div className="flex flex-wrap items-center justify-center gap-5 pt-5 border-t border-white/[0.08] w-full max-w-3xl">
               {/* Button 1: Mute / Unmute */}
               <button
-                onClick={() => setIsMuted(!isMuted)}
+                onClick={handleToggleMute}
                 className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 rounded-full py-4 px-7 text-sm font-extrabold tracking-wide transition-all duration-200 shadow-xl hover:scale-[1.03] active:scale-[0.97] ${
                   isMuted
                     ? 'bg-red-500/25 text-red-400 border-2 border-red-500/50 shadow-red-500/10'
@@ -1012,7 +1110,7 @@ const LiveInterviewStage: React.FC = () => {
                 {isMuted ? 'Unmute' : 'Mute'}
               </button>
 
-              {/* Button 2: Video Toggle */}
+              {/* Button 2: Switch Mode */}
               <button
                 onClick={() => setStageMode(stageMode === 'audio' ? 'video' : 'audio')}
                 className={`flex-1 min-w-[140px] flex items-center justify-center gap-3 rounded-full py-4 px-7 text-sm font-extrabold tracking-wide transition-all duration-200 shadow-xl hover:scale-[1.03] active:scale-[0.97] ${
@@ -1021,8 +1119,8 @@ const LiveInterviewStage: React.FC = () => {
                     : 'bg-white/[0.06] text-white border-2 border-white/[0.12] hover:border-brand-orange shadow-white/5'
                 }`}
               >
-                {stageMode === 'video' ? <VideoOff size={20} /> : <Video size={20} />}
-                {stageMode === 'video' ? 'Audio Mode' : 'Video'}
+                {stageMode === 'video' ? <Headphones size={20} /> : <VideoIcon size={20} />}
+                {stageMode === 'video' ? 'Audio Mode' : 'Video Avatar'}
               </button>
 
               {/* Button 3: Live Notes Drawer */}
@@ -1047,7 +1145,7 @@ const LiveInterviewStage: React.FC = () => {
             </div>
           </div>
 
-          {/* LIVE NOTES DRAWER PANEL */}
+          {/* LIVE NOTES DRAWER */}
           {showLiveNotes && (
             <div className="rounded-2xl border border-white/[0.08] bg-[#171C24] p-5 space-y-3 shadow-xl">
               <h4 className="font-display text-sm font-bold text-white flex items-center gap-2">
@@ -1063,7 +1161,7 @@ const LiveInterviewStage: React.FC = () => {
             </div>
           )}
 
-          {/* BOTTOM INTERACTIVE TRANSCRIPT & CHAT STREAM */}
+          {/* TRANSCRIPT & CHAT STREAM */}
           <div className="rounded-2xl border border-white/[0.08] bg-[#171C24] p-4 md:p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
               <div className="flex items-center gap-2">
@@ -1075,7 +1173,7 @@ const LiveInterviewStage: React.FC = () => {
               </span>
             </div>
 
-            {/* Transcript Messages Scroll Area */}
+            {/* Transcript Messages */}
             <div className="h-60 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-white/[0.1]">
               {chatMessages.map((msg) => (
                 <div
@@ -1106,7 +1204,7 @@ const LiveInterviewStage: React.FC = () => {
               ))}
               {isAiThinking && (
                 <div className="flex items-center gap-2 text-xs text-brand-orange font-semibold italic">
-                  <RefreshCw size={14} className="animate-spin" /> AI Interviewer is formulating follow-up...
+                  <RefreshCw size={14} className="animate-spin" /> AI Interviewer is formulating response...
                 </div>
               )}
               <div ref={chatEndRef} />
@@ -1133,7 +1231,7 @@ const LiveInterviewStage: React.FC = () => {
         </div>
       )}
 
-      {/* ─── PART 4: POST-INTERVIEW EVALUATION REPORT CARD & PDF DOWNLOAD ─── */}
+      {/* ─── PART 4: EVALUATION REPORT CARD ─── */}
       {viewState === 'report' && (
         <div className="max-w-4xl mx-auto space-y-6">
           {isReportGenerating ? (
@@ -1149,7 +1247,6 @@ const LiveInterviewStage: React.FC = () => {
               ref={reportContainerRef}
               className="rounded-2xl border-2 border-brand-orange/60 bg-[#171C24] p-6 md:p-8 space-y-8 shadow-2xl"
             >
-              {/* Header Score Banner */}
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-white/[0.08] pb-6">
                 <div>
                   <span className="text-xs font-bold text-brand-orange uppercase tracking-wider">
@@ -1177,7 +1274,7 @@ const LiveInterviewStage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Skill Metrics Cards Grid */}
+              {/* Skill Metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
                 <div className="rounded-xl bg-[#1D2430] p-3 border border-white/[0.08] space-y-1">
                   <span className="text-[10px] text-text-muted uppercase font-medium">Confidence</span>
@@ -1217,7 +1314,7 @@ const LiveInterviewStage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Overall Area of Improvement & Recruiter Feedback */}
+              {/* LLM Feedback */}
               <div className="rounded-xl bg-[#1D2430] p-5 border border-white/[0.08] space-y-2">
                 <h4 className="font-display text-sm font-bold text-white flex items-center gap-2">
                   <Brain size={16} className="text-brand-orange" /> Real LLM Observation Feedback & Suggestions
@@ -1227,7 +1324,7 @@ const LiveInterviewStage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Module-by-Module Text Feedback Section */}
+              {/* Module-by-Module Feedback */}
               <div className="space-y-4">
                 <h3 className="font-display text-base font-bold text-white border-b border-white/[0.08] pb-2">
                   Module-Wise Detailed Evaluation Breakdown
@@ -1276,7 +1373,7 @@ const LiveInterviewStage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Export & Download Controls (PDF format) */}
+              {/* PDF Download */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/[0.08] pt-6">
                 <p className="text-xs text-text-muted">Download your full evaluation scorecard report as a PDF document.</p>
                 <button

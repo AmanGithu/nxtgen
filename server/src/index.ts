@@ -9,6 +9,8 @@ import { errorHandler } from './middleware/errorHandler';
 import { setupWebSocketServer } from './websocket/server';
 import { sessionService } from './services/iassist/sessionService';
 
+import path from 'path';
+
 const app = express();
 
 app.use(cors({
@@ -17,6 +19,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve theme_assets media files statically
+app.use('/theme_assets', express.static(path.join(__dirname, '../../client/public/theme_assets')));
 
 app.use('/api', routes);
 

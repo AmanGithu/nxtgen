@@ -103,12 +103,13 @@ router.get('/history', async (req: Request, res: Response, next: NextFunction) =
 // Invokes AI Agent: Creates LiveKit WebRTC room, saves session context JSON, and returns signed LiveKit JWT token
 router.post('/start-interview', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { candidateName, courseTitle, selectedModuleTitles, resumeText, customInstructions } = z.object({
+    const { candidateName, courseTitle, selectedModuleTitles, resumeText, customInstructions, interviewMode } = z.object({
       candidateName: z.string().optional(),
       courseTitle: z.string(),
       selectedModuleTitles: z.array(z.string()),
       resumeText: z.string().optional(),
       customInstructions: z.string().optional(),
+      interviewMode: z.enum(['audio', 'video']).optional().default('audio'),
     }).parse(req.body);
 
     const roomName = `interview-${uuidv4().substring(0, 10)}`;
@@ -126,7 +127,8 @@ router.post('/start-interview', async (req: Request, res: Response, next: NextFu
       module_title: selectedModuleTitles.join(', '),
       selected_modules: selectedModuleTitles,
       resume_text: resumeText || '',
-      jd_text: customInstructions || ''
+      jd_text: customInstructions || '',
+      interview_mode: interviewMode || 'audio'
     };
 
     fs.writeFileSync(path.join(sessionsDir, `${roomName}.json`), JSON.stringify(contextData, null, 2), 'utf-8');

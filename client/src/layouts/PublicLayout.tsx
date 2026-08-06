@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext';
-import { 
-  Menu, X, Sun, Moon, ChevronDown, Wrench, FileText, Target, Award, Globe, Bot, Sparkles, Mic 
+import { useTheme, ThemeSelector, ThemeToggle } from '../theme';
+import {
+  Menu, X, Sun, Moon, ChevronDown, Wrench, FileText, Target, Award, Globe, Bot, Sparkles, Mic
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -41,12 +41,21 @@ const PublicLayout = () => {
     setIsMobileMenuOpen(false);
   }, [location]);
 
+  const isHomePage = location.pathname === '/';
+
   return (
     <div className="flex min-h-screen flex-col bg-bg-canvas font-sans text-white">
       {/* Top Header Navbar */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-bg-surface/95 backdrop-blur-md">
+      <header
+        className={clsx(
+          "z-50 transition-all duration-300",
+          isHomePage
+            ? "fixed top-0 left-0 right-0 border-b border-white/10 bg-gradient-to-b from-black/70 via-black/30 to-transparent backdrop-blur-[3px]"
+            : "sticky top-0 border-b border-white/[0.08] bg-bg-surface/95 backdrop-blur-md"
+        )}
+      >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          
+
           {/* Twin Color Logo */}
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center font-display text-2xl font-bold tracking-tight">
@@ -60,15 +69,15 @@ const PublicLayout = () => {
             <Link to="/" className={clsx("text-sm font-medium transition-colors hover:text-white", location.pathname === '/' ? "text-brand-orange font-bold" : "text-text-muted")}>
               Home
             </Link>
-            
+
             <Link to="/courses" className={clsx("text-sm font-medium transition-colors hover:text-white", location.pathname === '/courses' ? "text-brand-orange font-bold" : "text-text-muted")}>
               Courses
             </Link>
-            
+
             <Link to="/certifications" className={clsx("text-sm font-medium transition-colors hover:text-white", location.pathname === '/certifications' ? "text-brand-orange font-bold" : "text-text-muted")}>
               Certifications
             </Link>
-            
+
             <Link to="/internship" className={clsx("text-sm font-medium transition-colors hover:text-white", location.pathname === '/internship' ? "text-brand-orange font-bold" : "text-text-muted")}>
               Internship
             </Link>
@@ -135,12 +144,7 @@ const PublicLayout = () => {
 
           {/* Right Action Cluster */}
           <div className="hidden md:flex items-center gap-4">
-            <button
-              onClick={toggleTheme}
-              className="rounded-full p-2 text-text-muted hover:bg-white/[0.05] hover:text-white transition-colors"
-            >
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
+            <ThemeSelector variant="dropdown" />
             <Link
               to="/login"
               className="rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white transition-transform hover:scale-105 shadow-md"
@@ -198,10 +202,10 @@ const PublicLayout = () => {
           </nav>
 
           <div className="mt-8 flex flex-col gap-4">
-            <button onClick={toggleTheme} className="flex items-center gap-2 text-text-muted hover:text-white">
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-              <span>Toggle Theme</span>
-            </button>
+            <div className="space-y-1.5">
+              <span className="text-xs font-bold text-brand-orange uppercase">Theme Options</span>
+              <ThemeSelector variant="segmented" />
+            </div>
             <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="rounded-lg bg-brand-orange py-3 text-center font-medium text-white shadow-lg">
               Login
             </Link>

@@ -1,15 +1,25 @@
 /** @type {import('tailwindcss').Config} */
+function withOpacity(variableName) {
+  return ({ opacityValue }) => {
+    if (opacityValue !== undefined) {
+      return `rgba(var(${variableName}), ${opacityValue})`;
+    }
+    return `rgb(var(${variableName}))`;
+  };
+}
+
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        'brand-orange': '#f5820b',
-        'bg-canvas': '#0a0a0f',
-        'bg-surface': '#111118',
-        'bg-card': '#1a1a24',
-        'text-muted': '#9ca3af'
+        'brand-orange': withOpacity('--brand-orange-rgb'),
+        'bg-canvas': withOpacity('--bg-canvas-rgb'),
+        'bg-surface': withOpacity('--bg-surface-rgb'),
+        'bg-card': withOpacity('--bg-card-rgb'),
+        'text-muted': withOpacity('--text-muted-rgb'),
+        'text-primary': withOpacity('--text-primary-rgb'),
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

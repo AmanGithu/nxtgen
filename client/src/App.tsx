@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider } from './theme';
 import PublicLayout from './layouts/PublicLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -25,7 +25,8 @@ const BatchConfig = lazy(() => import('./pages/admin/BatchConfig'));
 const ClassScheduler = lazy(() => import('./pages/admin/ClassScheduler'));
 const StudyMaterials = lazy(() => import('./pages/admin/StudyMaterials'));
 const CertInquiries = lazy(() => import('./pages/admin/CertInquiries'));
-const AIConfig = lazy(() => import('./pages/admin/AIConfig'));
+const ThemeAssetsManager = lazy(() => import('./pages/admin/ThemeAssetsManager'));
+const AdminAIConfig = lazy(() => import('./pages/admin/AIConfig'));
 
 // Student Modules (Slice 4)
 const StudentOverview = lazy(() => import('./pages/student/Overview'));
@@ -98,7 +99,8 @@ function App() {
                     <Route path="materials" element={<StudyMaterials />} />
                     <Route path="certifications" element={<Certifications />} />
                     <Route path="cert-inquiries" element={<CertInquiries />} />
-                    <Route path="ai-config" element={<AIConfig />} />
+                    <Route path="theme-assets" element={<ThemeAssetsManager />} />
+                    <Route path="ai-config" element={<AdminAIConfig />} />
                     <Route path="*" element={<Placeholder title="Admin Module Content" />} />
                   </Route>
                 </Route>

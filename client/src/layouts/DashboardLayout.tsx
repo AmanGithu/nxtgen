@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { ThemeSelector } from '../theme';
 import { clsx } from 'clsx';
 import {
   LayoutDashboard, Users, Settings, Calendar, BookOpen,
-  Award, Briefcase, FileText, Menu, X, LogOut, Lock, Mic, Bot, Cpu
+  Award, Briefcase, FileText, Menu, X, LogOut, Lock, Mic, Bot, Cpu, Layers
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -25,6 +26,7 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
 
   const adminLinks: NavLinkItem[] = [
     { name: 'Overview', path: '/dashboard/admin', icon: LayoutDashboard },
+    { name: 'Theme Assets', path: '/dashboard/admin/theme-assets', icon: Layers },
     { name: 'User Management', path: '/dashboard/admin/users', icon: Users },
     { name: 'Batch Config', path: '/dashboard/admin/batches', icon: Settings },
     { name: 'Class Scheduler', path: '/dashboard/admin/scheduler', icon: Calendar },
@@ -133,8 +135,9 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="h-16 border-b border-white/[0.08] bg-bg-surface/80 backdrop-blur-md sticky top-0 z-10 flex items-center px-8">
+        <div className="h-16 border-b border-white/[0.08] bg-bg-surface/80 backdrop-blur-md sticky top-0 z-10 flex items-center justify-between px-8">
           <h1 className="text-lg font-medium capitalize">{location.pathname.split('/').pop() || 'Dashboard'}</h1>
+          <ThemeSelector variant="dropdown" />
         </div>
         <div className="p-8">
           <Outlet />
