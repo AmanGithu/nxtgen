@@ -18,6 +18,25 @@ function param(val: string | string[]): string {
   return Array.isArray(val) ? val[0] : val;
 }
 
+/* Deliberately mounted above `router.use(authenticate)`: the public I-Assist
+   marketing page shows the download button to signed-out visitors, so requiring a
+   token here would leave that button permanently hidden. It exposes nothing but an
+   admin-set URL and version string. */
+router.get('/desktop/download', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const row = await prisma.siteConfig.findUnique({
+      where: { key: 'IASSIST_DESKTOP_DOWNLOAD_URL_WIN' },
+    });
+
+    res.json({
+      success: true,
+      windows: row?.value.trim() || null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.use(authenticate);
 
 // ─── Live AI Interview Courses ───

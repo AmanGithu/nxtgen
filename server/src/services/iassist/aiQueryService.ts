@@ -14,6 +14,10 @@ export const CONFIG_DEFAULTS: Record<string, string> = {
   IASSIST_VAD_SILENCE_MS: '1500',
   IASSIST_VAD_AMPLITUDE_THRESHOLD: '0.015',
   IASSIST_VAD_MIN_SPEECH_MS: '500',
+  // Where the Windows installer is hosted. Empty by default and empty means "no
+  // build published yet" — the download buttons hide rather than offering a file
+  // that does not exist. Set from the admin AI Config panel on each release.
+  IASSIST_DESKTOP_DOWNLOAD_URL_WIN: '',
 };
 
 async function getConfig(key: string): Promise<string> {
