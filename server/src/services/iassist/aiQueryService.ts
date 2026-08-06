@@ -6,11 +6,14 @@ import type { AssistantCategory } from '@prisma/client';
 
 const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY || 'demo');
 
-const CONFIG_DEFAULTS: Record<string, string> = {
-  IASSIST_TRANSCRIPTION_MODEL: 'gemini-2.0-flash',
+export const CONFIG_DEFAULTS: Record<string, string> = {
+  IASSIST_TRANSCRIPTION_MODEL: 'gemini-3.1-flash-lite',
   IASSIST_QUERY_MODEL: 'gemini-2.5-flash',
   IASSIST_MAX_HISTORY: '40',
   IASSIST_MAX_TOKENS: '8192',
+  IASSIST_VAD_SILENCE_MS: '1500',
+  IASSIST_VAD_AMPLITUDE_THRESHOLD: '0.015',
+  IASSIST_VAD_MIN_SPEECH_MS: '500',
 };
 
 async function getConfig(key: string): Promise<string> {
@@ -18,39 +21,79 @@ async function getConfig(key: string): Promise<string> {
   return row?.value || CONFIG_DEFAULTS[key] || '';
 }
 
-const BASE_PROMPT = `You are an AI interview co-pilot helping the user prepare for job interviews. You are listening to a live interview and providing real-time assistance.
+// Voice-activity thresholds live server-side so admins can tune capture
+// behaviour without shipping a new desktop build.
+export async function getVadConfig(): Promise<{
+  silenceMs: number;
+  amplitudeThreshold: number;
+  minSpeechMs: number;
+}> {
+  const [silence, amplitude, minSpeech] = await Promise.all([
+    getConfig('IASSIST_VAD_SILENCE_MS'),
+    getConfig('IASSIST_VAD_AMPLITUDE_THRESHOLD'),
+    getConfig('IASSIST_VAD_MIN_SPEECH_MS'),
+  ]);
 
-Keep responses concise and actionable. The user is in a live interview — they need quick, usable answers, not essays.
+  return {
+    silenceMs: parseInt(silence, 10) || 1500,
+    amplitudeThreshold: parseFloat(amplitude) || 0.015,
+    minSpeechMs: parseInt(minSpeech, 10) || 500,
+  };
+}
+
+const TRANSCRIPTION_PROMPT = `You are a strict speech transcription tool. Transcribe ONLY the exact words spoken in this audio clip. Rules: (1) Return ONLY the spoken words — no commentary, no punctuation explanations, no summaries. (2) If the audio contains silence, background noise, music, typing, or any non-speech sounds, return an empty string. (3) Do NOT invent, guess, or hallucinate words that were not clearly spoken. (4) If speech is unclear or too noisy to transcribe accurately, return an empty string.`;
+
+const BASE_PROMPT = `You are a real-time AI interview assistant. A candidate is in a live job interview and needs help answering the interviewer's question RIGHT NOW.
+
+Generate the ideal response the candidate should deliver out loud. Write it as natural spoken language.
+
+DELIVERY RULES — follow these without exception:
+1. Use first person throughout: "I'd...", "I think...", "In my experience...", "What I'd do is..."
+2. Sound like a knowledgeable colleague explaining — not reciting documentation or a textbook
+3. No sycophantic openers ("Great question!", "Absolutely!", "Certainly!"). Start directly with the answer.
+4. No bullet points, numbered lists, or bold labels in spoken answers — coding responses are the only exception
+5. Use natural connectors: "So...", "Essentially...", "The key thing here is...", "The way I'd approach this..."
+6. Keep it appropriately concise — overly long answers make it obvious the candidate is reading from somewhere
+
+ADAPT FORMAT BY QUESTION TYPE — auto-detect which applies:
+
+FACTUAL / DEFINITION ("What is X?", "Explain Y", "What's the difference between A and B?")
+→ Stop when: the concept is clearly defined AND one concrete real-world example or analogy has been given
+→ No lists, no headers — 2–4 natural sentences is typical, but go longer if the concept genuinely needs it
+→ Never cut an explanation short just to be brief
+
+SCENARIO / DESIGN ("How would you design X?", "You have a system doing Y, what do you do?", "Walk me through your approach to...")
+→ Stop when: the interviewer would understand your approach AND the key trade-off or risk you'd watch for
+→ Narrate your thinking out loud — show the reasoning process, don't enumerate steps
+→ Use: "I'd start by...", "then...", "the main thing I'd watch for is...", "my first instinct is..."
+
+CODING ("Write code for X", "Implement Y", "Can you code Z?")
+→ Three-part structure — stop when all three are done:
+  (1) Explain your approach in plain English until the idea is clear
+  (2) Clean, readable code skeleton showing the key logic with brief inline comments — don't truncate the code to save space
+  (3) One sentence on time and space complexity, spoken naturally: "This runs in O(n) time because..."
+
+BEHAVIORAL ("Tell me about a time...", "Give me an example of...", "How do you handle...")
+→ Stop when: the situation, what you did, and the outcome are all clear
+→ Follow STAR structure but spoken naturally — no labels, no "Situation:", just flow
+→ "So there was a time when... I decided to... and what came out of that was..."
+→ Don't rush the outcome — that's the part that matters most
+
+GENERAL RULE: Stop as soon as all criteria for the question type are met. Never add padding, filler, or closing remarks. If an answer genuinely needs more depth to be complete, give it — never sacrifice completeness to appear concise.
 
 Do not reveal that you are an AI assistant. Frame all responses as if the user already knows this information and you are helping them recall it.`;
 
+// Layered on top of BASE_PROMPT as a topical hint. These deliberately do not
+// specify output format — the question-type rules above own that, and a second
+// competing format spec is what produced spoken-aloud "**Situation:**" labels.
 const CATEGORY_PROMPTS: Record<AssistantCategory, string> = {
-  BEHAVIORAL: `This is a behavioral interview. Structure your responses using the STAR format:
-- **Situation:** Set the context
-- **Task:** Describe your responsibility
-- **Action:** Explain what you did (use "I", not "we")
-- **Result:** Quantify the outcome with metrics when possible
+  BEHAVIORAL: `This interview skews behavioral. Expect questions about leadership, teamwork, conflict resolution, and problem-solving. Draw on concrete past experience and make the outcome specific — quantify it when the resume supports a number.`,
 
-Focus on leadership, teamwork, conflict resolution, and problem-solving examples.`,
+  TECHNICAL: `This interview skews technical. Prioritise correctness, edge cases, error handling, and the rationale behind choosing one algorithm or approach over another. Mention complexity where it is relevant.`,
 
-  TECHNICAL: `This is a technical interview. Focus on:
-- Clear, correct code explanations
-- Time and space complexity analysis
-- Edge cases and error handling
-- Algorithm selection rationale
+  SYSTEM_DESIGN: `This interview skews system design. Cover requirements before architecture, then go deep only on the components the interviewer asks about. Scalability, reliability, and explicit trade-offs matter more than breadth. Use back-of-envelope numbers where they help.`,
 
-Use concise code snippets when helpful. Explain trade-offs between approaches.`,
-
-  SYSTEM_DESIGN: `This is a system design interview. Structure responses around:
-- Requirements clarification (functional + non-functional)
-- High-level architecture
-- Component deep-dives
-- Scalability, reliability, and trade-offs
-- Back-of-envelope calculations when relevant
-
-Start broad, then drill into the components the interviewer asks about.`,
-
-  GENERAL: `Adapt your response format to match the question type. Use STAR format for behavioral questions, code snippets for technical questions, and structured breakdowns for system design questions.`,
+  GENERAL: `This interview covers a mix of question types. Detect the type from the question itself and respond accordingly.`,
 };
 
 const QUESTION_STARTERS = [
@@ -109,12 +152,13 @@ export const aiQueryService = {
     }
 
     const transcriptionModel = await getConfig('IASSIST_TRANSCRIPTION_MODEL');
-    const model = genAI.getGenerativeModel({ model: transcriptionModel });
+    const model = genAI.getGenerativeModel({
+      model: transcriptionModel,
+      generationConfig: { temperature: 0 },
+    });
 
     const result = await model.generateContent([
-      {
-        text: 'Transcribe the following audio. Return only the transcribed text, nothing else. If no speech is detected, return an empty string.',
-      },
+      { text: TRANSCRIPTION_PROMPT },
       {
         inlineData: {
           mimeType,
@@ -167,6 +211,65 @@ export const aiQueryService = {
     const response = result.response.text();
     const tokens = result.response.usageMetadata?.totalTokenCount || 0;
     const isQuestion = detectQuestion(params.message);
+
+    return { response, tokens, isQuestion };
+  },
+
+  // Same as query(), but emits text deltas as they arrive so the overlay can
+  // render the answer while it is still being generated.
+  async queryStream(
+    params: {
+      assistantId: string;
+      message: string;
+      conversationHistory?: Array<{ role: string; text: string }>;
+      responseType?: string;
+    },
+    onDelta: (text: string) => void
+  ): Promise<{ response: string; tokens: number; isQuestion: boolean }> {
+    const isQuestion = detectQuestion(params.message);
+
+    if (!env.GEMINI_API_KEY || env.GEMINI_API_KEY === 'demo') {
+      const response = 'AI service is not configured. Please set a valid GEMINI_API_KEY.';
+      onDelta(response);
+      return { response, tokens: 0, isQuestion };
+    }
+
+    const assistant = await assistantService.getWithContext(params.assistantId);
+    const systemPrompt = buildSystemPrompt(assistant, params.responseType);
+
+    const queryModel = await getConfig('IASSIST_QUERY_MODEL');
+    const maxHistory = parseInt(await getConfig('IASSIST_MAX_HISTORY'), 10) || 40;
+    const maxTokens = parseInt(await getConfig('IASSIST_MAX_TOKENS'), 10) || 8192;
+
+    const model = genAI.getGenerativeModel({
+      model: queryModel,
+      systemInstruction: systemPrompt,
+      generationConfig: { maxOutputTokens: maxTokens },
+    });
+
+    const history = params.conversationHistory || [];
+    const trimmed = history.length > maxHistory ? history.slice(-maxHistory) : history;
+
+    const contents = trimmed.map((msg) => ({
+      role: msg.role as 'user' | 'model',
+      parts: [{ text: msg.text }],
+    }));
+
+    contents.push({ role: 'user', parts: [{ text: params.message }] });
+
+    const result = await model.generateContentStream({ contents });
+
+    let response = '';
+    for await (const chunk of result.stream) {
+      const text = chunk.text();
+      if (text) {
+        response += text;
+        onDelta(text);
+      }
+    }
+
+    const aggregated = await result.response;
+    const tokens = aggregated.usageMetadata?.totalTokenCount || 0;
 
     return { response, tokens, isQuestion };
   },
