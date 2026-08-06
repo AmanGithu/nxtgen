@@ -394,7 +394,14 @@ router.post('/query/stream', async (req: Request, res: Response, next: NextFunct
     streamStarted = true;
 
     let aborted = false;
-    req.on('close', () => { aborted = true; });
+    const upstream = new AbortController();
+
+    // The overlay closed or the session ended: stop consuming the model stream
+    // rather than generating into a response nobody will receive.
+    req.on('close', () => {
+      aborted = true;
+      upstream.abort();
+    });
 
     const send = (event: string, payload: unknown) => {
       if (aborted) return;
@@ -409,6 +416,7 @@ router.post('/query/stream', async (req: Request, res: Response, next: NextFunct
       watchdog = setTimeout(() => {
         send('error', { message: 'AI response timed out' });
         aborted = true;
+        upstream.abort();
         res.end();
       }, STREAM_IDLE_TIMEOUT_MS);
     };
@@ -424,9 +432,13 @@ router.post('/query/stream', async (req: Request, res: Response, next: NextFunct
       }, (text) => {
         armWatchdog();
         send('delta', { text });
-      });
+      }, upstream.signal);
 
       send('done', result);
+    } catch (err) {
+      // An abort we triggered is expected teardown, not a failure to report —
+      // the client has already been told why the stream ended.
+      if (!aborted) throw err;
     } finally {
       clearTimeout(watchdog);
     }

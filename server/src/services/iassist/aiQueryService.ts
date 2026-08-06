@@ -224,7 +224,8 @@ export const aiQueryService = {
       conversationHistory?: Array<{ role: string; text: string }>;
       responseType?: string;
     },
-    onDelta: (text: string) => void
+    onDelta: (text: string) => void,
+    signal?: AbortSignal
   ): Promise<{ response: string; tokens: number; isQuestion: boolean }> {
     const isQuestion = detectQuestion(params.message);
 
@@ -257,7 +258,10 @@ export const aiQueryService = {
 
     contents.push({ role: 'user', parts: [{ text: params.message }] });
 
-    const result = await model.generateContentStream({ contents });
+    // Client-side abort only: per the SDK, this does not cancel generation in
+    // the service and usage is still billed. It stops us iterating and holding
+    // resources for a stream nobody is reading.
+    const result = await model.generateContentStream({ contents }, { signal });
 
     let response = '';
     for await (const chunk of result.stream) {
