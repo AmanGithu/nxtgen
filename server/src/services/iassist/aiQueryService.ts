@@ -51,7 +51,7 @@ DELIVERY RULES — follow these without exception:
 1. Use first person throughout: "I'd...", "I think...", "In my experience...", "What I'd do is..."
 2. Sound like a knowledgeable colleague explaining — not reciting documentation or a textbook
 3. No sycophantic openers ("Great question!", "Absolutely!", "Certainly!"). Start directly with the answer.
-4. No bullet points, numbered lists, or bold labels in spoken answers — coding responses are the only exception
+4. No bullet points, numbered lists, or bold labels in spoken answers — coding and diagram responses are the only exceptions
 5. Use natural connectors: "So...", "Essentially...", "The key thing here is...", "The way I'd approach this..."
 6. Keep it appropriately concise — overly long answers make it obvious the candidate is reading from somewhere
 
@@ -72,6 +72,12 @@ CODING ("Write code for X", "Implement Y", "Can you code Z?")
   (1) Explain your approach in plain English until the idea is clear
   (2) Clean, readable code skeleton showing the key logic with brief inline comments — don't truncate the code to save space
   (3) One sentence on time and space complexity, spoken naturally: "This runs in O(n) time because..."
+
+DIAGRAM ("Draw X", "Give its flow diagram", "Show me the architecture", "Sketch how X works")
+→ The candidate's screen renders fenced code blocks in monospace with alignment preserved, so a diagram IS displayable — never answer a diagram request with prose alone
+→ Draw an ASCII box-and-arrow diagram inside a fenced block tagged as text, using +-|, [ ], and -> / | arrows
+→ Keep it under ~60 characters wide so it fits the answer panel without wrapping, and label every box and arrow
+→ Follow the diagram with 1–2 spoken sentences walking through it, since the candidate has to narrate it out loud
 
 BEHAVIORAL ("Tell me about a time...", "Give me an example of...", "How do you handle...")
 → Stop when: the situation, what you did, and the outcome are all clear
@@ -145,6 +151,36 @@ function buildSystemPrompt(assistant: {
   return parts.join('\n\n');
 }
 
+// Handed near-silent or noisy audio, speech models return a stock filler phrase
+// instead of the empty string TRANSCRIPTION_PROMPT asks for — no prompt wording
+// reliably suppresses it. In a live session these arrive with nobody speaking, and
+// each one opens a question in the overlay and burns a model call on it.
+//
+// Only whole transcripts are matched. A filler inside a real sentence is left alone;
+// it is a standalone "Hello." with no speech behind it that is the artefact.
+const TRANSCRIPTION_FILLERS = new Set([
+  'hello', 'hi', 'hey', 'hello hello', 'hi there',
+  'thank you', 'thanks', 'thank you very much', 'thanks for watching',
+  'thanks for watching the video', 'please subscribe', 'subscribe',
+  'bye', 'bye bye', 'goodbye', 'see you', 'see you next time',
+  'you', 'yeah', 'yep', 'uh', 'um', 'mm', 'hmm', 'mhm', 'ah', 'oh',
+  'okay', 'ok', 'right', 'so', 'and', 'the',
+]);
+
+function isTranscriptionFiller(text: string): boolean {
+  const normalised = text
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalised) return true;
+  // Guard the set lookup by length so a genuine sentence that happens to normalise
+  // to a listed phrase cannot be reached.
+  if (normalised.split(' ').length > 5) return false;
+  return TRANSCRIPTION_FILLERS.has(normalised);
+}
+
 export const aiQueryService = {
   async transcribeAudio(audioBuffer: Buffer, mimeType: string): Promise<string> {
     if (!env.GEMINI_API_KEY || env.GEMINI_API_KEY === 'demo') {
@@ -167,7 +203,8 @@ export const aiQueryService = {
       },
     ]);
 
-    return result.response.text().trim();
+    const text = result.response.text().trim();
+    return isTranscriptionFiller(text) ? '' : text;
   },
 
   async query(params: {
