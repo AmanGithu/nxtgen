@@ -25,9 +25,17 @@ const TOOLS_LIST = CAREER_TOOLS;
 interface Props {
   /** Transparent overlay treatment, used on the home page hero. */
   floating?: boolean;
+  /**
+   * Span the full window instead of centring on a 7xl column.
+   *
+   * The marketing pages centre their content, so the nav matches them. The
+   * dashboard is full-width with a flush sidebar, and a centred nav above it
+   * leaves the logo floating in from the edge with nothing beneath it.
+   */
+  fullBleed?: boolean;
 }
 
-const SiteNav = ({ floating = false }: Props) => {
+const SiteNav = ({ floating = false, fullBleed = false }: Props) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -67,7 +75,12 @@ const SiteNav = ({ floating = false }: Props) => {
             : 'sticky top-0 border-b border-white/[0.08] bg-bg-surface/95 backdrop-blur-md'
         )}
       >
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div
+          className={clsx(
+            'flex h-16 items-center justify-between',
+            fullBleed ? 'w-full px-6' : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'
+          )}
+        >
           {/* Twin Color Logo */}
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center font-display text-2xl font-bold tracking-tight">

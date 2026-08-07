@@ -34,6 +34,12 @@
    these override.
    ───────────────────────────────────────────────────────────────────────── */
 
+:root {
+  /* The workspace redefines --text-muted for its own scope, so the app-level
+     value has to be reachable under a name that is not being shadowed. */
+  --nx-text-muted: var(--text-muted);
+}
+
 .resume-workspace {
   /* ── Surfaces ────────────────────────────────────────────────────────── */
   --canvas: var(--bg-canvas);
@@ -47,8 +53,11 @@
 
   /* ── Text ───────────────────────────────────────────────────────────── */
   --text: var(--text-primary);
-  --text-secondary: color-mix(in srgb, var(--text-primary) 70%, var(--text-muted));
-  --text-muted: var(--text-muted);
+  --text-secondary: color-mix(in srgb, var(--text-primary) 70%, var(--nx-text-muted));
+  /* Aliased via :root below. `--text-muted: var(--text-muted)` here would be
+     a self-reference: a custom property that reads itself forms a cycle and
+     resolves to nothing, taking every muted label and --gray-500 with it. */
+  --text-muted: var(--nx-text-muted);
 
   /* ── Borders and rings ──────────────────────────────────────────────── */
   --border: var(--border-color);
@@ -68,7 +77,7 @@
   --gray-200: var(--bg-card);
   --gray-300: color-mix(in srgb, var(--bg-card) 84%, var(--text-primary));
   --gray-400: color-mix(in srgb, var(--bg-card) 65%, var(--text-primary));
-  --gray-500: var(--text-muted);
+  --gray-500: var(--nx-text-muted);
   --gray-600: color-mix(in srgb, var(--text-muted) 70%, var(--text-primary));
   --gray-700: color-mix(in srgb, var(--text-muted) 40%, var(--text-primary));
   --gray-800: color-mix(in srgb, var(--text-primary) 88%, var(--bg-canvas));
@@ -169,3 +178,167 @@
   --gray-800: #1f2937;
   --gray-900: #111827;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Component rules. These predate the token work above and were lost when
+   this file was rewritten for theming — the rewrite replaced the whole file
+   when it should only have replaced the palette blocks, taking the editor
+   layout, inputs, toast, toolbar chip and template modal with it.
+   ═══════════════════════════════════════════════════════════════════════ */
+/* Inputs and textareas inherit the light field colour from several rules;
+   pin them here so every control matches regardless of which rule wins. */
+.resume-workspace .input,
+.resume-workspace input,
+.resume-workspace textarea,
+.resume-workspace select {
+  background: var(--field-bg);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.resume-workspace input::placeholder,
+.resume-workspace textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* The A4 document itself stays white — it's a printed page, and the preview
+   must match what actually exports to PDF/DOCX. */
+.resume-workspace .preview .page,
+.resume-workspace .resume,
+.resume-workspace .tpl-card__frame {
+  color-scheme: light;
+}
+
+/* Template thumbnails render the real document, so keep their frame light. */
+.resume-workspace .tpl-card__frame {
+  background: #fff;
+}
+
+/* Upstream paints the toast with --gray-900 (black on cream). Inverting the
+   ramp made that white-on-white — a blank bar at the bottom of the screen.
+   Pin it to a raised dark surface instead. */
+.resume-workspace .toast {
+  background: var(--surface-sunken);
+  color: var(--gray-900);
+  border-color: var(--border-strong);
+}
+
+/* ── Independent pane scrolling ───────────────────────────────────────────
+   Upstream `.app` is `height: 100vh` because it owned the whole viewport.
+   Inside NxtGen's dashboard it sits in a padded, scrolling <main>, so the
+   outer container scrolled the entire workspace as one block and the panes
+   never got their own scrollbars.
+
+   Filling the parent instead lets `.editor` and `.preview__scroll` keep the
+   independent overflow they already declare.
+   ──────────────────────────────────────────────────────────────────────── */
+/* NxtGen's dashboard renders <Outlet/> inside an unsized `p-8` div, so a
+   percentage height has nothing to resolve against. Size against the viewport
+   minus the 64px dashboard header, and cancel the wrapper's 2rem padding so
+   the editor runs full-bleed like it does upstream.
+
+   Applied ONLY when the editor is mounted (`.app` exists in that branch and
+   not on the landing deck) — the deck is a normal, page-scrolling layout and
+   full-bleed sizing pushed its grid off-screen. */
+.resume-workspace:has(> .app) {
+  /* --dash-chrome is set by DashboardLayout and counts the fixed bars above
+     this pane: one 4rem dashboard header normally, 8rem for site users, who
+     also get the public menu bar. Hardcoding 4rem made the editor a full
+     header taller than its container for them, pushing the toolbar and the
+     preview off-screen. */
+  height: calc(100vh - var(--dash-chrome, 4rem));
+  margin: -2rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.resume-workspace .app {
+  height: 100%;
+  min-height: 0;
+}
+
+.resume-workspace .workspace {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Each pane scrolls on its own. */
+.resume-workspace .editor {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.resume-workspace .preview {
+  min-height: 0;
+}
+
+.resume-workspace .preview__scroll {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── Topbar: template button + live ATS chip ──────────────────────────────
+   The dock rail these replaced is gone; Template opens a modal and the ATS
+   chip links through to the full checker page. */
+.resume-workspace .tb-tpl {
+  display: flex; align-items: center; gap: 8px;
+  margin-left: var(--space-3);
+  padding: 7px 12px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: inherit; font-size: var(--text-sm); font-weight: 600;
+  color: var(--gray-800); cursor: pointer;
+  transition: border-color .14s ease, color .14s ease;
+}
+.resume-workspace .tb-tpl:hover { border-color: var(--primary); color: var(--primary); }
+.resume-workspace .tb-tpl svg { width: 15px; height: 15px; flex: none; }
+
+.resume-workspace .tb-ats {
+  display: flex; align-items: center; gap: 10px;
+  margin-right: var(--space-3);
+  padding: 5px 12px 5px 6px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-family: inherit; cursor: pointer;
+  transition: border-color .14s ease;
+}
+.resume-workspace .tb-ats:hover { border-color: var(--border-strong); }
+
+/* Score dial drawn with a conic gradient — no extra markup or library. */
+.resume-workspace .tb-ats__ring {
+  position: relative; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 50%; flex: none;
+  background: conic-gradient(var(--band) calc(var(--pct) * 1%), var(--border) 0);
+}
+.resume-workspace .tb-ats__ring::after {
+  content: ""; position: absolute; inset: 3px;
+  border-radius: 50%; background: var(--surface-sunken);
+}
+.resume-workspace .tb-ats__ring b {
+  position: relative; z-index: 1;
+  font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--band);
+}
+.resume-workspace .tb-ats__txt { display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
+.resume-workspace .tb-ats__lbl { font-size: 11px; font-weight: 700; color: var(--gray-800); }
+.resume-workspace .tb-ats__sub { font-size: 10px; color: var(--text-muted); }
+
+.resume-workspace .tb-ats--good { --band: var(--success-500); }
+.resume-workspace .tb-ats--mid  { --band: var(--warning-500); }
+.resume-workspace .tb-ats--low  { --band: var(--danger-500); }
+
+/* ── Template picker modal ───────────────────────────────────────────────── */
+.resume-workspace .tpl-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: var(--space-6); }
+.resume-workspace .tpl-modal__scrim { position: absolute; inset: 0; background: var(--overlay); backdrop-filter: blur(3px); }
+.resume-workspace .tpl-modal__panel {
+  position: relative; display: flex; flex-direction: column; gap: var(--space-4);
+  width: min(1080px, 100%); max-height: 86vh; padding: var(--space-6);
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+}
+.resume-workspace .tpl-modal__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.resume-workspace .tpl-modal__title { margin: 0; font-size: var(--text-md); font-weight: 800; color: var(--gray-900); }
+.resume-workspace .tpl-modal__note { margin: 4px 0 0; font-size: var(--text-xs); color: var(--text-muted); max-width: 62ch; line-height: 1.5; }
+.resume-workspace .tpl-modal__body { overflow-y: auto; min-height: 0; padding-right: 4px; }

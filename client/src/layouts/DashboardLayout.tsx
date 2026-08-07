@@ -93,8 +93,15 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
   const showSiteNav = variant === 'tools' && (!user || role === 'site_user');
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-bg-canvas text-white">
-      {showSiteNav && <SiteNav />}
+    /* --dash-chrome is the total height of the fixed bars above the routed
+       content: the dashboard's own 4rem header, plus another 4rem of public
+       menu bar when site users get one. Panes that size themselves against
+       the viewport read it rather than assuming a single header. */
+    <div
+      className="flex h-screen flex-col overflow-hidden bg-bg-canvas text-white"
+      style={{ ['--dash-chrome' as string]: showSiteNav ? '8rem' : '4rem' }}
+    >
+      {showSiteNav && <SiteNav fullBleed />}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
       {/* Sidebar */}
