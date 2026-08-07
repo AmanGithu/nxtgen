@@ -22,6 +22,13 @@ app.use(cors({
   origin: env.CLIENT_URL,
   credentials: true,
 }));
+/* Payment webhooks must keep their exact bytes.
+   A provider signs the raw request body, so this has to run BEFORE
+   express.json(): once the JSON is parsed and re-serialised the bytes differ
+   (key order, whitespace, unicode escaping) and every genuine callback fails
+   to verify. Mounted narrowly so nothing else loses its parsed body. */
+app.use('/api/webhooks', express.raw({ type: 'application/json', limit: '1mb' }));
+
 // Base64 JSON bodies blow past the 100kb default: audio chunks posted to
 // /iassist/transcribe (up to ~7MB of base64), and resume/LinkedIn imports
 // (a 200kb PDF arrives as ~290kb of body).

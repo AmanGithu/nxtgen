@@ -5,53 +5,47 @@ import { AppError } from '../middleware/errorHandler';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';
 import { entitlementService } from '../services/entitlementService';
+import { pricingService } from '../services/pricingService';
+import { resolveDisplayCountry } from '../lib/geo';
 
 const router = Router();
-router.use(authenticate);
 
 /**
- * Self-serve upgrade — a STOPGAP until real payment collection exists.
+ * Public price list, localised to the visitor.
  *
- * There is no checkout yet, so "Upgrade" grants the plan outright rather than
- * dead-ending the user at a pricing page they cannot act on. That means any
- * signed-in account can award itself a paid plan, which is obviously not
- * acceptable once money is involved: it is therefore gated on
- * ALLOW_SELF_UPGRADE, which must be turned off in the same change that wires
- * up a payment provider.
+ * Registered above `authenticate` on purpose: the pricing page is the main
+ * thing a signed-out visitor comes to look at, and requiring a login to see
+ * what something costs would hide the product behind the paywall it is meant
+ * to sell.
+ *
+ * `country` and `currency` are display hints only. Neither is trusted when the
+ * charge is actually built — that comes from the billing address at checkout,
+ * or anyone could pick the cheapest market from a dropdown.
  */
-router.post('/upgrade', async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
+router.get('/pricing', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!env.ALLOW_SELF_UPGRADE) {
-      throw new AppError('Upgrades are not available yet. Please contact support.', 503);
-    }
-
-    const userId = req.user.id;
-    const plan = 'PRO' as const;
-
-    const existing = await prisma.subscription.findFirst({
-      where: { userId, status: 'ACTIVE' },
-      orderBy: { startDate: 'desc' },
-    });
-
-    if (existing) {
-      await prisma.subscription.update({ where: { id: existing.id }, data: { plan } });
-    } else {
-      await prisma.subscription.create({
-        data: { userId, plan, status: 'ACTIVE', startDate: new Date() },
-      });
-    }
-
-    // Loud on purpose: every one of these is revenue that was not collected.
-    logger.warn(`[billing] SELF-UPGRADE granted ${plan} to ${req.user.email} — no payment taken`);
-
-    res.json({
-      success: true,
-      message: 'Your plan is active. Everything is unlocked.',
-      ...(await entitlementService.snapshot(userId)),
-    });
+    const country = resolveDisplayCountry(req, (req.query.country as string) || null);
+    const currency = (req.query.currency as string) || null;
+    res.json({ success: true, ...(await pricingService.catalogue(country, currency)) });
   } catch (error) {
     next(error);
   }
+});
+
+router.use(authenticate);
+
+/**
+ * The old POST /upgrade granted a paid plan outright, with no payment taken —
+ * a stopgap so the Upgrade button did not dead-end while checkout was being
+ * built. It is gone now that money is actually collected: leaving a route that
+ * awards a paid plan for free next to a live payment provider is a hole, and a
+ * disabled flag is one deploy away from being switched back on by accident.
+ *
+ * Checkout lives at POST /checkout. Plans are granted only by a verified
+ * webhook, never by a client call.
+ */
+router.post('/upgrade', (_req: Request, _res: Response, next: NextFunction) => {
+  next(new AppError('This endpoint has been replaced by /billing/checkout.', 410));
 });
 
 /** Current tier, limits and usage — drives the counters and lock states. */

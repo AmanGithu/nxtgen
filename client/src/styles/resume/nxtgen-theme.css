@@ -1,313 +1,171 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   NxtGen dark theme for the ported resume workspace.
+   Bridges the ported résumé workspace onto the app's theme system.
 
-   The upstream MindSync CSS is entirely token-driven, so re-theming is a
-   matter of overriding the custom properties at the same scope rather than
-   touching any of the 600+ rules that consume them. This file must load
-   AFTER resume-workspace.css.
+   The workspace came from MindSync with its own palette, so it used to carry
+   a full set of hardcoded colours plus one override block per theme. That
+   only ever covered `dark` and `light` — pick `light_new` or `light_green`
+   and the tools fell back to the dark base while the rest of the app went
+   light, which is exactly the mismatch this replaces.
 
-   The greys are inverted: --gray-50 is the darkest surface and --gray-900 is
-   near-white text, which is what the upstream rules assume (low number =
-   background, high number = foreground).
+   Nothing here hardcodes a theme colour. Every token is derived from the four
+   variables ThemeProvider writes onto :root (--bg-canvas, --bg-surface,
+   --bg-card, --text-primary, --text-muted, --border-color, --brand-orange),
+   so a theme added later is picked up with no change to this file and no new
+   block to forget.
+
+   Three ideas do all the work:
+
+   1. The grey ramp runs background → foreground, matching what the upstream
+      rules assume (low number = surface, high number = text). Anchoring 50 to
+      the canvas and 900 to the text colour makes it invert on its own: on a
+      dark theme the ramp runs dark→light, on a light theme light→dark. That
+      inversion is what previously needed a hand-written block per theme.
+
+   2. Mid-tones mix *toward --text-primary* rather than toward black or white.
+      Mixing toward the text colour always increases contrast against the
+      background whichever way the theme runs, so one expression stays legible
+      on both polarities.
+
+   3. Tints mix *into --bg-canvas*, so a "light green wash" is a genuinely
+      subtle wash on whatever the page actually is, instead of a pale mint
+      square sitting on a dark panel.
+
+   Must load AFTER resume-workspace.css, which defines the upstream defaults
+   these override.
    ───────────────────────────────────────────────────────────────────────── */
 
 .resume-workspace {
-  /* Accent: NxtGen orange replaces PAVY ink */
-  --primary-50: #2a1a08;
-  --primary-100: #3d2409;
-  --primary-200: #5c360c;
-  --primary-300: #8a5211;
-  --primary-500: #f5820b;
-  --primary-600: #f5820b;
-  --primary-700: #ff9f43;
-  --primary: #f5820b;
-  --primary-hover: #ff9f43;
+  /* ── Surfaces ────────────────────────────────────────────────────────── */
+  --canvas: var(--bg-canvas);
+  --surface: var(--bg-surface);
+  --surface-subtle: color-mix(in srgb, var(--bg-surface) 60%, var(--bg-canvas));
+  --surface-sunken: var(--bg-canvas);
+  --field-bg: var(--bg-card);
 
-  /* Neutrals inverted for dark canvas */
-  --gray-50: #0a0a0f;
-  --gray-100: #111118;
-  --gray-150: #16161f;
-  --gray-200: #1a1a24;
-  --gray-300: #23232f;
-  --gray-400: #3a3a48;
-  --gray-500: #6b7280;
-  --gray-600: #9ca3af;
-  --gray-700: #c9ccd4;
-  --gray-800: #e5e7eb;
-  --gray-900: #ffffff;
+  /* Also consumed by the interview view, which never defined it. */
+  --bg: var(--bg-canvas);
 
-  /* Score states — tuned for legibility on dark */
-  --success-50: #06231a;
-  --success-100: #0a3527;
+  /* ── Text ───────────────────────────────────────────────────────────── */
+  --text: var(--text-primary);
+  --text-secondary: color-mix(in srgb, var(--text-primary) 70%, var(--text-muted));
+  --text-muted: var(--text-muted);
+
+  /* ── Borders and rings ──────────────────────────────────────────────── */
+  --border: var(--border-color);
+  --border-strong: color-mix(in srgb, var(--text-primary) 28%, transparent);
+  --ring: color-mix(in srgb, var(--brand-orange) 45%, transparent);
+  --doc-ring: color-mix(in srgb, var(--text-primary) 12%, transparent);
+  --wash-hover: color-mix(in srgb, var(--text-primary) 6%, transparent);
+
+  /* Modal scrim. Always darkens, on every theme — a scrim that lightened on
+     a light theme would not read as "behind a dialog". */
+  --overlay: rgba(0, 0, 0, 0.55);
+
+  /* ── Grey ramp: canvas → text ───────────────────────────────────────── */
+  --gray-50: var(--bg-canvas);
+  --gray-100: var(--bg-surface);
+  --gray-150: color-mix(in srgb, var(--bg-surface) 65%, var(--bg-card));
+  --gray-200: var(--bg-card);
+  --gray-300: color-mix(in srgb, var(--bg-card) 84%, var(--text-primary));
+  --gray-400: color-mix(in srgb, var(--bg-card) 65%, var(--text-primary));
+  --gray-500: var(--text-muted);
+  --gray-600: color-mix(in srgb, var(--text-muted) 70%, var(--text-primary));
+  --gray-700: color-mix(in srgb, var(--text-muted) 40%, var(--text-primary));
+  --gray-800: color-mix(in srgb, var(--text-primary) 88%, var(--bg-canvas));
+  --gray-900: var(--text-primary);
+
+  /* ── Brand ──────────────────────────────────────────────────────────── */
+  --primary: var(--brand-orange);
+  --primary-hover: color-mix(in srgb, var(--brand-orange) 80%, var(--text-primary));
+  --primary-50: color-mix(in srgb, var(--brand-orange) 10%, var(--bg-canvas));
+  --primary-100: color-mix(in srgb, var(--brand-orange) 18%, var(--bg-canvas));
+  --primary-200: color-mix(in srgb, var(--brand-orange) 30%, var(--bg-canvas));
+  --primary-300: color-mix(in srgb, var(--brand-orange) 50%, var(--bg-canvas));
+  /* Was consumed by the avatar gradient but never defined anywhere, so that
+     gradient silently did nothing. */
+  --primary-400: color-mix(in srgb, var(--brand-orange) 75%, var(--bg-canvas));
+  --primary-500: var(--brand-orange);
+  --primary-600: color-mix(in srgb, var(--brand-orange) 85%, var(--text-primary));
+  --primary-700: color-mix(in srgb, var(--brand-orange) 70%, var(--text-primary));
+
+  /* Score ring sweep — also previously undefined, so the ring drew only its
+     track and never its filled arc. */
+  --band: var(--brand-orange);
+
+  /* ── Status ─────────────────────────────────────────────────────────── */
+  /* Hues stay fixed: green means good in every theme, and tying them to the
+     brand colour would make a green-branded theme unable to signal danger.
+     Only their lightness follows the theme, by the same two rules above. */
+  --success-50: color-mix(in srgb, #22c55e 10%, var(--bg-canvas));
+  --success-100: color-mix(in srgb, #22c55e 20%, var(--bg-canvas));
   --success-500: #22c55e;
-  --success-600: #16a34a;
-  --success-700: #4ade80;
-  --warning-50: #2a1a05;
-  --warning-100: #3d2607;
+  --success-600: color-mix(in srgb, #22c55e 82%, var(--text-primary));
+  --success-700: color-mix(in srgb, #22c55e 64%, var(--text-primary));
+
+  --warning-50: color-mix(in srgb, #f59e0b 10%, var(--bg-canvas));
+  --warning-100: color-mix(in srgb, #f59e0b 20%, var(--bg-canvas));
   --warning-500: #f59e0b;
-  --warning-600: #d97706;
-  --warning-700: #fbbf24;
-  --danger-50: #2a0d0d;
-  --danger-100: #3d1212;
+  --warning-600: color-mix(in srgb, #f59e0b 82%, var(--text-primary));
+  --warning-700: color-mix(in srgb, #f59e0b 64%, var(--text-primary));
+
+  --danger-50: color-mix(in srgb, #ef4444 10%, var(--bg-canvas));
+  --danger-100: color-mix(in srgb, #ef4444 20%, var(--bg-canvas));
   --danger-500: #ef4444;
-  --danger-600: #dc2626;
+  --danger-600: color-mix(in srgb, #ef4444 82%, var(--text-primary));
+  --danger-700: color-mix(in srgb, #ef4444 64%, var(--text-primary));
 
-  /* Surfaces & borders — match NxtGen's canvas/surface/card ramp */
-  --canvas: #0a0a0f;
-  --surface: #111118;
-  --surface-subtle: #16161f;
-  --surface-sunken: #1a1a24;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-
-  /* Form fields and body text. These sit in a separate token block upstream
-     and were the reason inputs kept rendering cream on the dark canvas. */
-  --field-bg: #1a1a24;
-  --text: #ffffff;
-  --text-secondary: #c9ccd4;
-  --text-muted: #9ca3af;
-
-  /* Focus ring and shadows retuned for a dark surface */
-  --ring: 0 0 0 3px rgba(245, 130, 11, 0.35);
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 14px 38px rgba(0, 0, 0, 0.6);
-
-  /* Chrome around the A4 page: a hairline ring plus a drop shadow. Both must
-     flip — a white ring vanishes on a light canvas, and a near-black shadow
-     reads as grime rather than depth. */
-  --doc-ring: rgba(255, 255, 255, 0.05);
-  --doc-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
-  --doc-shadow-sm: 0 8px 20px -6px rgba(0, 0, 0, 0.7);
-  --wash-hover: rgba(255, 255, 255, 0.06);
-
-  background: var(--canvas);
-  color: var(--gray-900);
+  /* ── Elevation ──────────────────────────────────────────────────────── */
+  /* Shadows stay black and vary only in opacity. A "light" shadow tinted
+     toward the text colour turns into a glow on dark themes, which reads as
+     a focus state rather than depth. */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.22);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.32);
+  --doc-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  --doc-shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.22);
 }
 
-/* Inputs and textareas inherit the light field colour from several rules;
-   pin them here so every control matches regardless of which rule wins. */
-.resume-workspace .input,
-.resume-workspace input,
-.resume-workspace textarea,
-.resume-workspace select {
-  background: var(--field-bg);
-  color: var(--text);
-  border-color: var(--border-strong);
-}
+/* ────────────────────────────────────────────────────────────────────────
+   The résumé sheet is exempt from theming.
 
-.resume-workspace input::placeholder,
-.resume-workspace textarea::placeholder {
-  color: var(--text-muted);
-}
+   It previews a printed page and the exported PDF, so it stays white with
+   dark text on every theme — theming it would show the user something other
+   than the file they download, and would print white-on-white.
 
-/* The A4 document itself stays white — it's a printed page, and the preview
-   must match what actually exports to PDF/DOCX. */
-.resume-workspace .preview .page,
-.resume-workspace .resume,
-.resume-workspace .tpl-card__frame {
-  color-scheme: light;
-}
+   `.resume` in resume-templates.css already hardcodes its own background and
+   colour, and none of the template rules read a theme token, so today this
+   block changes nothing. It is a guard, not a fix: the tokens above are now
+   theme-dependent, so the first template rule to reach for `var(--gray-700)`
+   would silently render light grey on white paper in a dark theme. Resetting
+   the ramp to fixed print values at the sheet boundary makes that impossible
+   rather than merely unlikely.
 
-/* Template thumbnails render the real document, so keep their frame light. */
-.resume-workspace .tpl-card__frame {
-  background: #fff;
-}
+   `color` is restated because custom properties do not retroactively change
+   an already-inherited value — the workspace resolved `color: var(--text)` to
+   its own text colour, and descendants inherit that resolved colour, not the
+   expression. */
+.resume-workspace .resume-doc,
+.resume-workspace .resume {
+  color: #1a1a1a;
 
-/* Upstream paints the toast with --gray-900 (black on cream). Inverting the
-   ramp made that white-on-white — a blank bar at the bottom of the screen.
-   Pin it to a raised dark surface instead. */
-.resume-workspace .toast {
-  background: var(--surface-sunken);
-  color: var(--gray-900);
-  border-color: var(--border-strong);
-}
-
-/* ── Independent pane scrolling ───────────────────────────────────────────
-   Upstream `.app` is `height: 100vh` because it owned the whole viewport.
-   Inside NxtGen's dashboard it sits in a padded, scrolling <main>, so the
-   outer container scrolled the entire workspace as one block and the panes
-   never got their own scrollbars.
-
-   Filling the parent instead lets `.editor` and `.preview__scroll` keep the
-   independent overflow they already declare.
-   ──────────────────────────────────────────────────────────────────────── */
-/* NxtGen's dashboard renders <Outlet/> inside an unsized `p-8` div, so a
-   percentage height has nothing to resolve against. Size against the viewport
-   minus the 64px dashboard header, and cancel the wrapper's 2rem padding so
-   the editor runs full-bleed like it does upstream.
-
-   Applied ONLY when the editor is mounted (`.app` exists in that branch and
-   not on the landing deck) — the deck is a normal, page-scrolling layout and
-   full-bleed sizing pushed its grid off-screen. */
-.resume-workspace:has(> .app) {
-  height: calc(100vh - 4rem);
-  margin: -2rem;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.resume-workspace .app {
-  height: 100%;
-  min-height: 0;
-}
-
-.resume-workspace .workspace {
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* Each pane scrolls on its own. */
-.resume-workspace .editor {
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.resume-workspace .preview {
-  min-height: 0;
-}
-
-.resume-workspace .preview__scroll {
-  overflow-y: auto;
-  min-height: 0;
-}
-
-/* ── Topbar: template button + live ATS chip ──────────────────────────────
-   The dock rail these replaced is gone; Template opens a modal and the ATS
-   chip links through to the full checker page. */
-.resume-workspace .tb-tpl {
-  display: flex; align-items: center; gap: 8px;
-  margin-left: var(--space-3);
-  padding: 7px 12px;
-  background: var(--surface-sunken);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-family: inherit; font-size: var(--text-sm); font-weight: 600;
-  color: var(--gray-800); cursor: pointer;
-  transition: border-color .14s ease, color .14s ease;
-}
-.resume-workspace .tb-tpl:hover { border-color: var(--primary); color: var(--primary); }
-.resume-workspace .tb-tpl svg { width: 15px; height: 15px; flex: none; }
-
-.resume-workspace .tb-ats {
-  display: flex; align-items: center; gap: 10px;
-  margin-right: var(--space-3);
-  padding: 5px 12px 5px 6px;
-  background: var(--surface-sunken);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  font-family: inherit; cursor: pointer;
-  transition: border-color .14s ease;
-}
-.resume-workspace .tb-ats:hover { border-color: var(--border-strong); }
-
-/* Score dial drawn with a conic gradient — no extra markup or library. */
-.resume-workspace .tb-ats__ring {
-  position: relative; display: grid; place-items: center;
-  width: 32px; height: 32px; border-radius: 50%; flex: none;
-  background: conic-gradient(var(--band) calc(var(--pct) * 1%), var(--border) 0);
-}
-.resume-workspace .tb-ats__ring::after {
-  content: ""; position: absolute; inset: 3px;
-  border-radius: 50%; background: var(--surface-sunken);
-}
-.resume-workspace .tb-ats__ring b {
-  position: relative; z-index: 1;
-  font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums;
-  color: var(--band);
-}
-.resume-workspace .tb-ats__txt { display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
-.resume-workspace .tb-ats__lbl { font-size: 11px; font-weight: 700; color: var(--gray-800); }
-.resume-workspace .tb-ats__sub { font-size: 10px; color: var(--text-muted); }
-
-.resume-workspace .tb-ats--good { --band: var(--success-500); }
-.resume-workspace .tb-ats--mid  { --band: var(--warning-500); }
-.resume-workspace .tb-ats--low  { --band: var(--danger-500); }
-
-/* ── Template picker modal ───────────────────────────────────────────────── */
-.resume-workspace .tpl-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: var(--space-6); }
-.resume-workspace .tpl-modal__scrim { position: absolute; inset: 0; background: var(--overlay); backdrop-filter: blur(3px); }
-.resume-workspace .tpl-modal__panel {
-  position: relative; display: flex; flex-direction: column; gap: var(--space-4);
-  width: min(1080px, 100%); max-height: 86vh; padding: var(--space-6);
-  background: var(--surface); border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
-}
-.resume-workspace .tpl-modal__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
-.resume-workspace .tpl-modal__title { margin: 0; font-size: var(--text-md); font-weight: 800; color: var(--gray-900); }
-.resume-workspace .tpl-modal__note { margin: 4px 0 0; font-size: var(--text-xs); color: var(--text-muted); max-width: 62ch; line-height: 1.5; }
-.resume-workspace .tpl-modal__body { overflow-y: auto; min-height: 0; padding-right: 4px; }
-
-/* ─── Light theme ────────────────────────────────────────────────────────────
-   The dark block above INVERTS the upstream ramp (low number = background).
-   Light mode restores the natural direction, so nothing below this point
-   changes — every rule already reads through these tokens.
-
-   Values are NxtGen's neutral light palette rather than upstream's cream, so
-   the workspace matches the rest of the app instead of reverting to PAVY's
-   paper tone. Higher specificity than the `.resume-workspace` block, so it
-   wins regardless of source order.
-   ──────────────────────────────────────────────────────────────────────────── */
-:root[data-theme='light'] .resume-workspace {
-  /* Orange is darkened for contrast: #f5820b on white is ~2.4:1 and fails AA
-     wherever it is used as text or a small icon. */
-  --primary-50: #fff5e9;
-  --primary-100: #ffe6c9;
-  --primary-200: #ffd0a0;
-  --primary-300: #f5a45c;
-  --primary-500: #a85400;
-  --primary-600: #8f4900;
-  --primary-700: #703a00;
-  --primary: #a85400;
-  --primary-hover: #8f4900;
-
-  /* Natural direction: 50 = lightest surface, 900 = near-black text. */
-  --gray-50: #f7f8fa;
-  --gray-100: #f1f3f6;
-  --gray-150: #eceff3;
-  --gray-200: #e4e7ec;
-  --gray-300: #d5d9e0;
-  --gray-400: #b0b6c0;
-  --gray-500: #6b7280;
-  --gray-600: #5b6472;
-  --gray-700: #414a58;
-  --gray-800: #253040;
-  --gray-900: #0f172a;
-
-  --success-50: #eafaf1;
-  --success-100: #cdf2de;
-  --success-500: #16a34a;
-  --success-600: #15803d;
-  --success-700: #166534;
-  --warning-50: #fff8e8;
-  --warning-100: #ffefc7;
-  --warning-500: #d97706;
-  --warning-600: #b45309;
-  --warning-700: #92400e;
-  --danger-50: #fdecec;
-  --danger-100: #fbd5d5;
-  --danger-500: #dc2626;
-  --danger-600: #b91c1c;
-
-  --canvas: #eceff3;
+  --canvas: #ffffff;
   --surface: #ffffff;
-  --surface-subtle: #f7f8fa;
-  --surface-sunken: #eceff3;
-  --border: rgba(15, 23, 42, 0.16);
-  --border-strong: rgba(15, 23, 42, 0.28);
-
-  --field-bg: #ffffff;
-  --text: #0f172a;
-  --text-secondary: #414a58;
-  --text-muted: #5b6472;
-
-  --ring: 0 0 0 3px rgba(168, 84, 0, 0.28);
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.10);
-  --shadow-lg: 0 14px 38px rgba(15, 23, 42, 0.16);
-
-  --doc-ring: rgba(15, 23, 42, 0.10);
-  --doc-shadow: 0 18px 44px -18px rgba(15, 23, 42, 0.28);
-  --doc-shadow-sm: 0 6px 16px -6px rgba(15, 23, 42, 0.22);
-  --wash-hover: rgba(15, 23, 42, 0.05);
+  --surface-subtle: #f9fafb;
+  --surface-sunken: #f3f4f6;
+  --text: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --border: rgba(17, 24, 39, 0.14);
+  --border-strong: rgba(17, 24, 39, 0.28);
+  --gray-50: #ffffff;
+  --gray-100: #f9fafb;
+  --gray-150: #f5f6f8;
+  --gray-200: #f3f4f6;
+  --gray-300: #e5e7eb;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
 }

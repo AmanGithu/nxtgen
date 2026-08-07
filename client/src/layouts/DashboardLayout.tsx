@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { normalizeRole } from '../lib/roles';
+import SiteNav from '../components/SiteNav';
 import { ThemeSelector } from '../theme';
 import { clsx } from 'clsx';
 import {
   LayoutDashboard, Users, Settings, Calendar, BookOpen,
-  Award, Briefcase, FileText, Menu, X, LogOut, Lock, Mic, Bot, Cpu, Layers
+  Award, Briefcase, FileText, Menu, X, LogOut, Lock, Mic, Bot, Cpu, Layers, Tag
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -42,6 +44,7 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
     { name: 'Cert Inquiries', path: '/dashboard/admin/cert-inquiries', icon: FileText },
     { name: 'Menu Editor', path: '/dashboard/admin/menu', icon: Menu },
     { name: 'AI Config', path: '/dashboard/admin/ai-config', icon: Cpu },
+    { name: 'Pricing', path: '/dashboard/admin/pricing', icon: Tag },
   ];
 
   const studentLinks: NavLinkItem[] = [
@@ -78,8 +81,22 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
   const links =
     variant === 'admin' ? adminLinks : variant === 'tools' ? toolLinks : studentLinks;
 
+  /* The public site menu, carried into the AI toolkit for site users.
+
+     They are the only audience it makes sense for: the toolkit is their whole
+     product, and without it the marketing site becomes unreachable once they
+     enter a tool. Students and admins have their own consoles and their own
+     navigation, so a second menu offering Courses and Corporate would just be
+     a way to lose their place. Signed-in or not makes no difference — a
+     visitor who has not signed up yet is exactly who most needs the way back. */
+  const role = normalizeRole(user?.role);
+  const showSiteNav = variant === 'tools' && (!user || role === 'site_user');
+
   return (
-    <div className="flex h-screen overflow-hidden bg-bg-canvas text-white">
+    <div className="flex h-screen flex-col overflow-hidden bg-bg-canvas text-white">
+      {showSiteNav && <SiteNav />}
+
+      <div className="flex min-h-0 flex-1 overflow-hidden">
       {/* Sidebar */}
       <aside
         className={clsx(
@@ -87,8 +104,10 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
           isSidebarOpen ? "w-64" : "w-20"
         )}
       >
-        <div className="flex h-16 items-center justify-between px-4">
-          {isSidebarOpen && (
+        <div className={clsx('flex items-center px-4', showSiteNav ? 'h-14 justify-end' : 'h-16 justify-between')}>
+          {/* The site nav already carries the masthead directly above this, so
+              repeating it here would put the same logo on screen twice. */}
+          {isSidebarOpen && !showSiteNav && (
             /* A masthead people expect to click — it was plain text, so the
                only way out of the dashboard was the browser's back button. */
             <Link
@@ -180,12 +199,15 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
       <main className="flex-1 overflow-y-auto">
         <div className="h-16 border-b border-white/[0.08] bg-bg-surface/80 backdrop-blur-md sticky top-0 z-10 flex items-center justify-between px-8">
           <h1 className="text-lg font-medium capitalize">{location.pathname.split('/').pop() || 'Dashboard'}</h1>
-          <ThemeSelector variant="dropdown" />
+          {/* The site nav has its own theme control, and two identical
+              selectors stacked a row apart reads as a bug. */}
+          {!showSiteNav && <ThemeSelector variant="dropdown" />}
         </div>
         <div className="p-8">
           <Outlet />
         </div>
       </main>
+      </div>
     </div>
   );
 };

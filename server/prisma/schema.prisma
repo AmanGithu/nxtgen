@@ -67,6 +67,51 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+enum PaymentProvider {
+  STRIPE
+  CASHFREE
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+  ONE_TIME
+}
+
+/// What is being sold. Each maps to a different thing being granted on payment.
+enum SkuType {
+  /// Basic / Pro / Enterprise bundles.
+  PACKAGE
+  /// A single career tool, bought à la carte and billed monthly.
+  TOOL
+  /// A seat in one batch of a course.
+  BATCH
+  /// Standalone subscription, deliberately not part of any package.
+  JOB_SUPPORT
+}
+
+/// Whether the listed amount already contains tax. Indian B2C prices are
+/// normally quoted inclusive; most other markets quote exclusive.
+enum TaxBehavior {
+  INCLUSIVE
+  EXCLUSIVE
+}
+
+/// Why a user holds a tool entitlement. Purchases expire, admin grants may not.
+enum EntitlementSource {
+  PURCHASE
+  PLAN
+  ADMIN_GRANT
+}
+
 enum CourseCategory {
   AI
   DATABASE
@@ -131,6 +176,8 @@ model User {
   contextDocuments ContextDocument[]
   desktopAuthCodes DesktopAuthCode[]
   featureUsage     FeatureUsage[]
+  payments         Payment[]
+  toolEntitlements ToolEntitlement[]
 
   @@index([email])
   @@index([role])
@@ -209,20 +256,29 @@ model Course {
 }
 
 model Batch {
-  id           String      @id @default(uuid())
-  name         String
-  courseId      String
-  startDate    DateTime
-  endDate      DateTime    // Max date until which students have access
-  maxStudents  Int         @default(30)
-  driveFolder  String?     // Google Drive folder URL
-  status       BatchStatus @default(DRAFT)
+  id          String      @id @default(uuid())
+  name        String
+  courseId    String
+  startDate   DateTime
+  endDate     DateTime // Max date until which students have access
+  maxStudents Int         @default(30)
+  /// Seats claimed, incremented atomically at checkout.
+  ///
+  /// Deliberately not derived from counting BatchStudent rows: two people
+  /// paying for the last seat at the same moment would both pass a count-then-
+  /// insert check and both be charged, and refunding one of them is a far
+  /// worse outcome than declining a checkout. A conditional
+  /// `UPDATE ... WHERE seatsTaken < maxStudents` makes the claim and the check
+  /// a single statement.
+  seatsTaken  Int         @default(0)
+  driveFolder String? // Google Drive folder URL
+  status      BatchStatus @default(DRAFT)
   /// Pre-launch webinar for prospects. Marketing-only; ignored by operations.
-  webinarDate  DateTime?
+  webinarDate DateTime?
   /// Whether this batch appears on the public /upcoming-batches page.
-  isPublished  Boolean     @default(false)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  isPublished Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   course    Course          @relation(fields: [courseId], references: [id])
   students  BatchStudent[]
@@ -401,10 +457,27 @@ model Subscription {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
+  /// Null for plans granted by an admin rather than bought.
+  provider               PaymentProvider?
+  providerSubscriptionId String?
+  /// Paid through this date. Access is checked against this, not `endDate`,
+  /// which stays the admin-set cutoff.
+  currentPeriodEnd       DateTime?
+  autoRenew              Boolean          @default(true)
+  /// Set when the user cancels: they keep access until currentPeriodEnd
+  /// rather than losing it the moment they cancel.
+  cancelAtPeriodEnd      Boolean          @default(false)
+
+  /// What is actually being charged each cycle, so a later price change does
+  /// not silently alter an existing subscriber's bill.
+  currency    String? @db.Char(3)
+  amountMinor Int?
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
+  @@index([providerSubscriptionId])
 }
 
 model CreditBalance {
@@ -598,17 +671,17 @@ model InterviewPrep {
 /// within MySQL's comfort zone and avoids a hard dependency on object storage.
 /// Swap `fileData` for an S3 key later without touching the rest of the flow.
 model InternshipApplication {
-  id            String   @id @default(uuid())
-  internshipId  String?
-  programTitle  String
-  fullName      String
-  email         String
-  phone         String
+  id             String   @id @default(uuid())
+  internshipId   String?
+  programTitle   String
+  fullName       String
+  email          String
+  phone          String
   resumeFileName String?
   resumeMimeType String?
-  fileData      Bytes?   @db.LongBlob
-  status        String   @default("NEW")
-  createdAt     DateTime @default(now())
+  fileData       Bytes?   @db.LongBlob
+  status         String   @default("NEW")
+  createdAt      DateTime @default(now())
 
   @@index([internshipId])
   @@index([createdAt(sort: Desc)])
@@ -690,21 +763,21 @@ model ContextDocument {
 }
 
 model IAssistSession {
-  id                String        @id @default(uuid())
+  id                String             @id @default(uuid())
   userId            String
   assistantId       String?
   // Snapshotted at creation. assistantId is SetNull on delete, so without these
   // a deleted assistant silently erases the attribution of every past session.
   assistantName     String?
   assistantCategory AssistantCategory?
-  status            SessionStatus @default(ACTIVE)
-  platform          String        @default("desktop")
-  startedAt         DateTime      @default(now())
+  status            SessionStatus      @default(ACTIVE)
+  platform          String             @default("desktop")
+  startedAt         DateTime           @default(now())
   endedAt           DateTime?
   durationSeconds   Int?
-  questionsAnswered Int           @default(0)
-  tokensUsed        Int           @default(0)
-  createdAt         DateTime      @default(now())
+  questionsAnswered Int                @default(0)
+  tokensUsed        Int                @default(0)
+  createdAt         DateTime           @default(now())
 
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   assistant   IAssistant?         @relation(fields: [assistantId], references: [id], onDelete: SetNull)
@@ -744,4 +817,158 @@ model DesktopAuthCode {
 
   @@index([code])
   @@index([userId])
+}
+
+// ─── Payments & Pricing ───
+
+/// A price for one SKU, in one currency, on one billing interval.
+///
+/// Prices live here rather than in code because they are provisional — the
+/// current ₹299/₹499/₹999/₹200/₹10,000 figures are placeholders and will be
+/// revised once the real costing is done. Changing a price must be an admin
+/// edit, never a deploy, so nothing in the client or server may hardcode one.
+///
+/// Every currency is priced explicitly rather than converted from INR at a
+/// live rate: conversion produces amounts like A$12.37 that drift daily and
+/// leave refunds mismatched against the original charge.
+model Price {
+  id      String  @id @default(uuid())
+  /// Stable identifier for the thing being sold:
+  ///   "package:PRO" | "tool:ats_checker" | "course:<courseId>" | "job_support"
+  /// A single always-present key rather than a set of nullable foreign keys,
+  /// because MySQL treats NULLs as distinct in a unique index — nullable
+  /// discriminators would let duplicate prices for the same SKU through.
+  skuKey  String
+  skuType SkuType
+
+  /// ISO-4217, uppercase.
+  currency    String          @db.Char(3)
+  /// Minor units — 29900 is ₹299.00. Integer so no rounding error can ever
+  /// reach an invoice.
+  amountMinor Int
+  interval    BillingInterval
+  taxBehavior TaxBehavior     @default(INCLUSIVE)
+
+  /// Stripe requires a Price object per currency; Cashfree is charged by
+  /// amount, so this stays null there.
+  stripePriceId String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items PaymentItem[]
+
+  @@unique([skuKey, currency, interval])
+  @@index([skuType])
+  @@index([currency])
+}
+
+/// One checkout attempt. Created before the user is sent to the provider and
+/// updated only by the webhook — never by the browser returning from checkout,
+/// which is a hint and is trivially forged.
+model Payment {
+  id       String          @id @default(uuid())
+  userId   String
+  provider PaymentProvider
+
+  /// The provider's own id (Stripe PaymentIntent, Cashfree order_id). Unique
+  /// so a replayed webhook cannot create a second payment.
+  providerRef    String? @unique
+  /// Sent to the provider so a retried create cannot double-charge.
+  idempotencyKey String  @unique
+
+  status      PaymentStatus @default(CREATED)
+  currency    String        @db.Char(3)
+  /// Sum of the items below, in minor units.
+  amountMinor Int
+
+  /// Country used to pick the provider and the price list. Captured at
+  /// checkout from the billing address, not from IP — IP decides what is
+  /// *displayed*, the billing country decides what is *charged*.
+  billingCountry String? @db.Char(2)
+
+  failureReason String?   @db.Text
+  paidAt        DateTime?
+  refundedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items PaymentItem[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+/// A line on a payment. Buying three tools at once is one Payment with three
+/// PaymentItems and a single charge — not three separate payments, which in
+/// India would mean three separate e-mandates to approve.
+model PaymentItem {
+  id        String  @id @default(uuid())
+  paymentId String
+  priceId   String?
+
+  /// Snapshot of what was sold and for how much. Kept on the row so a later
+  /// price change cannot rewrite the history of what someone actually paid.
+  skuKey      String
+  skuType     SkuType
+  quantity    Int     @default(1)
+  unitMinor   Int
+  amountMinor Int
+
+  /// Set for BATCH purchases — the specific batch whose seat was bought.
+  batchId String?
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  price   Price?  @relation(fields: [priceId], references: [id])
+
+  @@index([paymentId])
+  @@index([skuKey])
+}
+
+/// Every webhook we receive, stored before it is acted on.
+///
+/// Both providers retry on any non-2xx, and a retried "payment succeeded" that
+/// is processed twice grants two months for one payment. `eventId` is unique,
+/// so the second delivery collides on insert and is dropped.
+model WebhookEvent {
+  id       String          @id @default(uuid())
+  provider PaymentProvider
+  /// The provider's event id.
+  eventId  String          @unique
+  type     String
+  payload  Json
+
+  processedAt DateTime?
+  error       String?   @db.Text
+  receivedAt  DateTime  @default(now())
+
+  @@index([provider, type])
+  @@index([processedAt])
+}
+
+/// Access to a single tool, held independently of any package.
+///
+/// The tier system in entitlements.ts answers "what does this plan allow";
+/// this answers "has this person bought this one tool". The resolver takes
+/// whichever is more permissive.
+model ToolEntitlement {
+  id      String @id @default(uuid())
+  userId  String
+  /// Matches the FEATURE keys in entitlements.ts.
+  toolKey String
+
+  source    EntitlementSource @default(PURCHASE)
+  /// Null means it never lapses — only used for admin grants. Purchased tools
+  /// are monthly and always carry the paid-through date.
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, toolKey])
+  @@index([expiresAt])
 }

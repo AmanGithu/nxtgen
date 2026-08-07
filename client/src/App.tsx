@@ -45,6 +45,7 @@ const InternshipsManager = lazy(
   () => import("./pages/admin/InternshipsManager"),
 );
 const CorporateCourses = lazy(() => import("./pages/admin/CorporateCourses"));
+const PricingManager = lazy(() => import("./pages/admin/PricingManager"));
 
 // Student Modules (Slice 4)
 const StudentOverview = lazy(() => import("./pages/student/Overview"));
@@ -168,6 +169,7 @@ function App() {
                         <Route path="banners" element={<HeroBanners />} />
                         <Route path="templates" element={<ResumeTemplates />} />
                         <Route path="logs" element={<AuditLogs />} />
+                        <Route path="pricing" element={<PricingManager />} />
                         <Route
                           path="internships"
                           element={<InternshipsManager />}
