@@ -644,7 +644,10 @@ function createShortcutsWindow() {
   }
 
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-  const width = 780;
+  // 880 is the measured point at which no shortcut row wraps its key caps onto a
+  // second line; 900 leaves a little margin for DPI differences. The window is not
+  // resizable, so this width is the only thing keeping the two-column layout intact.
+  const width = 900;
   const height = 640;
 
   shortcutsWindow = new BrowserWindow({
