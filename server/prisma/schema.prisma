@@ -16,6 +16,8 @@ enum UserRole {
   ADMIN
   STUDENT
   SITE_USER
+  SITE_MANAGER
+  LEAD_MANAGER
 }
 
 enum UserStatus {
@@ -972,3 +974,63 @@ model ToolEntitlement {
   @@unique([userId, toolKey])
   @@index([expiresAt])
 }
+
+// ─── Lead Management & CMS ───
+
+enum LeadCtaType {
+  WHATSAPP
+  FORM
+  CALL
+  EVENT
+  AI_COORDINATOR
+  COURSE
+  INTERNSHIP
+  CERTIFICATION
+  TOOL
+  JOB_SUPPORT
+  CORPORATE
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  IN_PROGRESS
+  CLOSED
+}
+
+model Lead {
+  id             String      @id @default(uuid())
+  ctaType        LeadCtaType @default(FORM)
+  sourceCategory String?     // e.g. "Data Analytics", "Generative AI"
+  fullName       String
+  email          String
+  phone          String?
+  status         LeadStatus  @default(NEW)
+  metadata       Json?       // Arbitrary details (query, program name, etc.)
+  notes          String?     @db.Text
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([ctaType])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
+
+model SiteContent {
+  id             String   @id @default(uuid())
+  pageSlug       String   // e.g. "home", "courses", "about"
+  sectionKey     String   // e.g. "hero", "why_choose", "testimonials"
+  title          String?
+  contentJson    Json?    // Detailed section layout and text content
+  seoTitle       String?
+  seoDescription String?  @db.Text
+  seoKeywords    String?  @db.Text
+  version        Int      @default(1)
+  isPublished    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([pageSlug, sectionKey])
+  @@index([pageSlug])
+}
+

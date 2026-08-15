@@ -17,7 +17,9 @@ const Certifications = lazy(() => import("./pages/Certifications"));
 const Internship = lazy(() => import("./pages/Internship"));
 const UpcomingBatches = lazy(() => import("./pages/UpcomingBatches"));
 const Corporate = lazy(() => import("./pages/Corporate"));
+const ConnectUs = lazy(() => import("./pages/ConnectUs"));
 const ToolsPreview = lazy(() => import("./pages/ToolsPreview"));
+const JobSupport = lazy(() => import("./pages/JobSupport"));
 const Login = lazy(() => import("./pages/Login"));
 const DesktopAuthorize = lazy(() => import("./pages/DesktopAuthorize"));
 
@@ -46,6 +48,11 @@ const InternshipsManager = lazy(
 );
 const CorporateCourses = lazy(() => import("./pages/admin/CorporateCourses"));
 const PricingManager = lazy(() => import("./pages/admin/PricingManager"));
+const SiteAssetsManager = lazy(() => import("./pages/admin/SiteAssetsManager"));
+const AboutUsManager = lazy(() => import("./pages/admin/AboutUsManager"));
+const LeadManagerDashboard = lazy(() => import("./pages/admin/LeadManagerDashboard"));
+const SiteManagerDashboard = lazy(() => import("./pages/admin/SiteManagerDashboard"));
+const SiteAnalytics = lazy(() => import("./pages/admin/SiteAnalytics"));
 
 // Student Modules (Slice 4)
 const StudentOverview = lazy(() => import("./pages/student/Overview"));
@@ -123,6 +130,9 @@ function App() {
                         element={<UpcomingBatches />}
                       />
                       <Route path="/corporate" element={<Corporate />} />
+                      <Route path="/connect-us" element={<ConnectUs />} />
+                      <Route path="/contact" element={<ConnectUs />} />
+                      <Route path="/job-support" element={<JobSupport />} />
                       <Route path="/tools/:toolId" element={<ToolsPreview />} />
                       <Route path="/login" element={<Login />} />
 
@@ -177,6 +187,26 @@ function App() {
                         <Route
                           path="corporate"
                           element={<CorporateCourses />}
+                        />
+                        <Route
+                          path="site-assets"
+                          element={<SiteAssetsManager />}
+                        />
+                        <Route
+                          path="about-us"
+                          element={<AboutUsManager />}
+                        />
+                        <Route
+                          path="leads"
+                          element={<LeadManagerDashboard />}
+                        />
+                        <Route
+                          path="site-manager"
+                          element={<SiteManagerDashboard />}
+                        />
+                        <Route
+                          path="analytics"
+                          element={<SiteAnalytics />}
                         />
                         <Route
                           path="*"

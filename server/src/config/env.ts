@@ -45,6 +45,9 @@ const envSchema = z.object({
   AVATAR_BACKEND: z.string().optional(),
   BITHUMAN_API_SECRET: z.string().optional(),
   BITHUMAN_AVATAR_ID: z.string().optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

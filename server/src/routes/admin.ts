@@ -1329,6 +1329,7 @@ router.get('/agent-config', async (req: Request, res: Response, next: NextFuncti
       AVATAR_STT_FALLBACK: 'deepgram',
       AVATAR_TTS_MODEL: 'google-tts',
       AVATAR_TTS_FALLBACK: 'elevenlabs',
+      SYSTEM_PROMPT: 'You are NxtGen Academy\'s 24/7 Official AI Co-ordinator...',
     };
 
     configs.forEach(c => {
@@ -1418,4 +1419,98 @@ router.get('/iassist-stats', async (req: Request, res: Response, next: NextFunct
   }
 });
 
+// ─── 17. Certification & Promo Banner Configuration ───
+router.get('/cert-config', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const configs = await prisma.siteConfig.findMany({
+      where: { key: { startsWith: 'CERT_' } }
+    });
+
+    const configMap: Record<string, string> = {
+      CERT_BANNER_ACTIVE: 'true',
+      CERT_BANNER_DISCOUNT_PERCENT: '40',
+      CERT_BANNER_PROMO_CODE: 'CERT40',
+      CERT_BANNER_TITLE: 'Mega Certification Sale! Save up to 40% on Official Exam Vouchers & Prep Packs',
+      CERT_BANNER_SUBTITLE: 'Instant voucher activation & guaranteed pass guarantee. Limited time discount.',
+      CERT_SHOW_PRICES: 'false',
+    };
+
+    configs.forEach(c => {
+      configMap[c.key] = c.value;
+    });
+
+    res.json({ success: true, config: configMap });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/cert-config', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = req.body;
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === 'string') {
+        const fullKey = key.startsWith('CERT_') ? key : `CERT_${key}`;
+        await prisma.siteConfig.upsert({
+          where: { key: fullKey },
+          update: { value },
+          create: { key: fullKey, value }
+        });
+      }
+    }
+    await recordAudit(req, 'CERT_CONFIG_UPDATED', 'SiteConfig', 'CERT_CONFIG', data);
+    res.json({ success: true, message: 'Certification configuration updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─── 18. About Us Management Configuration ───
+router.get('/about-us', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const configs = await prisma.siteConfig.findMany();
+    const configMap: Record<string, string> = {
+      AGENT_DISPLAY_IMAGE: '/assets/pavy_receptionist.jpg',
+      AGENT_SYSTEM_PROMPT: `You are NxtGen Academy's 24/7 Official AI Co-ordinator. You speak directly to website visitors over a real-time full-duplex audio call.`,
+      VOICE_LLM_MODEL: 'gemini-2.5-flash-native-audio-preview-12-2025',
+      VOICE_STT_MODEL: 'google-stt-v2',
+      VOICE_TTS_MODEL: 'google-tts',
+      VOICE_PERSONA: 'Charon',
+      CONTACT_EMAIL_PRIMARY: 'contact@nxtgenacademy.in',
+      CONTACT_EMAIL_ADMISSIONS: 'admissions@nxtgenacademy.in',
+      CONTACT_PHONE: '+91 96730-04500',
+      CONTACT_ADDRESS: 'PAVY Consultancy Services Pvt Ltd, Tech Park Campus, Hyderabad, India',
+      WHATSAPP_SYSTEM_PROMPT: `You are NxtGen Academy's WhatsApp AI Assistant. You respond to prospective students and professionals inquiring about academy services via WhatsApp. Respond in short, clear, WhatsApp-friendly messages (2-4 sentences max). Use plain text only. Be warm, professional, and helpful. If asked about pricing, direct them to visit https://nxtgenacademy.in/connect-us or call +91 96730-04500.`,
+    };
+
+    configs.forEach(c => {
+      configMap[c.key] = c.value;
+    });
+
+    res.json({ success: true, config: configMap });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/about-us', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = req.body;
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === 'string') {
+        await prisma.siteConfig.upsert({
+          where: { key },
+          update: { value },
+          create: { key, value }
+        });
+      }
+    }
+    await recordAudit(req, 'ABOUT_US_CONFIG_UPDATED', 'SiteConfig', 'ABOUT_US', data);
+    res.json({ success: true, message: 'About Us Management configuration updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
+

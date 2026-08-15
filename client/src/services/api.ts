@@ -85,8 +85,15 @@ export const coursesAPI = {
 export const certificationsAPI = {
   getAll: (params?: { search?: string; provider?: string; page?: number; limit?: number }) =>
     api.get('/certifications', { params }),
+  getConfig: () => api.get('/certifications/config'),
   submitInquiry: (data: any) => api.post('/certifications/inquire', data),
 };
+
+export const adminCertConfigAPI = {
+  getConfig: () => api.get('/admin/cert-config'),
+  saveConfig: (data: Record<string, string>) => api.post('/admin/cert-config', data),
+};
+
 
 export const internshipsAPI = {
   getAll: () => api.get('/internships'),

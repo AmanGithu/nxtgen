@@ -128,22 +128,6 @@
     "order": 8
   },
   {
-    "id": "slide-1785921560177-yudi",
-    "filename": "1782052202366-motion_59.mp4",
-    "url": "/theme_assets/1782052202366-motion_59.mp4",
-    "mediaType": "video",
-    "badge": "",
-    "title": "",
-    "highlightText": "",
-    "subtitle": "",
-    "primaryCtaText": "",
-    "primaryCtaLink": "",
-    "secondaryCtaText": "",
-    "secondaryCtaLink": "",
-    "enabled": true,
-    "order": 9
-  },
-  {
     "id": "slide-1785921560177-vvwv",
     "filename": "1_rotated.mp4",
     "url": "/theme_assets/1_rotated.mp4",
@@ -224,22 +208,6 @@
     "order": 14
   },
   {
-    "id": "slide-1785921560177-jlra",
-    "filename": "video_0772ff91d29d.mp4",
-    "url": "/theme_assets/video_0772ff91d29d.mp4",
-    "mediaType": "video",
-    "badge": "",
-    "title": "",
-    "highlightText": "",
-    "subtitle": "",
-    "primaryCtaText": "",
-    "primaryCtaLink": "",
-    "secondaryCtaText": "",
-    "secondaryCtaLink": "",
-    "enabled": true,
-    "order": 16
-  },
-  {
     "id": "slide-1785921560177-1mkk",
     "filename": "video_b59a89661fd0.mp4",
     "url": "/theme_assets/video_b59a89661fd0.mp4",
@@ -254,37 +222,5 @@
     "secondaryCtaLink": "",
     "enabled": true,
     "order": 17
-  },
-  {
-    "id": "slide-1785943744418-t90x",
-    "filename": "1785943744416-Home___X.jpg",
-    "url": "/theme_assets/1785943744416-Home___X.jpg",
-    "mediaType": "image",
-    "badge": "",
-    "title": "",
-    "highlightText": "",
-    "subtitle": "",
-    "primaryCtaText": "",
-    "primaryCtaLink": "",
-    "secondaryCtaText": "",
-    "secondaryCtaLink": "",
-    "enabled": true,
-    "order": 17
-  },
-  {
-    "id": "slide-1785943744418",
-    "filename": "1785943744416-Home___X.jpg",
-    "url": "/theme_assets/1785943744416-Home___X.jpg",
-    "mediaType": "image",
-    "badge": "Craft 100% ATS-Compliant Resumes That Get",
-    "title": "",
-    "highlightText": "",
-    "subtitle": "",
-    "primaryCtaText": "ATS Check",
-    "primaryCtaLink": "",
-    "secondaryCtaText": "",
-    "secondaryCtaLink": "",
-    "enabled": true,
-    "order": 18
   }
 ]

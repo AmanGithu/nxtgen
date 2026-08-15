@@ -118,3 +118,6 @@ export const authorize = (...roles: (UserRole | string)[]) => {
     next();
   };
 };
+
+export const requireAuth = authenticate;
+export const requireRole = authorize;

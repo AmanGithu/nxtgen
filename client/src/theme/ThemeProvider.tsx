@@ -7,11 +7,32 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
-    if (saved === 'dark' || saved === 'light' || saved === 'light_new' || saved === 'light_green' || saved === 'system') {
+    if (
+      saved === 'dark' ||
+      saved === 'light' ||
+      saved === 'light_new' ||
+      saved === 'light_green' ||
+      saved === 'bobbin' ||
+      saved === 'mainline' ||
+      saved === 'supaste' ||
+      saved === 'teoro' ||
+      saved === 'rebuld' ||
+      saved === 'system'
+    ) {
       return saved;
     }
     const oldSaved = localStorage.getItem('theme') as ThemeMode | null;
-    if (oldSaved === 'dark' || oldSaved === 'light' || oldSaved === 'light_new' || oldSaved === 'light_green') {
+    if (
+      oldSaved === 'dark' ||
+      oldSaved === 'light' ||
+      oldSaved === 'light_new' ||
+      oldSaved === 'light_green' ||
+      oldSaved === 'bobbin' ||
+      oldSaved === 'mainline' ||
+      oldSaved === 'supaste' ||
+      oldSaved === 'teoro' ||
+      oldSaved === 'rebuld'
+    ) {
       return oldSaved;
     }
     return 'system';
@@ -34,7 +55,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     root.setAttribute('data-theme', resolved);
     root.setAttribute('data-theme-mode', activeTheme);
 
-    root.classList.remove('dark', 'light', 'light_new', 'light_green');
+    root.classList.remove('dark', 'light', 'light_new', 'light_green', 'bobbin', 'mainline', 'supaste', 'teoro', 'rebuld');
     root.classList.add(resolved);
 
     const vars = THEME_VARIABLES[resolved];
@@ -72,7 +93,12 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (prev === 'dark') return 'light';
       if (prev === 'light') return 'light_new';
       if (prev === 'light_new') return 'light_green';
-      if (prev === 'light_green') return 'system';
+      if (prev === 'light_green') return 'bobbin';
+      if (prev === 'bobbin') return 'mainline';
+      if (prev === 'mainline') return 'supaste';
+      if (prev === 'supaste') return 'teoro';
+      if (prev === 'teoro') return 'rebuld';
+      if (prev === 'rebuld') return 'system';
       return 'dark';
     });
   };

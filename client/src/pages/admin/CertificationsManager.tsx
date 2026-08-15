@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, Minus, Trash2, Eye, EyeOff, Award, Search, Pencil, Check, X } from 'lucide-react';
+import { Plus, Minus, Trash2, Eye, EyeOff, Award, Search, Pencil, Check, X, Tag, Sparkles, Save, Building2, User, Image as ImageIcon } from 'lucide-react';
 import { clsx } from 'clsx';
-import api from '../../services/api';
+import api, { adminCertConfigAPI } from '../../services/api';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
 interface Certification {
@@ -34,10 +34,69 @@ const CertificationsManager = () => {
   const [editForm, setEditForm] = useState(emptyForm);
   const [pendingDelete, setPendingDelete] = useState<Certification | null>(null);
 
+  // Active Tab for Configuration Section
+  const [configTab, setConfigTab] = useState<'banner' | 'individual' | 'corporate'>('banner');
+
+  // Promo Banner & Dual CTA Configuration State
+  const [bannerConfig, setBannerConfig] = useState({
+    CERT_BANNER_ACTIVE: 'true',
+    CERT_BANNER_DISCOUNT_PERCENT: '40',
+    CERT_BANNER_PROMO_CODE: 'CERT40',
+    CERT_BANNER_TITLE: 'Mega Certification Sale! Save up to 40% on Official Exam Vouchers & Prep Packs',
+    CERT_BANNER_SUBTITLE: 'Instant voucher activation & guaranteed pass guarantee. Limited time discount.',
+    CERT_SHOW_PRICES: 'false',
+
+    // Individual CTA Ad Configuration
+    CERT_INDIVIDUAL_AD_TITLE: 'Upgrade Your Skills.',
+    CERT_INDIVIDUAL_AD_SUBTITLE: 'Save More Today.',
+    CERT_INDIVIDUAL_AD_DISCOUNT: '40',
+    CERT_INDIVIDUAL_AD_BADGE: 'SUPER SALE',
+    CERT_INDIVIDUAL_AD_CTA: 'Shop Now',
+    CERT_INDIVIDUAL_AD_IMAGE: '',
+
+    // Corporate CTA Ad Configuration
+    CERT_CORPORATE_AD_BADGE: 'Enterprise Training Cohorts',
+    CERT_CORPORATE_AD_TITLE: 'Upskill Your Team.',
+    CERT_CORPORATE_AD_SUBTITLE: 'Save up to 40%.',
+    CERT_CORPORATE_AD_DISCOUNT: '40',
+    CERT_CORPORATE_AD_CARD_BADGE: 'Group Volume Discount',
+    CERT_CORPORATE_AD_CTA: 'Unlock Group Pricing',
+    CERT_CORPORATE_AD_FOOTER: 'Corporate cohorts & bulk exam vouchers',
+    CERT_CORPORATE_AD_IMAGE: '',
+  });
+
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configSaved, setConfigSaved] = useState(false);
+
   useEffect(() => {
     fetchCertifications();
-    // Debounce isn't needed at this size; the list is server-paginated.
+    fetchConfig();
   }, [page, search]);
+
+  const fetchConfig = async () => {
+    try {
+      const res = await adminCertConfigAPI.getConfig();
+      if (res.data.success && res.data.config) {
+        setBannerConfig(prev => ({ ...prev, ...res.data.config }));
+      }
+    } catch (err) {
+      console.error('Failed to load cert config:', err);
+    }
+  };
+
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setConfigSaving(true);
+    try {
+      await adminCertConfigAPI.saveConfig(bannerConfig);
+      setConfigSaved(true);
+      setTimeout(() => setConfigSaved(false), 2500);
+    } catch (err) {
+      console.error('Failed to save cert config:', err);
+    } finally {
+      setConfigSaving(false);
+    }
+  };
 
   const fetchCertifications = async () => {
     setLoading(true);
@@ -104,7 +163,7 @@ const CertificationsManager = () => {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {pendingDelete && (
         <ConfirmDialog
           title={`Remove "${pendingDelete.name}"?`}
@@ -115,162 +174,570 @@ const CertificationsManager = () => {
         />
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="font-display text-2xl font-bold text-strong">Certifications</h2>
-          <p className="mt-1 text-sm text-text-muted">
-            The public catalogue. {total} certification{total === 1 ? '' : 's'} — hide one to keep it on
-            record without listing it.
-          </p>
+      {/* ─── PROMO BANNER & DUAL CTA CONFIGURATION SECTION ─── */}
+      <div className="rounded-xl border border-brand-orange/30 bg-bg-surface p-5 shadow-lg">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-line pb-4">
+          <div className="flex items-center gap-2">
+            <div className="rounded-lg bg-brand-orange/10 p-2 text-brand-orange">
+              <Tag size={20} />
+            </div>
+            <div>
+              <h2 className="font-display text-lg font-bold text-strong">Certification Banner & Dual CTA Configuration</h2>
+              <p className="text-xs text-text-muted">Configure the promo sales banner and separate ad visuals/texts for Individual and Corporate CTA popups.</p>
+            </div>
+          </div>
+          {configSaved && (
+            <span className="flex items-center gap-1 text-xs font-semibold text-green-400">
+              <Check size={14} /> Settings Saved Successfully!
+            </span>
+          )}
         </div>
-        <button
-          onClick={() => setFormOpen((v) => !v)}
-          className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand transition-colors hover:bg-orange-600"
-        >
-          {formOpen ? <Minus size={16} /> : <Plus size={16} />}
-          {formOpen ? 'Cancel' : 'New Certification'}
-        </button>
-      </div>
 
-      {formOpen && (
-        <form onSubmit={create} className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-bg-surface p-4">
-          <div className="flex-1 min-w-[220px]">
-            <label className="mb-1 block text-xs font-medium text-text-muted">Name</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="AWS Certified Solutions Architect" className={field} />
-          </div>
-          <div className="w-48">
-            <label className="mb-1 block text-xs font-medium text-text-muted">Provider</label>
-            <input value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })}
-              placeholder="Amazon Web Services" className={field} />
-          </div>
-          <div className="flex-1 min-w-[200px]">
-            <label className="mb-1 block text-xs font-medium text-text-muted">Registration Link</label>
-            <input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })}
-              placeholder="https://…" className={field} />
-          </div>
-          <button type="submit" disabled={saving}
-            className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand transition-colors hover:bg-orange-600 disabled:opacity-50">
-            <Plus size={16} /> Add
+        {/* Configuration Sub-Tabs */}
+        <div className="mt-4 flex gap-2 border-b border-line pb-3">
+          <button
+            type="button"
+            onClick={() => setConfigTab('banner')}
+            className={clsx(
+              'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all',
+              configTab === 'banner'
+                ? 'bg-brand-orange text-white shadow-sm'
+                : 'text-text-muted hover:text-white hover:bg-white/[0.05]'
+            )}
+          >
+            <Tag size={13} />
+            Sales Banner & Prices
           </button>
-        </form>
-      )}
+          <button
+            type="button"
+            onClick={() => setConfigTab('individual')}
+            className={clsx(
+              'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all',
+              configTab === 'individual'
+                ? 'bg-brand-orange text-white shadow-sm'
+                : 'text-text-muted hover:text-white hover:bg-white/[0.05]'
+            )}
+          >
+            <User size={13} />
+            Individual CTA Ad
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfigTab('corporate')}
+            className={clsx(
+              'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all',
+              configTab === 'corporate'
+                ? 'bg-brand-orange text-white shadow-sm'
+                : 'text-text-muted hover:text-white hover:bg-white/[0.05]'
+            )}
+          >
+            <Building2 size={13} />
+            Enterprise CTA Ad
+          </button>
+        </div>
 
-      <div className="relative">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-        <input
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Search by name or provider…"
-          className={clsx(field, 'pl-9')}
-        />
+        <form onSubmit={handleSaveConfig} className="mt-4 space-y-4">
+          {/* TAB 1: SALES BANNER & GLOBAL PRICING */}
+          {configTab === 'banner' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Banner Visibility</label>
+                  <select
+                    value={bannerConfig.CERT_BANNER_ACTIVE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_BANNER_ACTIVE: e.target.value })}
+                    className={field}
+                  >
+                    <option value="true">Active (Show on /certifications)</option>
+                    <option value="false">Hidden (Turn Off)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Banner Discount (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={bannerConfig.CERT_BANNER_DISCOUNT_PERCENT}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_BANNER_DISCOUNT_PERCENT: e.target.value })}
+                    placeholder="40"
+                    className={field}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Promo Code</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_BANNER_PROMO_CODE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_BANNER_PROMO_CODE: e.target.value.toUpperCase() })}
+                    placeholder="CERT40"
+                    className={field}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Catalog Price Visibility</label>
+                  <select
+                    value={bannerConfig.CERT_SHOW_PRICES}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_SHOW_PRICES: e.target.value })}
+                    className={field}
+                  >
+                    <option value="false">Disabled / Hidden (Recommended for Leads)</option>
+                    <option value="true">Enabled (Show Prices on Cards & Drawers)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Banner Headline</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_BANNER_TITLE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_BANNER_TITLE: e.target.value })}
+                    placeholder="Mega Certification Sale! Save up to 40% on Official Exam Vouchers"
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Banner Subtitle / Description</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_BANNER_SUBTITLE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_BANNER_SUBTITLE: e.target.value })}
+                    placeholder="Limited time voucher discount & practice prep notes."
+                    className={field}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: INDIVIDUAL CTA POPUP AD CONFIGURATION */}
+          {configTab === 'individual' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Main Title Headline</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_INDIVIDUAL_AD_TITLE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_INDIVIDUAL_AD_TITLE: e.target.value })}
+                    placeholder="Upgrade Your Skills."
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Subtitle Tagline</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_INDIVIDUAL_AD_SUBTITLE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_INDIVIDUAL_AD_SUBTITLE: e.target.value })}
+                    placeholder="Save More Today."
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Discount Percentage (%)</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_INDIVIDUAL_AD_DISCOUNT}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_INDIVIDUAL_AD_DISCOUNT: e.target.value })}
+                    placeholder="40"
+                    className={field}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Top Badge Text</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_INDIVIDUAL_AD_BADGE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_INDIVIDUAL_AD_BADGE: e.target.value })}
+                    placeholder="SUPER SALE"
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Inner CTA Button Text</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_INDIVIDUAL_AD_CTA}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_INDIVIDUAL_AD_CTA: e.target.value })}
+                    placeholder="Shop Now"
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Ad Background / Graphic Image URL</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_INDIVIDUAL_AD_IMAGE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_INDIVIDUAL_AD_IMAGE: e.target.value })}
+                    placeholder="https://... or /assets/ad-individual.jpg"
+                    className={field}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: ENTERPRISE / INSTITUTE CTA POPUP AD CONFIGURATION */}
+          {configTab === 'corporate' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Header Pill Badge</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_CORPORATE_AD_BADGE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_CORPORATE_AD_BADGE: e.target.value })}
+                    placeholder="Enterprise Training Cohorts"
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Main Title Headline</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_CORPORATE_AD_TITLE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_CORPORATE_AD_TITLE: e.target.value })}
+                    placeholder="Upskill Your Team."
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Subtitle / Discount Text</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_CORPORATE_AD_SUBTITLE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_CORPORATE_AD_SUBTITLE: e.target.value })}
+                    placeholder="Save up to 40%."
+                    className={field}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Discount Value (%)</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_CORPORATE_AD_DISCOUNT}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_CORPORATE_AD_DISCOUNT: e.target.value })}
+                    placeholder="40"
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Card Pill Badge</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_CORPORATE_AD_CARD_BADGE}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_CORPORATE_AD_CARD_BADGE: e.target.value })}
+                    placeholder="Group Volume Discount"
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Card CTA Button</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_CORPORATE_AD_CTA}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_CORPORATE_AD_CTA: e.target.value })}
+                    placeholder="Unlock Group Pricing"
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-muted">Footer Tagline</label>
+                  <input
+                    type="text"
+                    value={bannerConfig.CERT_CORPORATE_AD_FOOTER}
+                    onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_CORPORATE_AD_FOOTER: e.target.value })}
+                    placeholder="Corporate cohorts & bulk exam vouchers"
+                    className={field}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-text-muted">Enterprise Graphic / Image URL (Optional upload/URL)</label>
+                <input
+                  type="text"
+                  value={bannerConfig.CERT_CORPORATE_AD_IMAGE}
+                  onChange={(e) => setBannerConfig({ ...bannerConfig, CERT_CORPORATE_AD_IMAGE: e.target.value })}
+                  placeholder="https://... or /assets/enterprise-banner.png"
+                  className={field}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-3 border-t border-line">
+            <button
+              type="submit"
+              disabled={configSaving}
+              className="flex items-center gap-2 rounded-lg bg-brand-orange px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50 shadow-md"
+            >
+              <Save size={16} />
+              {configSaving ? 'Saving Changes...' : 'Save Configuration'}
+            </button>
+          </div>
+        </form>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-line bg-bg-surface">
-        {loading ? (
-          <div className="space-y-px">
-            {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-14 animate-pulse bg-bg-card" />)}
+      {/* ─── CERTIFICATION CATALOG CRUD SECTION ─── */}
+      <div className="space-y-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Award className="text-brand-orange" size={24} />
+            <h1 className="font-display text-xl font-bold text-strong">Certification Catalog ({total})</h1>
           </div>
-        ) : items.length === 0 ? (
-          <p className="p-8 text-center text-sm text-text-muted">No certifications match that search.</p>
-        ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-line text-xs uppercase tracking-wider text-text-muted">
+          <button
+            onClick={() => setFormOpen(!formOpen)}
+            className="flex items-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-on-brand hover:bg-orange-600 transition-colors"
+          >
+            {formOpen ? <Minus size={16} /> : <Plus size={16} />}
+            {formOpen ? 'Close Form' : 'Add Certification'}
+          </button>
+        </div>
+
+        {/* Add Certification Inline Form */}
+        {formOpen && (
+          <form onSubmit={create} className="rounded-xl border border-line bg-bg-surface p-4 space-y-3">
+            <h3 className="text-sm font-bold text-strong">Add New Certification</h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <input
+                placeholder="Certification Name *"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className={field}
+                required
+              />
+              <input
+                placeholder="Provider (e.g. Microsoft, AWS)"
+                value={form.provider}
+                onChange={(e) => setForm({ ...form, provider: e.target.value })}
+                className={field}
+              />
+              <input
+                placeholder="Official Documentation Link"
+                value={form.link}
+                onChange={(e) => setForm({ ...form, link: e.target.value })}
+                className={field}
+              />
+              <input
+                placeholder="Prerequisite(s)"
+                value={form.prerequisite}
+                onChange={(e) => setForm({ ...form, prerequisite: e.target.value })}
+                className={field}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs text-text-muted hover:text-strong"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-brand-orange px-4 py-1.5 text-xs font-semibold text-on-brand hover:bg-orange-600 disabled:opacity-50"
+              >
+                {saving ? 'Creating...' : 'Create Entry'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+          <input
+            type="text"
+            placeholder="Search certifications by name, provider, code..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="w-full rounded-xl border border-line bg-bg-surface py-2.5 pl-9 pr-4 text-sm text-strong placeholder:text-text-muted/50 focus:border-brand-orange focus:outline-none"
+          />
+        </div>
+
+        {/* Certifications Table */}
+        <div className="rounded-xl border border-line bg-bg-surface overflow-x-auto shadow-md">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-line bg-bg-card font-bold text-text-muted uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Certification Title</th>
                 <th className="px-4 py-3">Provider</th>
-                <th className="px-4 py-3">Enquiry CTA</th>
+                <th className="px-4 py-3">Prerequisites</th>
+                <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {items.map((cert) => (
-                <tr key={cert.id} className={clsx('border-b border-line-subtle last:border-0', !cert.isActive && 'opacity-50')}>
-                  {editingId === cert.id ? (
-                    <>
-                      <td className="px-4 py-2">
-                        <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className={field} />
-                      </td>
-                      <td className="px-4 py-2">
-                        <input value={editForm.provider} onChange={(e) => setEditForm({ ...editForm, provider: e.target.value })} className={field} />
-                      </td>
-                      <td className="px-4 py-2 text-xs text-text-muted">—</td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => saveEdit(cert.id)} title="Save"
-                            className="rounded p-1.5 text-green-400 transition-colors hover:bg-green-500/10">
-                            <Check size={16} />
-                          </button>
-                          <button onClick={() => setEditingId(null)} title="Cancel"
-                            className="rounded p-1.5 text-text-muted transition-colors hover:text-strong">
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-3 font-medium text-strong">
-                        <div className="flex items-center gap-2">
-                          <Award size={14} className="shrink-0 text-brand-orange" />
-                          <span className="line-clamp-1">{cert.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-text-muted">{cert.provider || '—'}</td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => toggle(cert, 'ctaEnabled')}
-                          className={clsx(
-                            'rounded-full px-2 py-0.5 text-xs font-medium transition-colors',
-                            cert.ctaEnabled ? 'bg-green-500/10 text-green-400' : 'bg-elevate text-text-muted'
+            <tbody className="divide-y divide-line">
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-text-muted">
+                    Loading certifications...
+                  </td>
+                </tr>
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-text-muted">
+                    No certifications found.
+                  </td>
+                </tr>
+              ) : (
+                items.map((cert) => (
+                  <tr key={cert.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="px-4 py-3 font-semibold text-strong max-w-xs">
+                      {editingId === cert.id ? (
+                        <input
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          className={field}
+                        />
+                      ) : (
+                        <div className="space-y-0.5">
+                          <span>{cert.name}</span>
+                          {cert.link && (
+                            <a
+                              href={cert.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block text-[10px] text-brand-orange hover:underline truncate"
+                            >
+                              {cert.link}
+                            </a>
                           )}
-                        >
-                          {cert.ctaEnabled ? 'On' : 'Off'}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-text-muted">
+                      {editingId === cert.id ? (
+                        <input
+                          value={editForm.provider || ''}
+                          onChange={(e) => setEditForm({ ...editForm, provider: e.target.value })}
+                          className={field}
+                        />
+                      ) : (
+                        <span className="rounded bg-bg-card px-2 py-0.5 font-medium text-strong">
+                          {cert.provider || 'Generic'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-text-muted max-w-xs truncate">
+                      {editingId === cert.id ? (
+                        <input
+                          value={editForm.prerequisite || ''}
+                          onChange={(e) => setEditForm({ ...editForm, prerequisite: e.target.value })}
+                          className={field}
+                        />
+                      ) : (
+                        cert.prerequisite || 'None'
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => toggle(cert, 'isActive')}
+                        className={clsx(
+                          'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold',
+                          cert.isActive
+                            ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                            : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        )}
+                      >
+                        {cert.isActive ? <Eye size={11} /> : <EyeOff size={11} />}
+                        {cert.isActive ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {editingId === cert.id ? (
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => { setEditingId(cert.id); setEditForm({ name: cert.name, provider: cert.provider ?? '', link: cert.link ?? '', prerequisite: cert.prerequisite ?? '' }); }}
+                            onClick={() => saveEdit(cert.id)}
+                            className="rounded p-1 text-green-400 hover:bg-green-400/10"
+                            title="Save"
+                          >
+                            <Check size={15} />
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="rounded p-1 text-text-muted hover:bg-white/[0.06]"
+                            title="Cancel"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => {
+                              setEditingId(cert.id);
+                              setEditForm({
+                                name: cert.name,
+                                provider: cert.provider || '',
+                                link: cert.link || '',
+                                prerequisite: cert.prerequisite || '',
+                              });
+                            }}
+                            className="rounded p-1 text-text-muted hover:bg-white/[0.06] hover:text-strong"
                             title="Edit"
-                            className="rounded p-1.5 text-text-muted transition-colors hover:bg-elevate hover:text-strong"
                           >
                             <Pencil size={15} />
                           </button>
-                          <button onClick={() => toggle(cert, 'isActive')} title={cert.isActive ? 'Hide from catalogue' : 'Show in catalogue'}
-                            className="rounded p-1.5 text-text-muted transition-colors hover:bg-elevate hover:text-strong">
-                            {cert.isActive ? <EyeOff size={15} /> : <Eye size={15} />}
-                          </button>
-                          <button onClick={() => setPendingDelete(cert)} title="Remove"
-                            className="rounded p-1.5 text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-400">
+                          <button
+                            onClick={() => setPendingDelete(cert)}
+                            className="rounded p-1 text-text-muted hover:bg-red-500/10 hover:text-red-400"
+                            title="Delete"
+                          >
                             <Trash2 size={15} />
                           </button>
                         </div>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs text-text-muted">
+              Page {page} of {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="rounded-lg border border-line bg-bg-surface px-3 py-1.5 text-xs text-text-muted disabled:opacity-40 hover:bg-white/[0.04]"
+              >
+                Previous
+              </button>
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="rounded-lg border border-line bg-bg-surface px-3 py-1.5 text-xs text-text-muted disabled:opacity-40 hover:bg-white/[0.04]"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         )}
       </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-text-muted">
-          <span>Page {page} of {totalPages}</span>
-          <div className="flex gap-2">
-            <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
-              className="rounded-lg border border-line px-3 py-1.5 transition-colors hover:text-strong disabled:opacity-40">
-              Previous
-            </button>
-            <button disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}
-              className="rounded-lg border border-line px-3 py-1.5 transition-colors hover:text-strong disabled:opacity-40">
-              Next
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

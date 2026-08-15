@@ -32,7 +32,9 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
 
   const adminLinks: NavLinkItem[] = [
     { name: 'Overview', path: '/dashboard/admin', icon: LayoutDashboard },
-    { name: 'Theme Assets', path: '/dashboard/admin/theme-assets', icon: Layers },
+    { name: 'Site Analytics', path: '/dashboard/admin/analytics', icon: LayoutDashboard },
+    { name: 'Lead Manager', path: '/dashboard/admin/leads', icon: Users },
+    { name: 'Site Manager CMS', path: '/dashboard/admin/site-manager', icon: Layers },
     { name: 'User Management', path: '/dashboard/admin/users', icon: Users },
     { name: 'Batch Config', path: '/dashboard/admin/batches', icon: Settings },
     { name: 'Class Scheduler', path: '/dashboard/admin/scheduler', icon: Calendar },
@@ -42,9 +44,23 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
     { name: 'Study Materials', path: '/dashboard/admin/materials', icon: BookOpen },
     { name: 'Certifications', path: '/dashboard/admin/certifications', icon: Award },
     { name: 'Cert Inquiries', path: '/dashboard/admin/cert-inquiries', icon: FileText },
-    { name: 'Menu Editor', path: '/dashboard/admin/menu', icon: Menu },
     { name: 'AI Config', path: '/dashboard/admin/ai-config', icon: Cpu },
     { name: 'Pricing', path: '/dashboard/admin/pricing', icon: Tag },
+  ];
+
+  const siteManagerLinks: NavLinkItem[] = [
+    { name: 'Site Manager CMS', path: '/dashboard/admin/site-manager', icon: Layers },
+    { name: 'Theme Assets', path: '/dashboard/admin/theme-assets', icon: Layers },
+    { name: 'AI Config', path: '/dashboard/admin/about-us', icon: Cpu },
+    { name: 'Batch Config', path: '/dashboard/admin/batches', icon: Settings },
+    { name: 'Study Materials', path: '/dashboard/admin/materials', icon: BookOpen },
+    { name: 'Class Scheduler', path: '/dashboard/admin/scheduler', icon: Calendar },
+    { name: 'Upcoming Batches', path: '/dashboard/admin/upcoming', icon: Calendar },
+    { name: 'Cert Inquiries', path: '/dashboard/admin/cert-inquiries', icon: FileText },
+  ];
+
+  const leadManagerLinks: NavLinkItem[] = [
+    { name: 'Lead Manager', path: '/dashboard/admin/leads', icon: Users },
   ];
 
   const studentLinks: NavLinkItem[] = [
@@ -78,8 +94,17 @@ const DashboardLayout = ({ variant }: DashboardLayoutProps) => {
     { name: 'Unlock All Packages', path: '/dashboard/tools/unlock', icon: Lock },
   ];
 
+  const roleStr = (user?.role || '').toLowerCase();
   const links =
-    variant === 'admin' ? adminLinks : variant === 'tools' ? toolLinks : studentLinks;
+    variant === 'admin'
+      ? roleStr === 'site_manager'
+        ? siteManagerLinks
+        : roleStr === 'lead_manager'
+          ? leadManagerLinks
+          : adminLinks
+      : variant === 'tools'
+        ? toolLinks
+        : studentLinks;
 
   /* The public site menu, carried into the AI toolkit for site users.
 

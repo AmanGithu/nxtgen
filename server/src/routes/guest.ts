@@ -1,5 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { env } from '../config/env';
 import { AppError } from '../middleware/errorHandler';
 import { consumeGuestAction, peekGuestQuota, resetGuestQuota } from '../lib/guestQuota';
 import { withFallback } from '../services/resume/resumeAiService';
@@ -8,6 +10,7 @@ import { parseResumeText } from '../services/resume/parseResume';
 import { parseLinkedInText, looksLikeLinkedIn } from '../services/resume/parseLinkedIn';
 import { sanitizeResumeData } from '../services/resume/resumeData';
 import { aiLimiter } from '../middleware/rateLimit';
+import { prisma } from '../lib/prisma';
 
 /**
  * Stateless tool endpoints for signed-out visitors.
@@ -164,6 +167,171 @@ router.post('/ai/interview-prep', aiLimiter, async (req: Request, res: Response,
     );
     res.json({ success: true, ...result, quota });
   } catch (error) {
+    next(error);
+  }
+});
+
+/* ── Live Agent Configuration ───────────────────────────────────────────── */
+router.get('/agent-prompt', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const config = await prisma.siteConfig.findUnique({
+      where: { key: 'AGENT_SYSTEM_PROMPT' }
+    });
+    // Default prompt if not configured in DB
+    const defaultPrompt = `You are NxtGen Academy's 24/7 Official AI Co-ordinator. You speak directly to website visitors over a real-time full-duplex audio call.
+
+=== BRAND & SERVICES KNOWLEDGE ===
+- Company: NxtGen Academy — a flagship product by PAVY Consultancy Services Pvt Ltd
+- Mission: "Where Careers Are Born, Not Found."
+
+INDIVIDUAL SERVICES:
+1. Courses:
+   - Data Analytics & AI (Python, ML, PowerBI, Tableau, GenAI)
+   - Database Management (SQL & Azure DBA, Oracle DBA, PostgreSQL DBA)
+   - Cyber Security (Security+, CompTIA, CISSP, SOC Analyst)
+
+2. Certifications: Microsoft Azure, AWS, Google Cloud, Cisco, CompTIA, PMI, IBM, Oracle, Red Hat, VMware, Salesforce, Linux Foundation
+
+3. Internships (36-Week Programs with Guaranteed Placement):
+   - Data Analytics Internship
+   - Generative AI Internship
+   - Agentic AI Internship
+   - Database Management Internship
+
+4. AI Tools Store (AI Career Tools):
+   - AI Resume Builder
+   - ATS Score Checker
+   - JD Resume Tailor
+   - LinkedIn Profile Analyser
+   - Cover Letter Builder
+   - Interview Prep Kit
+   - I-Assist (Real-time Interview Co-pilot)
+   - AI Mock Interview
+
+5. Technical Job Support (Strictly for Working Professionals):
+   - Data Analytics & AI Support (Python, ML, PowerBI, GenAI)
+   - Data Engineering Support (Microsoft Fabric, Databricks)
+   - Database Management Support (SQL & Azure DBA, Oracle DBA, PostgreSQL DBA)
+
+CORPORATE PROGRAMS:
+1. Upskilling & Reskilling Training — Bulk corporate AI training programs
+2. Bulk Enrollments — Team enrollments in courses and certifications
+3. AI & Tech Consulting — AI strategy, cyber security, DBA consulting
+4. Custom AI Solutions — Custom AI/ML model development for enterprises
+
+=== CONVERSATIONAL RULES ===
+1. Greet the visitor warmly immediately: "Hello! Welcome to NxtGen Academy. I'm your AI Co-ordinator. How can I help you today with courses, certifications, internships, or career tools?"
+2. Respond in voice audio to both spoken audio and text messages typed by the visitor.
+3. Answer questions accurately, concisely, and professionally (1-3 plain spoken sentences).
+4. Direct visitors to appropriate pages: /courses, /certifications, /internship, /tools, /job-support, /corporate, or /connect-us.
+5. GOODBYE RULE: If the visitor says "goodbye", "bye", "see you later", or "have a good day", respond politely: "Thank you for reaching out to NxtGen Academy! We wish you great success in your learning journey. Goodbye!" and end the turn.
+6. Speak ONLY plain conversational English. Avoid markdown, lists, or unpronounceable symbols.
+7. If asked about pricing, say: "Our advisors can share detailed pricing for your specific program. Please fill the contact form below or visit our connect-us page."`;
+
+    res.json({ success: true, prompt: config?.value || defaultPrompt });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/* ── Public About Us & Agent Display Configuration ───────────────────────── */
+router.get('/about-us-config', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const configs = await prisma.siteConfig.findMany({
+      where: {
+        key: {
+          in: [
+            'AGENT_DISPLAY_IMAGE',
+            'AGENT_SYSTEM_PROMPT',
+            'VOICE_LLM_MODEL',
+            'VOICE_STT_MODEL',
+            'VOICE_TTS_MODEL',
+            'VOICE_PERSONA',
+            'CONTACT_EMAIL_PRIMARY',
+            'CONTACT_EMAIL_ADMISSIONS',
+            'CONTACT_PHONE',
+            'CONTACT_ADDRESS',
+          ]
+        }
+      }
+    });
+
+    const map: Record<string, string> = {
+      AGENT_DISPLAY_IMAGE: '/assets/pavy_receptionist.jpg',
+      VOICE_LLM_MODEL: 'gemini-2.5-flash-native-audio-preview-12-2025',
+      VOICE_STT_MODEL: 'google-stt-v2',
+      VOICE_TTS_MODEL: 'google-tts',
+      VOICE_PERSONA: 'Charon',
+      CONTACT_EMAIL_PRIMARY: 'contact@nxtgenacademy.in',
+      CONTACT_EMAIL_ADMISSIONS: 'admissions@nxtgenacademy.in',
+      CONTACT_PHONE: '+91 96730-04500',
+      CONTACT_ADDRESS: 'PAVY Consultancy Services Pvt Ltd, Tech Park Campus, Hyderabad, India',
+    };
+
+    configs.forEach(c => {
+      map[c.key] = c.value;
+    });
+
+    res.json({ success: true, config: map });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/* ── Public AI Coordinator Text Chat ────────────────────────────────────── */
+router.post('/coordinator-chat', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { message } = z.object({
+      message: z.string().min(1).max(2000),
+      conversationHistory: z.array(z.object({
+        role: z.enum(['user', 'model']),
+        text: z.string(),
+      })).max(30).optional(),
+    }).parse(req.body);
+
+    const apiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
+    // Fetch system prompt from DB
+    let systemPrompt = '';
+    try {
+      const config = await prisma.siteConfig.findUnique({ where: { key: 'AGENT_SYSTEM_PROMPT' } });
+      systemPrompt = config?.value || '';
+    } catch { /* use fallback below */ }
+
+    if (!systemPrompt) {
+      systemPrompt = `You are NxtGen Academy's 24/7 Official AI Co-ordinator. You answer visitor questions about courses, certifications, internships, AI Tools, Technical Job Support, and Corporate Programs. Be warm, concise, and professional. Reply in 1-3 short sentences.`;
+    }
+
+    if (!apiKey || apiKey === 'demo') {
+      return res.json({
+        success: true,
+        reply: `Thank you for reaching out to NxtGen Academy! We offer courses in Data Analytics & AI, Database Management, and Cyber Security, along with certification prep, internships, and AI career tools. How can I help you today?`,
+      });
+    }
+
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        systemInstruction: systemPrompt,
+      });
+
+      const result = await model.generateContent(message);
+      const reply = result.response.text().trim();
+
+      return res.json({
+        success: true,
+        reply: reply.length > 1000 ? reply.substring(0, 997) + '...' : reply,
+      });
+    } catch (geminiErr) {
+      console.error('Gemini call failed in coordinator-chat:', geminiErr);
+      return res.json({
+        success: true,
+        reply: `Thank you for your inquiry about "${message}". NxtGen Academy offers specialized programs in Data Analytics & AI, Database Management, and Cyber Security. Feel free to ask more details or connect with our team!`,
+      });
+    }
+  } catch (error) {
+    console.error('Coordinator chat error:', error);
     next(error);
   }
 });

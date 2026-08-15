@@ -5,7 +5,7 @@ import { THEME_OPTIONS } from './theme.config';
 import { Moon, Sun, Monitor, ChevronDown, Check, Sparkles } from 'lucide-react';
 
 interface ThemeSelectorProps {
-  variant?: 'pill' | 'dropdown' | 'segmented';
+  variant?: 'pill' | 'dropdown' | 'segmented' | 'icon';
   className?: string;
 }
 
@@ -34,6 +34,16 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({ variant = 'dropdow
         return <Sun size={16} className="text-teal-400" />;
       case 'light_green':
         return <Sparkles size={16} className="text-lime-500" />;
+      case 'bobbin':
+        return <Sparkles size={16} className="text-rose-400" />;
+      case 'mainline':
+        return <Sun size={16} className="text-cyan-400" />;
+      case 'supaste':
+        return <Sparkles size={16} className="text-pink-400" />;
+      case 'teoro':
+        return <Sun size={16} className="text-emerald-400" />;
+      case 'rebuld':
+        return <Sparkles size={16} className="text-cyan-300" />;
       case 'system':
         return <Monitor size={16} className="text-emerald-400" />;
     }
@@ -89,6 +99,57 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({ variant = 'dropdow
   }
 
   const currentOption = THEME_OPTIONS.find((o) => o.id === theme) || THEME_OPTIONS[0];
+
+  if (variant === 'icon') {
+    return (
+      <div className={`relative inline-block text-left ${className}`} ref={dropdownRef}>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-bg-surface text-white hover:border-brand-orange transition-all shadow-md"
+          title={`Theme: ${currentOption.label}`}
+          aria-label="Change theme"
+        >
+          {getIcon(theme)}
+        </button>
+
+        {isOpen && (
+          <div className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-white/[0.1] bg-bg-surface p-2 shadow-2xl backdrop-blur-xl z-50 animate-fade-in-up">
+            <div className="px-3 py-1.5 border-b border-white/[0.08] mb-1">
+              <span className="text-[10px] font-bold text-brand-orange uppercase tracking-wider">Select Theme</span>
+              <p className="text-[10px] text-text-muted">Active: {resolvedTheme} mode</p>
+            </div>
+            <div className="space-y-1">
+              {THEME_OPTIONS.map((opt) => {
+                const isSelected = theme === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      setTheme(opt.id);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition-colors ${
+                      isSelected
+                        ? 'bg-brand-orange/15 text-brand-orange font-bold border border-brand-orange/30'
+                        : 'text-text-muted hover:bg-white/[0.06] hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {getIcon(opt.id)}
+                      <div>
+                        <p className="font-semibold text-white">{opt.label}</p>
+                      </div>
+                    </div>
+                    {isSelected && <Check size={14} className="text-brand-orange shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`relative inline-block text-left ${className}`} ref={dropdownRef}>

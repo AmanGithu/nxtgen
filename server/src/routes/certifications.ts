@@ -5,7 +5,35 @@ import { AppError } from '../middleware/errorHandler';
 
 const router = Router();
 
-// GET /api/certifications - List all active certifications with search & provider filter
+// GET /api/certifications/config - Public configuration for promotional banner & display
+router.get('/config', async (_req, res, next) => {
+  try {
+    const configs = await prisma.siteConfig.findMany({
+      where: { key: { startsWith: 'CERT_' } }
+    });
+
+    const configMap: Record<string, string> = {
+      CERT_BANNER_ACTIVE: 'true',
+      CERT_BANNER_DISCOUNT_PERCENT: '40',
+      CERT_BANNER_PROMO_CODE: 'CERT40',
+      CERT_BANNER_TITLE: 'Mega Certification Sale! Save up to 40% on Official Exam Vouchers & Prep Packs',
+      CERT_BANNER_SUBTITLE: 'Instant voucher activation & guaranteed pass guarantee. Limited time discount.',
+      CERT_SHOW_PRICES: 'false',
+    };
+
+    configs.forEach(c => {
+      configMap[c.key] = c.value;
+    });
+
+    res.json({
+      success: true,
+      config: configMap
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const { search, provider, page = '1', limit = '20' } = req.query;

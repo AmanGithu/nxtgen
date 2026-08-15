@@ -47,3 +47,4 @@ Scripts/
 [sS]creenshots/*.md
 [sS]creenshots/**/*.md
 
+.vercel

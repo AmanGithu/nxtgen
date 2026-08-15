@@ -47,6 +47,7 @@ const AIConfig = () => {
     AVATAR_STT_FALLBACK: 'deepgram',
     AVATAR_TTS_MODEL: 'google-tts',
     AVATAR_TTS_FALLBACK: 'elevenlabs',
+    SYSTEM_PROMPT: 'You are NxtGen Academy\'s 24/7 Official AI Co-ordinator...',
   });
 
   const [stats, setStats] = useState<IAssistStats | null>(null);
@@ -452,6 +453,21 @@ const AIConfig = () => {
                 />
                 HeyGen LiveAvatar Engine
               </label>
+            </div>
+          </div>
+
+          {/* Agent System Prompt */}
+          <div className="border-t border-line pt-4 space-y-4">
+            <h3 className="text-sm font-bold text-strong">Voice Agent System Instructions</h3>
+            <p className="text-xs text-text-muted">Define the system prompt that the agent uses. Describe the company, services, and response rules.</p>
+            <div>
+              <textarea
+                rows={10}
+                value={liveAgentConfig.SYSTEM_PROMPT}
+                onChange={(e) => setLiveAgentConfig({ ...liveAgentConfig, SYSTEM_PROMPT: e.target.value })}
+                className={inputClass}
+                placeholder="You are NxtGen Academy's 24/7 Official AI Co-ordinator..."
+              />
             </div>
           </div>
 

@@ -19,7 +19,13 @@ import webhooksRouter from './webhooks';
 import iassistRouter from './iassist';
 import iassistDesktopRouter from './iassistDesktop';
 import agentsRouter from './agents';
+import livekitRouter from './livekit';
+import whatsappRouter from './whatsapp';
 import themeAssetsRouter from './themeAssets';
+import siteAssetsRouter from './siteAssets';
+import leadsRouter from './leads';
+import siteManagerRouter from './siteManager';
+import analyticsRouter from './analytics';
 
 const router = Router();
 
@@ -45,7 +51,13 @@ router.use('/billing', billingRouter);
 /* Mounted at /api/webhooks to match the raw-body parser in index.ts. */
 router.use('/webhooks', webhooksRouter);
 router.use('/agents', agentsRouter);
+router.use('/livekit', livekitRouter);
+router.use('/whatsapp', whatsappRouter);
 router.use('/theme-assets', themeAssetsRouter);
+router.use('/site-assets', siteAssetsRouter);
+router.use('/leads', leadsRouter);
+router.use('/site-manager', siteManagerRouter);
+router.use('/analytics', analyticsRouter);
 router.use('/iassist/desktop', iassistDesktopRouter);
 router.use('/iassist', iassistRouter);
 

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "asset-1786576198228-kgah",
+    "section": "home-courses",
+    "tileKey": "data-analytics-ai",
+    "tileName": "Data Analytics & AI",
+    "type": "video",
+    "url": "/assets/home-courses/1786576198163-video_d5a577f021a4.mp4",
+    "fileName": "1786576198163-video_d5a577f021a4.mp4",
+    "uploadedAt": "2026-08-12T23:09:58.228Z"
+  },
+  {
+    "id": "asset-1786576287961-08c6",
+    "section": "home-courses",
+    "tileKey": "cyber-security",
+    "tileName": "Cyber Security",
+    "type": "video",
+    "url": "/assets/home-courses/1786576287926-video_5de4fb039636.mp4",
+    "fileName": "1786576287926-video_5de4fb039636.mp4",
+    "uploadedAt": "2026-08-12T23:11:27.961Z"
+  }
+]
